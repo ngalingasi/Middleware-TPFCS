@@ -3,7 +3,12 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 // Separate axios instance from the legacy ICDV `client.ts` - the GePG
 // bridge backend has its own base URL, its own single-JWT auth (no
 // refresh tokens), and its own response shape ({ success, data, ... }).
-const BASE_URL = import.meta.env.VITE_GEPG_API_URL ?? 'http://localhost:5001/api';
+// Checked in order: runtime config.js (editable on the server, no rebuild
+// needed) -> build-time VITE_GEPG_API_URL -> hardcoded local dev default.
+const BASE_URL =
+  (window as any).__RUNTIME_CONFIG__?.GEPG_API_URL ??
+  import.meta.env.VITE_GEPG_API_URL ??
+  'http://localhost:5001/api';
 
 const gepgClient = axios.create({
   baseURL: BASE_URL,

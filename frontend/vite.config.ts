@@ -27,6 +27,15 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_API_URL': mode === 'production'
       ? JSON.stringify('/api')
       : JSON.stringify('http://localhost:3000/api'),
+    // gepgClient.ts (the axios instance actually used by bills/payments/
+    // reconciliation/auth/users/api-keys) reads this separate variable.
+    // Without an explicit prod value here it falls back to its hardcoded
+    // http://localhost:5001/api default even in production builds - this
+    // was the cause of validate-credentials (and every other GePG call)
+    // going to localhost instead of the deployed Apache /api proxy.
+    'import.meta.env.VITE_GEPG_API_URL': mode === 'production'
+      ? JSON.stringify('/api')
+      : JSON.stringify('http://localhost:5001/api'),
   },
   build: {
     outDir: "dist",
