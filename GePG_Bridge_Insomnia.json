@@ -1,0 +1,445 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-01-21T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.0",
+  "resources": [
+    {
+      "_id": "wrk_gepg",
+      "parentId": null,
+      "_type": "workspace",
+      "name": "GePG Bridge API",
+      "description": "Complete API collection for GePG Bridge System"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "wrk_gepg",
+      "_type": "environment",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:5000",
+        "auth_token": ""
+      }
+    },
+    {
+      "_id": "req_login",
+      "parentId": "fld_auth",
+      "_type": "request",
+      "name": "Login",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+      }
+    },
+    {
+      "_id": "req_me",
+      "parentId": "fld_auth",
+      "_type": "request",
+      "name": "Get Current User",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/auth/me",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_change_password",
+      "parentId": "fld_auth",
+      "_type": "request",
+      "name": "Change Password",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/change-password",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currentPassword\": \"admin123\",\n  \"newPassword\": \"newpassword123\"\n}"
+      }
+    },
+    {
+      "_id": "req_register",
+      "parentId": "fld_auth",
+      "_type": "request",
+      "name": "Register User (Admin)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/register",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"fullName\": \"New User\",\n  \"role\": \"USER\"\n}"
+      }
+    },
+    {
+      "_id": "req_logout",
+      "parentId": "fld_auth",
+      "_type": "request",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/logout",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_create_bill",
+      "parentId": "fld_bills",
+      "_type": "request",
+      "name": "Create Bill",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/bills/create",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"billId\": \"BILL001\",\n  \"billAmount\": 50000,\n  \"miscAmount\": 0,\n  \"billExpiryDate\": \"2025-12-31T23:59:59\",\n  \"payerId\": \"P001\",\n  \"payerName\": \"John Doe\",\n  \"payerCellNumber\": \"255712345678\",\n  \"payerEmail\": \"john@example.com\",\n  \"billDescription\": \"Service payment\",\n  \"currency\": \"TZS\",\n  \"billEquivAmount\": 50000,\n  \"reminderFlag\": true,\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"ITEM001\",\n      \"billItemAmount\": 50000,\n      \"billItemEquivAmount\": 50000,\n      \"billItemMiscAmount\": 0,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_create_submit_bill",
+      "parentId": "fld_bills",
+      "_type": "request",
+      "name": "Create and Submit Bill",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/bills/create-and-submit",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"billId\": \"BILL002\",\n  \"billAmount\": 75000,\n  \"billExpiryDate\": \"2025-12-31T23:59:59\",\n  \"payerId\": \"P002\",\n  \"payerName\": \"Jane Smith\",\n  \"payerCellNumber\": \"255722345678\",\n  \"payerEmail\": \"jane@example.com\",\n  \"billDescription\": \"License fee\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"LIC001\",\n      \"billItemAmount\": 75000,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_get_bills",
+      "parentId": "fld_bills",
+      "_type": "request",
+      "name": "Get All Bills",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/bills?page=1&limit=20",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_get_bill",
+      "parentId": "fld_bills",
+      "_type": "request",
+      "name": "Get Bill by ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/bills/BILL001",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_submit_bill",
+      "parentId": "fld_bills",
+      "_type": "request",
+      "name": "Submit Bill to GePG",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/bills/submit/BILL001",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_cancel_bill",
+      "parentId": "fld_bills",
+      "_type": "request",
+      "name": "Cancel Bill",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/bills/cancel/BILL001",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
+      }
+    },
+    {
+      "_id": "req_get_payments",
+      "parentId": "fld_payments",
+      "_type": "request",
+      "name": "Get All Payments",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/payments?page=1&limit=20",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_get_payment",
+      "parentId": "fld_payments",
+      "_type": "request",
+      "name": "Get Payment by ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/payments/1",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_payment_stats",
+      "parentId": "fld_payments",
+      "_type": "request",
+      "name": "Get Payment Statistics",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/payments/statistics/summary?startDate=2025-01-01&endDate=2025-12-31",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_dashboard_stats",
+      "parentId": "fld_dashboard",
+      "_type": "request",
+      "name": "Get Statistics",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/dashboard/statistics",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_recent_activities",
+      "parentId": "fld_dashboard",
+      "_type": "request",
+      "name": "Get Recent Activities",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/dashboard/recent-activities?limit=20",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_payment_channels",
+      "parentId": "fld_dashboard",
+      "_type": "request",
+      "name": "Get Payment Channels",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/dashboard/payment-channels",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_daily_summary",
+      "parentId": "fld_dashboard",
+      "_type": "request",
+      "name": "Get Daily Summary",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/dashboard/daily-summary",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_get_users",
+      "parentId": "fld_users",
+      "_type": "request",
+      "name": "Get All Users",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/users?page=1&limit=20",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_get_user",
+      "parentId": "fld_users",
+      "_type": "request",
+      "name": "Get User by ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/users/1",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_update_user",
+      "parentId": "fld_users",
+      "_type": "request",
+      "name": "Update User",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/users/2",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"fullName\": \"Updated Name\",\n  \"email\": \"updated@example.com\",\n  \"role\": \"USER\",\n  \"status\": \"ACTIVE\"\n}"
+      }
+    },
+    {
+      "_id": "req_delete_user",
+      "parentId": "fld_users",
+      "_type": "request",
+      "name": "Delete User",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/users/3",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_reset_password",
+      "parentId": "fld_users",
+      "_type": "request",
+      "name": "Reset User Password",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/users/2/reset-password",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"newPassword\": \"newpassword123\"\n}"
+      }
+    },
+    {
+      "_id": "req_user_sessions",
+      "parentId": "fld_users",
+      "_type": "request",
+      "name": "Get User Sessions",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/users/1/sessions",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_activity_logs",
+      "parentId": "fld_logs",
+      "_type": "request",
+      "name": "Get Activity Logs",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/logs/activity?page=1&limit=50",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_activity_log",
+      "parentId": "fld_logs",
+      "_type": "request",
+      "name": "Get Activity Log by ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/logs/activity/1",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_api_logs",
+      "parentId": "fld_logs",
+      "_type": "request",
+      "name": "Get API Logs",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/logs/api?page=1&limit=50",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_logs_stats",
+      "parentId": "fld_logs",
+      "_type": "request",
+      "name": "Get Logs Statistics",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/logs/statistics",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_cleanup_activity",
+      "parentId": "fld_logs",
+      "_type": "request",
+      "name": "Cleanup Activity Logs",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/logs/activity/cleanup?days=90",
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.auth_token }}"
+      }
+    },
+    {
+      "_id": "req_health",
+      "parentId": "wrk_gepg",
+      "_type": "request",
+      "name": "Health Check",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health"
+    },
+    {
+      "_id": "fld_auth",
+      "parentId": "wrk_gepg",
+      "_type": "request_group",
+      "name": "Authentication"
+    },
+    {
+      "_id": "fld_bills",
+      "parentId": "wrk_gepg",
+      "_type": "request_group",
+      "name": "Bills"
+    },
+    {
+      "_id": "fld_payments",
+      "parentId": "wrk_gepg",
+      "_type": "request_group",
+      "name": "Payments"
+    },
+    {
+      "_id": "fld_dashboard",
+      "parentId": "wrk_gepg",
+      "_type": "request_group",
+      "name": "Dashboard"
+    },
+    {
+      "_id": "fld_users",
+      "parentId": "wrk_gepg",
+      "_type": "request_group",
+      "name": "Users"
+    },
+    {
+      "_id": "fld_logs",
+      "parentId": "wrk_gepg",
+      "_type": "request_group",
+      "name": "Logs"
+    }
+  ]
+}
