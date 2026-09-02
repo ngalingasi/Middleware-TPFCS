@@ -2,13 +2,12 @@ const ApiKey = require('../models/ApiKey');
 
 /**
  * Authenticates a request using the X-Api-Key header instead of a user JWT.
- * Intended for external/backoffice systems calling this bridge
- * programmatically (e.g. to create bills) without a dashboard login.
+ * Used by external/child systems calling this bridge programmatically
+ * (e.g. to create bills) without a dashboard login.
  *
- * Not currently attached to any route - wire it in front of specific
- * routes (e.g. router.post('/create', apiKeyAuth, billController.createBill))
- * if/when an external system needs machine access instead of the
- * dashboard's JWT login.
+ * Not used directly on routes - see middleware/authenticateAny.js, which
+ * wraps this together with the JWT authenticate() check so Bills/Payments/
+ * Reconciliation routes accept either credential.
  */
 async function apiKeyAuth(req, res, next) {
   try {

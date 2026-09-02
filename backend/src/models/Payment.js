@@ -110,6 +110,19 @@ class Payment {
     };
   }
 
+  /**
+   * All payments recorded against a bill, oldest first. A bill with
+   * BillPayOpt=PARTIAL/LIMITED can receive more than one payment, so this
+   * returns an array rather than assuming a single payment per bill.
+   */
+  async findByBillId(billId) {
+    const [payments] = await db.query(
+      'SELECT * FROM payments WHERE bill_id = ? ORDER BY transaction_datetime ASC',
+      [billId]
+    );
+    return payments;
+  }
+
   async findById(paymentId) {
     const [payments] = await db.query(
       `SELECT

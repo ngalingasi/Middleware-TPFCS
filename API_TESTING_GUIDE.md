@@ -1,186 +1,153 @@
 # GePG Bridge - API Testing Guide
 
-## 📦 Import Collections
+## Import Collections
+
+`GePG_Bridge_Postman_Collection.json` and `GePG_Bridge_Insomnia.json` are
+scoped to **child-system integration**: Bills, Payments, Reconciliation,
+and Health Check only. They authenticate every request with an API key
+(`X-Api-Key` header), not the dashboard's JWT login - see "Two
+Authentication Methods" below. They deliberately exclude the dashboard's
+own Auth/Users/Logs/Dashboard-stats endpoints (those are for this bridge's
+internal admin UI, not something to hand to a child system) and GePG's
+inbound webhook endpoints (GePG calls those directly and authenticates via
+digital signature, not either scheme here).
 
 ### Postman
 1. Open Postman
 2. Click "Import" button
 3. Select `GePG_Bridge_Postman_Collection.json`
-4. Collection will appear in your workspace
+4. Set the collection's `api_key` variable to a key issued by a bridge
+   admin (see below), and `base_url` to the bridge's actual address if not
+   testing locally.
 
 ### Insomnia
 1. Open Insomnia
 2. Go to Application menu → Preferences → Data
 3. Click "Import Data" → "From File"
 4. Select `GePG_Bridge_Insomnia.json`
-5. Collection will be imported
+5. Set the `api_key` and `base_url` environment variables as above.
 
-## 🔑 Authentication Flow
+## Two Authentication Methods
 
-### 1. Login
-**Endpoint:** `POST /api/auth/login`
+Bills/Payments/Reconciliation endpoints accept either credential below
+(GePG's webhook endpoints accept neither - they're authenticated via
+digital signature instead):
 
-```json
-{
-  "username": "admin",
-  "password": "admin123"
-}
-```
+1. **API key** (`X-Api-Key: <key>`) - what the collections above use, and
+   what a child system should use. A bridge admin creates one via the
+   dashboard (or `POST /api/api-keys`, JWT-authenticated, ADMIN role only).
+   The plaintext key is shown **only once**, at creation time - copy it
+   immediately and hand it to the child system's integration team. There
+   is no way to retrieve it again afterward; only revoke and issue a new
+   one (`PATCH /api/api-keys/:id/status`, `DELETE /api/api-keys/:id`).
+2. **Dashboard JWT login** (`Authorization: Bearer <token>`, via
+   `POST /api/auth/login`) - for this bridge's own frontend, human users
+   only. Not part of the shared collections; relevant if you're testing
+   the admin dashboard itself rather than the child-system integration.
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
-    "user": {
-      "id": 1,
-      "username": "admin",
-      "email": "admin@gepg-bridge.local",
-      "fullName": "System Administrator",
-      "role": "ADMIN"
-    }
-  }
-}
-```
+## Child-System Testing Workflow
 
-### 2. Set Bearer Token
-After login, copy the token and:
-
-**Postman:**
-- Go to collection settings
-- Set `auth_token` variable with the token
-- All authenticated requests will use it automatically
-
-**Insomnia:**
-- Go to environment
-- Set `auth_token` with the token value
-- Requests will include: `Authorization: Bearer {{auth_token}}`
-
-## 🧪 Testing Workflow
-
-### Step 1: Authentication
-1. **Login** - Get your auth token
-2. **Get Current User** - Verify authentication
-3. **Register User** (Admin only) - Create test users
+### Step 1: Get an API key
+As a bridge admin, log into the dashboard (or call `POST /api/auth/login`
+then `POST /api/api-keys`) and create a key for the child system. Save the
+plaintext key immediately - set it as the collection's `api_key` variable.
 
 ### Step 2: Create Bills
-1. **Create Bill** - Create without submitting
-2. **Create and Submit Bill** - Create and submit to GePG
-3. **Get All Bills** - View created bills
-4. **Get Bill by ID** - View specific bill details
+1. **Create Bill** - create without submitting
+2. **Create and Submit Bill** - create and submit to GePG in one call
+3. **Get All Bills** - view created bills
+4. **Get Bill by ID** - full bill detail, items, and payment history
+5. **Get Bill Status** - lightweight paid/unpaid poll, keyed by your own `billId`
 
 ### Step 3: Bill Operations
-1. **Submit Bill to GePG** - Submit existing bill
-2. **Cancel Bill** - Cancel a bill with reason
+1. **Submit Bill to GePG** - submit a previously created bill
+2. **Cancel Bill** - cancel with a reason
 
 ### Step 4: View Payments
-1. **Get All Payments** - List all payments
-2. **Get Payment by ID** - View payment details
-3. **Get Payment Statistics** - View payment analytics
+1. **Get All Payments** - list all payments
+2. **Get Payment by ID** - view payment details
+3. **Get Payment Statistics** - payment analytics for a date range
 
-### Step 5: Dashboard
-1. **Get Statistics** - Overall system statistics
-2. **Get Recent Activities** - Recent system activities
-3. **Get Payment Channels** - Payment channel distribution
-4. **Get Daily Summary** - Daily payment summary
+### Step 5: Reconciliation
+1. **Submit Reconciliation Request** - ask GePG for a given day's successful-payments batch
+2. **Get All Reconciliation Requests** - list requests and their status
+3. **Get Reconciliation Request by ID** - view a request's settled transactions
 
-### Step 6: Logs (Admin Only)
-1. **Get Activity Logs** - View user activity logs
-2. **Get API Logs** - View API request logs
-3. **Get Logs Statistics** - Log analytics
-4. **Cleanup Logs** - Remove old logs
-
-### Step 7: User Management (Admin Only)
-1. **Get All Users** - List all users
-2. **Get User by ID** - View user details
-3. **Update User** - Modify user information
-4. **Reset User Password** - Reset user password
-5. **Delete User** - Remove user account
-
-## 📝 Default Test Accounts
-
-| Username | Password  | Role   | Description           |
-|----------|-----------|--------|-----------------------|
-| admin    | admin123  | ADMIN  | Full system access    |
-| user1    | admin123  | USER   | Standard user access  |
-| viewer   | admin123  | VIEWER | Read-only access      |
-
-## 🔍 Testing Scenarios
+## Testing Scenarios
 
 ### Scenario 1: Complete Bill Lifecycle
-1. Login as admin
-2. Create and submit a new bill
-3. Verify bill appears in bills list
-4. Check dashboard statistics updated
-5. View activity logs for bill creation
+1. Create and submit a new bill
+2. Verify it appears in Get All Bills
+3. Poll Get Bill Status until `isPaid`/`remainingAmount` reflect payment
+4. Check the fuller Get Bill by ID response for the payment record
 
 ### Scenario 2: Payment Flow
-1. Create a bill (control number generated)
-2. Simulate payment via GePG webhook (use Postman)
-3. Check payment appears in payments list
-4. Verify bill status changed to PAID
-5. Check payment statistics updated
+1. Create a bill (control number generated after submission)
+2. A real payment against that control number triggers GePG's payment
+   webhook - not something the child system calls directly
+3. Check the payment appears in Get All Payments
+4. Confirm Get Bill Status now shows `isPaid: true` and `remainingAmount: 0`
 
-### Scenario 3: User Management
-1. Login as admin
-2. Register a new user
-3. View all users
-4. Update user details
-5. Reset user password
-6. Login as new user
-7. Verify limited access based on role
+### Scenario 3: Reconciliation
+1. Submit a reconciliation request for a past date
+2. GePG responds asynchronously; poll Get Reconciliation Request by ID
+3. Confirm settled transactions match your own payment records for that date
 
-### Scenario 4: Logs and Monitoring
-1. Perform various actions (create bills, payments, etc.)
-2. View activity logs to see all actions
-3. Filter logs by date, action, entity
-4. View log details with request/response data
-5. Check logs statistics
-
-## ⚠️ Common Issues
+## Common Issues
 
 ### Issue: 401 Unauthorized
-**Solution:** Token expired or invalid. Login again to get new token.
+**Solution:** Missing or invalid credential. Confirm the `X-Api-Key` header
+is set and the key hasn't been disabled/deleted by the admin; a JWT-based
+request instead needs a fresh login (tokens expire).
 
 ### Issue: 403 Forbidden
-**Solution:** Insufficient permissions. Use admin account or check user role.
+**Solution:** Only relevant to JWT-authenticated admin endpoints
+(`/api/api-keys`, `/api/users`, `/api/logs`) - these require the ADMIN role.
+API-key requests to Bills/Payments/Reconciliation don't have role tiers.
 
 ### Issue: 404 Not Found
-**Solution:** Check endpoint URL and ensure resource exists.
+**Solution:** Check endpoint URL and ensure the resource (billId, payment
+id, reconciliation request id) exists.
 
 ### Issue: 500 Internal Server Error
-**Solution:** Check backend server logs. May be database connection issue.
+**Solution:** Check backend server logs. May be database connectivity or
+GePG network issue.
 
-## 🎯 API Response Codes
+## API Response Codes
 
 | Code | Meaning                | Action Required           |
 |------|------------------------|---------------------------|
 | 200  | Success                | None                      |
 | 201  | Created                | Resource created          |
 | 400  | Bad Request            | Check request body        |
-| 401  | Unauthorized           | Login or refresh token    |
-| 403  | Forbidden              | Check permissions         |
+| 401  | Unauthorized           | Check X-Api-Key / login token |
+| 403  | Forbidden              | Check role permissions    |
 | 404  | Not Found              | Verify resource ID        |
 | 500  | Server Error           | Check server logs         |
 
-## 🔐 Security Notes
+## Security Notes
 
-1. **Never share tokens** - Tokens are sensitive credentials
-2. **Use HTTPS in production** - Never send tokens over HTTP
-3. **Rotate passwords regularly** - Change default passwords
-4. **Limit admin access** - Only give admin role when necessary
-5. **Monitor logs** - Regularly check activity logs for suspicious activity
+1. **Never share API keys or tokens over an insecure channel** - both are
+   full-access credentials for whatever they're scoped to.
+2. **Use HTTPS in production** - never send keys/tokens over plain HTTP.
+3. **One key per child system** - makes revoking a compromised or
+   decommissioned integration a single `PATCH .../status` call, without
+   affecting anyone else.
+4. **Rotate on suspicion** - disable and reissue immediately if a key may
+   have leaked; there's no way to "see" a key again to confirm it's the
+   same one, so treat any doubt as reason to rotate.
+5. **Monitor activity logs** - `/api/logs/activity` records which API key
+   (by name) made each call, so unusual activity from a given integration
+   is traceable.
 
-## 📊 Sample Test Data
+## Sample Test Data
 
 ### Sample Bill
 ```json
 {
   "billId": "TEST-001",
   "billAmount": 50000,
-  "billExpiryDate": "2025-12-31T23:59:59",
+  "billExpiryDate": "2027-12-31T23:59:59",
   "payerId": "TEST-PAYER-001",
   "payerName": "Test User",
   "payerCellNumber": "255712345678",
@@ -200,9 +167,10 @@ After login, copy the token and:
 
 ### Sample Payment Notification (Webhook)
 The real webhook (`POST /api/payments/webhook/notification`) receives a
-signed XML `pmtSpNtfReq` body, not JSON - the fields below are shown as
-JSON only for readability. See GePG API v5.0 section 6.2 for the full XML
-shape (`PmtHdr` + `PmtDtls > PmtTrxDtl`).
+signed XML `pmtSpNtfReq` body, not JSON, and is called by GePG - not by
+the child system - so it isn't in the shared collections. The fields below
+are shown as JSON only for readability; see GePG API v5.0 section 6.2 for
+the full XML shape (`PmtHdr` + `PmtDtls > PmtTrxDtl`).
 ```json
 {
   "transactionId": "TXN001",
@@ -212,7 +180,7 @@ shape (`PmtHdr` + `PmtDtls > PmtTrxDtl`).
   "paymentControlNumber": "990123456789",
   "paidAmount": 50000,
   "currency": "TZS",
-  "transactionDateTime": "2025-01-21T10:30:00",
+  "transactionDateTime": "2027-01-21T10:30:00",
   "usedPaymentChannel": "MOBILE",
   "payerName": "Test User",
   "pspName": "Test Bank",
@@ -223,7 +191,7 @@ Note: v5 merged v4's separate online/offline payment notifications into
 this single flow - there is no longer a distinct online-notification
 webhook or endpoint.
 
-## 🚀 Advanced Testing
+## Advanced Testing
 
 ### Load Testing
 Use Postman's Collection Runner or Newman CLI to:
@@ -242,20 +210,19 @@ Use Postman's Collection Runner or Newman CLI to:
 
 ### Automated Testing
 Use collection variables and scripts to:
-1. Auto-extract tokens after login
-2. Generate unique bill IDs
-3. Chain requests together
-4. Assert response values
-5. Generate test reports
+1. Generate unique bill IDs per run
+2. Chain requests together (e.g. feed a created billId into Get Bill Status)
+3. Assert response values
+4. Generate test reports
 
-## 📞 Support
+## Support
 
 For API issues:
 1. Check server logs: `backend/logs/`
 2. Verify database connectivity
 3. Check GePG network connection
-4. Review activity logs in dashboard
-5. Contact system administrator
+4. Ask a bridge admin to review `/api/logs/activity` for your API key's calls
+5. Contact the bridge's system administrator
 
 ---
 

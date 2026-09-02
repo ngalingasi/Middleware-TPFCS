@@ -14,7 +14,7 @@ async function resetAdminPassword() {
   let connection;
   
   try {
-    console.log('🔄 Connecting to database...');
+    console.log('Connecting to database...');
     
     connection = await mysql.createConnection({
       host: process.env.DB_HOST,
@@ -24,24 +24,24 @@ async function resetAdminPassword() {
       port: process.env.DB_PORT || 3306
     });
     
-    console.log('✅ Connected to database');
+    console.log('Connected to database');
     
     // Generate new hash for 'admin123'
-    console.log('🔄 Generating password hash for: admin123');
+    console.log('Generating password hash for: admin123');
     const newPassword = 'admin123';
     const hash = await bcrypt.hash(newPassword, 10);
     
     console.log(`Generated hash: ${hash}`);
     
     // Update admin password
-    console.log('🔄 Updating admin password...');
+    console.log('Updating admin password...');
     const [result] = await connection.query(
       'UPDATE users SET password = ? WHERE username = ?',
       [hash, 'admin']
     );
     
     if (result.affectedRows === 0) {
-      console.log('⚠️  No admin user found. Creating admin user...');
+      console.log('No admin user found. Creating admin user...');
       
       await connection.query(
         `INSERT INTO users (username, email, password, full_name, role, status) 
@@ -49,9 +49,9 @@ async function resetAdminPassword() {
         ['admin', 'admin@gepg-bridge.local', hash, 'System Administrator', 'ADMIN', 'ACTIVE']
       );
       
-      console.log('✅ Admin user created');
+      console.log('Admin user created');
     } else {
-      console.log('✅ Admin password updated successfully');
+      console.log('Admin password updated successfully');
     }
     
     // Verify the user
@@ -60,23 +60,23 @@ async function resetAdminPassword() {
       ['admin']
     );
     
-    console.log('\n📋 Admin User Details:');
+    console.log('\nAdmin User Details:');
     console.table(users);
     
-    console.log('\n✅ Password reset complete!');
-    console.log('\n🔑 Login Credentials:');
+    console.log('\nPassword reset complete!');
+    console.log('\nLogin Credentials:');
     console.log('   Username: admin');
     console.log('   Password: admin123');
-    console.log('\n🌐 Try logging in at: http://localhost:5173');
+    console.log('\nTry logging in at: http://localhost:5173');
     
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('Error:', error.message);
     
     if (error.code === 'ER_NO_SUCH_TABLE') {
-      console.log('\n⚠️  Users table does not exist.');
+      console.log('\nUsers table does not exist.');
       console.log('   Run migration first: npm run migrate');
     } else if (error.code === 'ECONNREFUSED') {
-      console.log('\n⚠️  Cannot connect to database.');
+      console.log('\nCannot connect to database.');
       console.log('   Check if MySQL is running and .env credentials are correct');
     }
     

@@ -1,138 +1,32 @@
 {
   "info": {
-    "name": "GePG Bridge API",
-    "_postman_id": "gepg-bridge-collection",
-    "description": "Complete API collection for GePG Bridge System",
+    "name": "GePG Bridge - Child System Integration",
+    "_postman_id": "gepg-bridge-child-system-collection",
+    "description": "API collection for external child systems integrating with the GePG Bridge to submit bills, check payment status, and request reconciliation data.\n\nAuthentication: every request here uses an API key (X-Api-Key header), issued by a bridge administrator via POST /api/api-keys. Set your key as the `api_key` collection variable below - it is shown only once at creation time, so keep it safe.\n\nThis collection intentionally excludes the bridge's own admin/dashboard endpoints (Auth, Users, Logs, Dashboard stats) and GePG's inbound webhook endpoints (those are called by GePG itself, authenticated via digital signature, not by a child system).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{auth_token}}",
-        "type": "string"
-      }
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-Api-Key", "type": "string" },
+      { "key": "value", "value": "{{api_key}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
     ]
   },
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:5000",
+      "value": "http://localhost:5001",
       "type": "string"
     },
     {
-      "key": "auth_token",
+      "key": "api_key",
       "value": "",
-      "type": "string"
+      "type": "string",
+      "description": "Get this from your bridge administrator - created via POST /api/api-keys (admin-only, JWT login required)."
     }
   ],
   "item": [
-    {
-      "name": "Authentication",
-      "item": [
-        {
-          "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('auth_token', jsonData.data.token);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "login"]
-            }
-          }
-        },
-        {
-          "name": "Get Current User",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/auth/me",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "me"]
-            }
-          }
-        },
-        {
-          "name": "Change Password",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"currentPassword\": \"admin123\",\n  \"newPassword\": \"newpassword123\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/change-password",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "change-password"]
-            }
-          }
-        },
-        {
-          "name": "Register User (Admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"fullName\": \"New User\",\n  \"role\": \"USER\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "register"]
-            }
-          }
-        },
-        {
-          "name": "Logout",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["api", "auth", "logout"]
-            }
-          }
-        }
-      ]
-    },
     {
       "name": "Bills",
       "item": [
@@ -148,13 +42,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"billId\": \"BILL001\",\n  \"billAmount\": 50000,\n  \"miscAmount\": 0,\n  \"billExpiryDate\": \"2025-12-31T23:59:59\",\n  \"payerId\": \"P001\",\n  \"payerName\": \"John Doe\",\n  \"payerCellNumber\": \"255712345678\",\n  \"payerEmail\": \"john@example.com\",\n  \"billDescription\": \"Service payment\",\n  \"currency\": \"TZS\",\n  \"billEquivAmount\": 50000,\n  \"reminderFlag\": true,\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"ITEM001\",\n      \"billItemAmount\": 50000,\n      \"billItemEquivAmount\": 50000,\n      \"billItemMiscAmount\": 0,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
+              "raw": "{\n  \"billId\": \"BILL001\",\n  \"billAmount\": 50000,\n  \"miscAmount\": 0,\n  \"billExpiryDate\": \"2027-12-31T23:59:59\",\n  \"payerId\": \"P001\",\n  \"payerName\": \"John Doe\",\n  \"payerCellNumber\": \"255712345678\",\n  \"payerEmail\": \"john@example.com\",\n  \"billDescription\": \"Service payment\",\n  \"currency\": \"TZS\",\n  \"billEquivAmount\": 50000,\n  \"reminderFlag\": true,\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"ITEM001\",\n      \"billItemAmount\": 50000,\n      \"billItemEquivAmount\": 50000,\n      \"billItemMiscAmount\": 0,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/bills/create",
               "host": ["{{base_url}}"],
               "path": ["api", "bills", "create"]
-            }
+            },
+            "description": "billId is your own bill/transaction reference - you choose it, the bridge never generates it. It must be unique and is what you'll use in every subsequent lookup (Get Bill by ID, Get Bill Status)."
           }
         },
         {
@@ -169,52 +64,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"billId\": \"BILL002\",\n  \"billAmount\": 75000,\n  \"billExpiryDate\": \"2025-12-31T23:59:59\",\n  \"payerId\": \"P002\",\n  \"payerName\": \"Jane Smith\",\n  \"payerCellNumber\": \"255722345678\",\n  \"payerEmail\": \"jane@example.com\",\n  \"billDescription\": \"License fee\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"LIC001\",\n      \"billItemAmount\": 75000,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
+              "raw": "{\n  \"billId\": \"BILL002\",\n  \"billAmount\": 75000,\n  \"billExpiryDate\": \"2027-12-31T23:59:59\",\n  \"payerId\": \"P002\",\n  \"payerName\": \"Jane Smith\",\n  \"payerCellNumber\": \"255722345678\",\n  \"payerEmail\": \"jane@example.com\",\n  \"billDescription\": \"License fee\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"LIC001\",\n      \"billItemAmount\": 75000,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/bills/create-and-submit",
               "host": ["{{base_url}}"],
               "path": ["api", "bills", "create-and-submit"]
-            }
-          }
-        },
-        {
-          "name": "Get All Bills",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/bills?page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                },
-                {
-                  "key": "status",
-                  "value": "PENDING",
-                  "disabled": true
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Bill by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/bills/BILL001",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "BILL001"]
-            }
+            },
+            "description": "Creates the bill and submits it to GePG in one call. The response is only GePG's immediate acknowledgement (bill received) - the actual approval/rejection and control number arrive asynchronously; poll Get Bill Status afterward."
           }
         },
         {
@@ -226,7 +83,8 @@
               "raw": "{{base_url}}/api/bills/submit/BILL001",
               "host": ["{{base_url}}"],
               "path": ["api", "bills", "submit", "BILL001"]
-            }
+            },
+            "description": "Submits a previously created (not-yet-submitted) bill to GePG."
           }
         },
         {
@@ -249,6 +107,52 @@
               "path": ["api", "bills", "cancel", "BILL001"]
             }
           }
+        },
+        {
+          "name": "Get All Bills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bills?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bills"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "PENDING", "disabled": true },
+                { "key": "controlNumber", "value": "", "disabled": true },
+                { "key": "startDate", "value": "2027-01-01", "disabled": true },
+                { "key": "endDate", "value": "2027-12-31", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Bill by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bills/BILL001",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bills", "BILL001"]
+            },
+            "description": "Full bill detail: bill fields, items, and its payment history (payments array), plus a computed isPaid/totalPaid/remainingAmount summary."
+          }
+        },
+        {
+          "name": "Get Bill Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/bills/BILL001/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "bills", "BILL001", "status"]
+            },
+            "description": "Lightweight status-only check - use this for polling \"has this bill been paid\" using the billId you originally submitted, without pulling the full bill/items/payments payload.\n\nReturns: status, paymentControlNumber, isPaid, totalPaid, remainingAmount.\n\nNote: isPaid mirrors the bill's status column, which today is set to PAID on the *first* payment received even for a partially-paid bill (BillPayOpt PARTIAL/LIMITED). If you need to know the bill is *fully* settled rather than just \"a payment arrived\", check remainingAmount === 0 rather than isPaid alone."
+          }
         }
       ]
     },
@@ -265,24 +169,12 @@
               "host": ["{{base_url}}"],
               "path": ["api", "payments"],
               "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                },
-                {
-                  "key": "status",
-                  "value": "PENDING",
-                  "disabled": true
-                },
-                {
-                  "key": "paymentType",
-                  "value": "ONLINE",
-                  "disabled": true
-                }
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "PENDING", "disabled": true },
+                { "key": "billId", "value": "BILL001", "disabled": true },
+                { "key": "startDate", "value": "2027-01-01", "disabled": true },
+                { "key": "endDate", "value": "2027-12-31", "disabled": true }
               ]
             }
           }
@@ -296,7 +188,8 @@
               "raw": "{{base_url}}/api/payments/1",
               "host": ["{{base_url}}"],
               "path": ["api", "payments", "1"]
-            }
+            },
+            "description": "1 here is the payments table's own numeric id (from the Get All Payments list), not the billId."
           }
         },
         {
@@ -305,18 +198,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/payments/statistics/summary?startDate=2025-01-01&endDate=2025-12-31",
+              "raw": "{{base_url}}/api/payments/statistics/summary?startDate=2027-01-01&endDate=2027-12-31",
               "host": ["{{base_url}}"],
               "path": ["api", "payments", "statistics", "summary"],
               "query": [
-                {
-                  "key": "startDate",
-                  "value": "2025-01-01"
-                },
-                {
-                  "key": "endDate",
-                  "value": "2025-12-31"
-                }
+                { "key": "startDate", "value": "2027-01-01" },
+                { "key": "endDate", "value": "2027-12-31" }
               ]
             }
           }
@@ -324,136 +211,10 @@
       ]
     },
     {
-      "name": "Dashboard",
+      "name": "Reconciliation",
       "item": [
         {
-          "name": "Get Statistics",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/dashboard/statistics",
-              "host": ["{{base_url}}"],
-              "path": ["api", "dashboard", "statistics"]
-            }
-          }
-        },
-        {
-          "name": "Get Recent Activities",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/dashboard/recent-activities?limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["api", "dashboard", "recent-activities"],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Payment Channels",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/dashboard/payment-channels",
-              "host": ["{{base_url}}"],
-              "path": ["api", "dashboard", "payment-channels"]
-            }
-          }
-        },
-        {
-          "name": "Get Daily Summary",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/dashboard/daily-summary",
-              "host": ["{{base_url}}"],
-              "path": ["api", "dashboard", "daily-summary"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Users",
-      "item": [
-        {
-          "name": "Get All Users",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/users?page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["api", "users"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get User by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/users/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "users", "1"]
-            }
-          }
-        },
-        {
-          "name": "Update User",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Updated Name\",\n  \"email\": \"updated@example.com\",\n  \"role\": \"USER\",\n  \"status\": \"ACTIVE\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/users/2",
-              "host": ["{{base_url}}"],
-              "path": ["api", "users", "2"]
-            }
-          }
-        },
-        {
-          "name": "Delete User",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/users/3",
-              "host": ["{{base_url}}"],
-              "path": ["api", "users", "3"]
-            }
-          }
-        },
-        {
-          "name": "Reset User Password",
+          "name": "Submit Reconciliation Request",
           "request": {
             "method": "POST",
             "header": [
@@ -464,146 +225,44 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newPassword\": \"newpassword123\"\n}"
+              "raw": "{\n  \"transactionDate\": \"2027-01-15\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/users/2/reset-password",
+              "raw": "{{base_url}}/api/reconciliation/request",
               "host": ["{{base_url}}"],
-              "path": ["api", "users", "2", "reset-password"]
-            }
+              "path": ["api", "reconciliation", "request"]
+            },
+            "description": "Asks GePG for the previous working day's successful-payments batch (transactionDate, format YYYY-MM-DD). The result arrives asynchronously via GePG's own webhook - poll Get Reconciliation Request by ID afterward."
           }
         },
         {
-          "name": "Get User Sessions",
+          "name": "Get All Reconciliation Requests",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/users/1/sessions",
+              "raw": "{{base_url}}/api/reconciliation?page=1&limit=20",
               "host": ["{{base_url}}"],
-              "path": ["api", "users", "1", "sessions"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Logs",
-      "item": [
-        {
-          "name": "Get Activity Logs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/logs/activity?page=1&limit=50",
-              "host": ["{{base_url}}"],
-              "path": ["api", "logs", "activity"],
+              "path": ["api", "reconciliation"],
               "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "50"
-                },
-                {
-                  "key": "userId",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "action",
-                  "value": "login",
-                  "disabled": true
-                },
-                {
-                  "key": "entityType",
-                  "value": "BILL",
-                  "disabled": true
-                },
-                {
-                  "key": "status",
-                  "value": "SUCCESS",
-                  "disabled": true
-                }
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "COMPLETED", "disabled": true }
               ]
             }
           }
         },
         {
-          "name": "Get Activity Log by ID",
+          "name": "Get Reconciliation Request by ID",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/logs/activity/1",
+              "raw": "{{base_url}}/api/reconciliation/1700000000000",
               "host": ["{{base_url}}"],
-              "path": ["api", "logs", "activity", "1"]
-            }
-          }
-        },
-        {
-          "name": "Get API Logs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/logs/api?page=1&limit=50",
-              "host": ["{{base_url}}"],
-              "path": ["api", "logs", "api"],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "50"
-                },
-                {
-                  "key": "endpoint",
-                  "value": "/api/bills",
-                  "disabled": true
-                },
-                {
-                  "key": "method",
-                  "value": "POST",
-                  "disabled": true
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Logs Statistics",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/logs/statistics",
-              "host": ["{{base_url}}"],
-              "path": ["api", "logs", "statistics"]
-            }
-          }
-        },
-        {
-          "name": "Cleanup Activity Logs",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/logs/activity/cleanup?days=90",
-              "host": ["{{base_url}}"],
-              "path": ["api", "logs", "activity", "cleanup"],
-              "query": [
-                {
-                  "key": "days",
-                  "value": "90"
-                }
-              ]
-            }
+              "path": ["api", "reconciliation", "1700000000000"]
+            },
+            "description": "The id here is the reconciliationRequestId returned by Submit Reconciliation Request."
           }
         }
       ]
@@ -613,11 +272,13 @@
       "request": {
         "method": "GET",
         "header": [],
+        "auth": { "type": "noauth" },
         "url": {
           "raw": "{{base_url}}/health",
           "host": ["{{base_url}}"],
           "path": ["health"]
-        }
+        },
+        "description": "No authentication required - use this to confirm the bridge is reachable before troubleshooting an auth issue."
       }
     }
   ]

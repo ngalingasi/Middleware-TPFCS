@@ -86,10 +86,10 @@ export default function FinancialDashboard() {
       {/* ── Row 1: Top Summary ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Budget',    value: fmtK(totals.total_budget), sub: `${totals.activity_count} activities`,  color: 'text-gray-800 dark:text-white',        bg: 'bg-gray-50 dark:bg-gray-800/50', icon: '📊' },
-          { label: 'Total Spent',     value: fmtK(totals.total_paid),   sub: `${usedPct}% of budget`,                color: 'text-blue-600 dark:text-blue-400',     bg: 'bg-blue-50 dark:bg-blue-500/10',  icon: '💸' },
-          { label: 'Remaining',       value: fmtK(totals.remaining),    sub: `${100 - usedPct}% available`,          color: totals.remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400', bg: totals.remaining < 0 ? 'bg-red-50 dark:bg-red-500/10' : 'bg-green-50 dark:bg-green-500/10', icon: '🏦' },
-          { label: 'Utilisation',     value: `${usedPct}%`,             sub: usedPct >= 90 ? 'Critical' : usedPct >= 70 ? 'High' : 'Normal', color: usedPct >= 90 ? 'text-red-600 dark:text-red-400' : usedPct >= 70 ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400', bg: 'bg-gray-50 dark:bg-gray-800/50', icon: '📈' },
+          { label: 'Total Budget',    value: fmtK(totals.total_budget), sub: `${totals.activity_count} activities`,  color: 'text-gray-800 dark:text-white',        bg: 'bg-gray-50 dark:bg-gray-800/50' },
+          { label: 'Total Spent',     value: fmtK(totals.total_paid),   sub: `${usedPct}% of budget`,                color: 'text-blue-600 dark:text-blue-400',     bg: 'bg-blue-50 dark:bg-blue-500/10' },
+          { label: 'Remaining',       value: fmtK(totals.remaining),    sub: `${100 - usedPct}% available`,          color: totals.remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400', bg: totals.remaining < 0 ? 'bg-red-50 dark:bg-red-500/10' : 'bg-green-50 dark:bg-green-500/10' },
+          { label: 'Utilisation',     value: `${usedPct}%`,             sub: usedPct >= 90 ? 'Critical' : usedPct >= 70 ? 'High' : 'Normal', color: usedPct >= 90 ? 'text-red-600 dark:text-red-400' : usedPct >= 70 ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400', bg: 'bg-gray-50 dark:bg-gray-800/50' },
         ].map(m => (
           <Card key={m.label} className={m.bg}>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{m.label}</p>

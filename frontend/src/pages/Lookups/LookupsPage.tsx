@@ -657,7 +657,7 @@ function TransitTimesPanel() {
                   value={normalMinutes} onChange={e => setNormalMinutes(e.target.value)}
                   className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
-                <p className="text-xs text-green-600 mt-1">🟢 On-time threshold</p>
+                <p className="text-xs text-green-600 mt-1">On-time threshold</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
@@ -668,7 +668,7 @@ function TransitTimesPanel() {
                   value={maxMinutes} onChange={e => setMaxMinutes(e.target.value)}
                   className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
-                <p className="text-xs text-red-600 mt-1">🔴 Delayed threshold</p>
+                <p className="text-xs text-red-600 mt-1">Delayed threshold</p>
               </div>
             </div>
 

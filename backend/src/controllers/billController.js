@@ -1,5 +1,6 @@
 const Bill = require('../models/Bill');
 const BillItem = require('../models/BillItem');
+const Payment = require('../models/Payment');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
 
@@ -182,6 +183,9 @@ async function getBills(req, res) {
 
 /**
  * GET /api/bills/:billId
+ *
+ * Includes the bill's payment history so a calling system doesn't need a
+ * second round-trip to find out how much has actually been paid.
  */
 async function getBillById(req, res) {
   try {
@@ -193,11 +197,72 @@ async function getBillById(req, res) {
     }
 
     const items = await BillItem.findByBillId(billId);
-    res.json({ success: true, data: { ...bill, items } });
+    const payments = await Payment.findByBillId(billId);
+
+    res.json({ success: true, data: { ...bill, items, payments, ...paymentSummary(bill, payments) } });
   } catch (error) {
     console.error('Get bill error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
+}
+
+/**
+ * GET /api/bills/:billId/status
+ *
+ * Lightweight endpoint for the calling system to poll "has this bill been
+ * paid yet" using the billId it originally submitted, without pulling the
+ * full bill + items payload every time.
+ */
+async function getBillStatus(req, res) {
+  try {
+    const { billId } = req.params;
+    const bill = await Bill.findById(billId);
+
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found' });
+    }
+
+    const payments = await Payment.findByBillId(billId);
+
+    res.json({
+      success: true,
+      data: {
+        billId: bill.bill_id,
+        status: bill.status,
+        paymentControlNumber: bill.payment_control_number,
+        transactionStatus: bill.transaction_status,
+        transactionStatusCode: bill.transaction_status_code,
+        ...paymentSummary(bill, payments)
+      }
+    });
+  } catch (error) {
+    console.error('Get bill status error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+/**
+ * Shared paid/unpaid summary for a bill given its recorded payments.
+ *
+ * isPaid mirrors the bills.status column (set to PAID by Payment.create
+ * whenever any payment is recorded against the bill - see that model for
+ * the caveat below). totalPaid/remainingAmount are computed independently
+ * from the actual payment rows, which matters for BillPayOpt
+ * PARTIAL/LIMITED bills: today Payment.create marks a bill PAID on its
+ * *first* instalment regardless of amount, so bill.status alone can say
+ * "PAID" while remainingAmount is still greater than zero. Callers that
+ * need to know the bill is *fully* settled should check remainingAmount,
+ * not just isPaid/status.
+ */
+function paymentSummary(bill, payments) {
+  const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.paid_amount || 0), 0);
+  const billAmount = parseFloat(bill.bill_amount || 0);
+
+  return {
+    isPaid: bill.status === 'PAID',
+    totalPaid,
+    remainingAmount: Math.max(billAmount - totalPaid, 0)
+  };
 }
 
 /**
@@ -260,5 +325,6 @@ module.exports = {
   cancelBill,
   getBills,
   getBillById,
+  getBillStatus,
   handleBillResponseWebhook
 };

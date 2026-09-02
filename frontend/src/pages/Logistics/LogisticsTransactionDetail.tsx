@@ -326,7 +326,7 @@ export default function LogisticsTransactionDetail() {
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-xs text-gray-400">{ev.created_by_name}</span>
-                      {ev.event_location && <span className="text-xs text-gray-400">· 📍 {ev.event_location}</span>}
+                      {ev.event_location && <span className="text-xs text-gray-400">· {ev.event_location}</span>}
                     </div>
                   </div>
                 </div>

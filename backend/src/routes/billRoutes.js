@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const billController = require('../controllers/billController');
+const authenticateAny = require('../middleware/authenticateAny');
 
 const billValidation = [
   body('billId').notEmpty().withMessage('Bill ID is required'),
@@ -15,31 +16,32 @@ const billValidation = [
 /**
  * @route   POST /api/bills/create
  * @desc    Create a new bill
- * @access  Public
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
-router.post('/create', billValidation, billController.createBill);
+router.post('/create', authenticateAny, billValidation, billController.createBill);
 
 /**
  * @route   POST /api/bills/submit/:billId
  * @desc    Submit bill to GePG
- * @access  Public
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
-router.post('/submit/:billId', billController.submitBill);
+router.post('/submit/:billId', authenticateAny, billController.submitBill);
 
 /**
  * @route   POST /api/bills/create-and-submit
  * @desc    Create and submit bill to GePG in one step
- * @access  Public
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
-router.post('/create-and-submit', billValidation, billController.createAndSubmit);
+router.post('/create-and-submit', authenticateAny, billValidation, billController.createAndSubmit);
 
 /**
  * @route   POST /api/bills/cancel/:billId
  * @desc    Cancel a bill
- * @access  Public
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
 router.post(
   '/cancel/:billId',
+  authenticateAny,
   [body('reason').notEmpty().withMessage('Cancellation reason is required')],
   billController.cancelBill
 );
@@ -48,22 +50,31 @@ router.post(
  * @route   POST /api/bills/webhook/response
  * @desc    Receive billSubRes - the asynchronous bill processing
  *          result GePG sends after a submission.
- * @access  Public (GePG) - message is verified via digital signature
+ * @access  Public (GePG) - message is verified via digital signature, not
+ *          the dashboard/child-system schemes above.
  */
 router.post('/webhook/response', billController.handleBillResponseWebhook);
 
 /**
  * @route   GET /api/bills
  * @desc    Get all bills with pagination
- * @access  Public
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
-router.get('/', billController.getBills);
+router.get('/', authenticateAny, billController.getBills);
 
 /**
  * @route   GET /api/bills/:billId
- * @desc    Get bill by ID
- * @access  Public
+ * @desc    Get bill by ID, including its payment history
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
-router.get('/:billId', billController.getBillById);
+router.get('/:billId', authenticateAny, billController.getBillById);
+
+/**
+ * @route   GET /api/bills/:billId/status
+ * @desc    Lightweight paid/unpaid status check for the calling system to
+ *          poll using the billId it originally submitted.
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
+ */
+router.get('/:billId/status', authenticateAny, billController.getBillStatus);
 
 module.exports = router;

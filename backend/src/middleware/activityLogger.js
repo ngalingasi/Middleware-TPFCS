@@ -37,7 +37,9 @@ const logActivity = async (req, res, next) => {
         return;
       }
 
-      // Prepare log data
+      // Prepare log data. API-key calls have no req.user (and api_keys.id
+      // isn't a valid users.id for the user_id FK), so user_id stays null
+      // for them - generateDescription still records which key was used.
       const logData = {
         user_id: req.user?.id || null,
         action: `${req.method} ${req.path}`,
@@ -119,7 +121,7 @@ function extractEntityId(path, body) {
 function generateDescription(req) {
   const method = req.method;
   const path = req.path;
-  const user = req.user?.username || 'Anonymous';
+  const user = req.user?.username || (req.apiKey ? `API key "${req.apiKey.name}"` : 'Anonymous');
 
   if (path.includes('/login')) return `${user} logged in`;
   if (path.includes('/logout')) return `${user} logged out`;

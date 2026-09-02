@@ -4,10 +4,10 @@
 
 ## Quick Links
 
-- [✨ Visit Website](https://tailadmin.com)
-- [📄 Documentation](https://tailadmin.com/docs)
-- [⬇️ Download](https://tailadmin.com/download)
-- [🌐 Live Site](https://react-demo.tailadmin.com)
+- [Visit Website](https://tailadmin.com)
+- [Documentation](https://tailadmin.com/docs)
+- [Download](https://tailadmin.com/download)
+- [Live Site](https://react-demo.tailadmin.com)
 
 ## Installation
 
@@ -60,14 +60,14 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
 - Fixed reported minor bugs and UI issues
 - Updated packages
 
-#### 🧭 **Logistics Dashboard** – _Added_
+#### **Logistics Dashboard** – _Added_
 
 - Redesigned logistics dashboard interface
 - Delivery activity table
 - Delivery tracking timeline
 - Total revenue earned chart
 
-#### 🛍️ **E-commerce Pages** – _Added_
+#### **E-commerce Pages** – _Added_
 
 - **Products**:
 
@@ -86,20 +86,20 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
   - Transaction list table
   - Single transaction detail view
 
-#### 🧠 **AI Assistant Suite (New App Example)** – _Newly Added_
+#### **AI Assistant Suite (New App Example)** – _Newly Added_
 
 - Text generator
 - Image generator
 - Code generator
 - Video generator
 
-#### 🔑 **API Key Management** – _Newly Added_
+#### **API Key Management** – _Newly Added_
 
 - API key dashboard
 - API key table view
 - Add API key modal
 
-#### 🔌 **Integrations (Pages)** – _Newly Added_
+#### **Integrations (Pages)** – _Newly Added_
 
 - Integration cards UI
 - Integration details modal
@@ -107,12 +107,12 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
 - Integration settings modal
 - Delete integration confirmation modal
 
-### ⚙️ **Support (New App Example)** – _Newly Added_
+### **Support (New App Example)** – _Newly Added_
 
 - Support ticket list page
 - Support ticket reply interface
 
-#### 📊 **Charts & Visuals** - _Imporoved_
+#### **Charts & Visuals** - _Imporoved_
 
 - New bar chart design added
 
@@ -150,7 +150,7 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
 - Run npm install or yarn install to update dependencies.
 - Check for any style changes or compatibility issues.
 - Refer to the Tailwind CSS v4 [Migration Guide](https://tailwindcss.com/docs/upgrade-guide) on this release. if needed.
-- This update keeps the project up to date with the latest Tailwind improvements. 🚀
+- This update keeps the project up to date with the latest Tailwind improvements. 
 
 ### Version 2.0.0 - [February 2025]
 

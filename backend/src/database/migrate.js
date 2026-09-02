@@ -10,8 +10,21 @@ USE ${process.env.DB_NAME};
 -- Bills table
 CREATE TABLE IF NOT EXISTS bills (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  -- The child system's own unique bill/transaction reference, supplied as
+  -- billId when it calls POST /api/bills/create - this bridge never
+  -- generates it. It's the correlation key end-to-end: it becomes GePG's
+  -- BillId/GrpBillId in the v5 XML (Normal flow: GrpBillId == BillId, see
+  -- xmlBuilder.buildBillSubmissionRequest), the foreign key bill_items and
+  -- payments join on, and what GET /api/bills/{billId}(/status) is keyed by.
+  -- Must stay unique per child-system submission.
   bill_id VARCHAR(100) UNIQUE NOT NULL,
   sub_sp_code VARCHAR(10),
+  -- Leftover v4-era "Service Provider System ID" per bill. Under API v5
+  -- the SysCode sent to GePG is sourced from env config (GEPG_SYS_CODE,
+  -- see gepgClient.sysCode) and applied at submission time, not supplied
+  -- per bill - Bill.create still writes it from billData.spSysId, but no
+  -- current API caller (frontend or otherwise) ever sends spSysId, so
+  -- this column is effectively always NULL today.
   sp_sys_id VARCHAR(10),
   bill_amount DECIMAL(15, 2) NOT NULL,
   misc_amount DECIMAL(15, 2) DEFAULT 0,

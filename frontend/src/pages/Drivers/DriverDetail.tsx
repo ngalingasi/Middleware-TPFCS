@@ -85,7 +85,7 @@ export default function DriverDetail() {
               )}
               {hasActive && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300">
-                  ⚡ Active Assignment
+                  Active Assignment
                 </span>
               )}
             </div>
@@ -117,7 +117,7 @@ export default function DriverDetail() {
       {/* Active assignment warning */}
       {hasActive && (
         <div className="rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 px-4 py-3 text-sm text-orange-700 dark:text-orange-400">
-          ⚡ This driver currently has an <strong>active vehicle assignment</strong>. They cannot be released or deleted until the current transfer is completed.
+          This driver currently has an <strong>active vehicle assignment</strong>. They cannot be released or deleted until the current transfer is completed.
         </div>
       )}
 

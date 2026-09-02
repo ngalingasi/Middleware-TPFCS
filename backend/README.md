@@ -2,7 +2,7 @@
 
 Complete integration bridge for Tanzania Government Electronic Payment Gateway (GePG) with modern web dashboard.
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 gepg-bridge-system/
@@ -10,29 +10,29 @@ gepg-bridge-system/
 └── gepg-bridge-frontend/    # React Dashboard (Vite)
 ```
 
-## 🚀 Features
+## Features
 
 ### Backend (API Server)
-- ✅ Bill submission and management (Normal Bill Control Number flow)
-- ✅ Payment notification handling
-- ✅ Bill control number reuse
-- ✅ Bill cancellation
-- ✅ Reconciliation requests
-- ✅ Digital signature support (PKCS#12)
-- ✅ MySQL database
-- ✅ RESTful API
-- ✅ Webhook endpoints for GePG
+- Bill submission and management (Normal Bill Control Number flow)
+- Payment notification handling
+- Bill control number reuse
+- Bill cancellation
+- Reconciliation requests
+- Digital signature support (PKCS#12)
+- MySQL database
+- RESTful API
+- Webhook endpoints for GePG
 
 ### Frontend (Dashboard)
-- ✅ Real-time statistics dashboard
-- ✅ Bills management interface
-- ✅ Payment tracking and monitoring
-- ✅ Charts and analytics
-- ✅ Responsive design
-- ✅ Bill creation wizard
-- ✅ Advanced filtering
+- Real-time statistics dashboard
+- Bills management interface
+- Payment tracking and monitoring
+- Charts and analytics
+- Responsive design
+- Bill creation wizard
+- Advanced filtering
 
-## 📋 Prerequisites
+## Prerequisites
 
 - **Node.js** v14 or higher
 - **MySQL** v5.7 or higher
@@ -43,7 +43,7 @@ gepg-bridge-system/
   - GePG server endpoint
 - **Network**: VPN connection to GePG DataCenter
 
-## 🛠️ Installation
+## Installation
 
 ### 1. Backend Setup
 
@@ -84,7 +84,7 @@ npm run dev
 
 Frontend will run on `http://localhost:3000`
 
-## 📖 Configuration
+## Configuration
 
 ### Backend Configuration (.env)
 
@@ -129,36 +129,65 @@ Configure these URLs in your GePG portal:
 Note: v5 merged v4's separate online/offline payment notifications into
 one flow, so there is no longer a distinct online-payment callback URL.
 
-## 🔐 Digital Certificates
+## Digital Certificates
 
 1. Place your PKCS#12 (.p12 or .pfx) certificate in `backend/certificates/`
 2. Place GePG's public certificate (.pem) in `backend/certificates/`
 3. Update certificate paths in `.env`
 
-## 📡 API Endpoints
+## Authentication
+
+Bills/Payments/Reconciliation endpoints accept either credential (GePG's
+webhook endpoints accept neither - they're authenticated via digital
+signature instead):
+- **`X-Api-Key: <key>`** - for external child systems. An admin creates a
+  key via `POST /api/api-keys` (JWT-authenticated, ADMIN only); the
+  plaintext key is shown once, at creation time, and can't be retrieved
+  again afterward.
+- **`Authorization: Bearer <token>`** - the dashboard's own JWT login, for
+  this bridge's frontend (human users) only.
+
+See `middleware/authenticateAny.js` for how the two are combined, and
+`API_TESTING_GUIDE.md` / `GePG_Bridge_Postman_Collection.json` /
+`GePG_Bridge_Insomnia.json` (repo root) for a child-system-ready reference.
+
+## API Endpoints
 
 ### Bills
+*(all require `X-Api-Key` or dashboard JWT, except the webhook)*
 - `POST /api/bills/create` - Create a bill
 - `POST /api/bills/submit/:billId` - Submit to GePG
 - `POST /api/bills/create-and-submit` - Create and submit
 - `POST /api/bills/cancel/:billId` - Cancel bill
 - `GET /api/bills` - List all bills
-- `GET /api/bills/:billId` - Get bill details
+- `GET /api/bills/:billId` - Get bill details, items, and payment history
+- `GET /api/bills/:billId/status` - Lightweight paid/unpaid poll
 
 ### Payments
+*(all require `X-Api-Key` or dashboard JWT, except the webhook)*
 - `POST /api/payments/webhook/notification` - GePG payment webhook (pmtSpNtfReq)
 - `GET /api/payments` - List all payments
 - `GET /api/payments/:paymentId` - Get payment details
 - `GET /api/payments/statistics/summary` - Payment statistics
 
+### Reconciliation
+*(all require `X-Api-Key` or dashboard JWT, except the webhook)*
+- `POST /api/reconciliation/request` - Request a day's successful-payments batch from GePG
+- `POST /api/reconciliation/webhook/response` - GePG reconciliation webhook (sucSpPmtRes)
+- `GET /api/reconciliation` - List all reconciliation requests
+- `GET /api/reconciliation/:requestId` - Get a request's settled transactions
+
 ### Dashboard
+*(not part of the child-system integration surface; currently has no auth
+middleware applied at all - still a known open item, unlike Bills/Payments/
+Reconciliation above)*
 - `GET /api/dashboard/statistics` - Overall statistics
 - `GET /api/dashboard/recent-activities` - Recent activities
 - `GET /api/dashboard/payment-channels` - Channel distribution
 - `GET /api/dashboard/daily-summary` - Daily summary
 - `GET /api/dashboard/top-payers` - Top payers
 
-## 🎯 Usage Examples
+## Usage Examples
 
 ### Creating a Bill
 
@@ -193,7 +222,7 @@ curl -X POST http://localhost:5001/api/bills/cancel/BILL001 \
   -d '{"reason": "Customer requested cancellation"}'
 ```
 
-## 🗄️ Database Schema
+## Database Schema
 
 Main tables:
 - `bills` - Bill records
@@ -203,7 +232,7 @@ Main tables:
 - `api_logs` - Request/response logs
 - `system_config` - System configurations
 
-## 🔧 Development
+## Development
 
 ### Backend Development
 ```bash
@@ -217,7 +246,7 @@ cd gepg-bridge-frontend
 npm run dev  # Hot reload with Vite
 ```
 
-## 🚀 Production Deployment
+## Production Deployment
 
 ### Backend
 ```bash
@@ -233,7 +262,7 @@ npm run build
 # Serve the 'dist' folder with nginx or any static server
 ```
 
-## 📊 Dashboard Features
+## Dashboard Features
 
 - **Real-time Statistics**: Bills, payments, collections
 - **Charts**: Payment trends, channel distribution
@@ -242,7 +271,7 @@ npm run build
 - **Filtering**: By status, date, type
 - **Responsive Design**: Works on all devices
 
-## 🔒 Security
+## Security
 
 - Digital signature verification
 - HTTPS recommended for production
@@ -251,7 +280,7 @@ npm run build
 - CORS configuration
 - Helmet.js security headers
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Database Connection Failed
 - Check MySQL is running
@@ -268,7 +297,7 @@ npm run build
 - Verify certificate password
 - Check certificate expiry date
 
-## 📚 GePG Documentation
+## GePG Documentation
 
 This system implements GePG API v5.0 specifications:
 - Bill submission and management (Normal Bill Control Number flow only -
@@ -281,18 +310,18 @@ This system implements GePG API v5.0 specifications:
 Quote Posting (prepaid/token services, v5 section 5) is not implemented -
 there is no current business use case for it.
 
-## 🤝 Support
+## Support
 
 For issues related to:
 - **GePG Integration**: Contact GePG support
 - **Technical Issues**: Check logs in `backend/logs/`
 - **Database**: Review migration scripts
 
-## 📄 License
+## License
 
 This project is provided as-is for GePG integration purposes.
 
-## 🔄 Version
+## Version
 
 - Backend: v1.0.0
 - Frontend: v1.0.0
