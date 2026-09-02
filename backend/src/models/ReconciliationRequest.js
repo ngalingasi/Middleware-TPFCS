@@ -1,7 +1,12 @@
 const db = require('../config/database');
 
 class ReconciliationRequest {
-  async create({ reconciliationRequestId, spCode, spSysId, transactionDate, reconciliationOption }) {
+  /**
+   * reconciliationOption is no longer sent to GePG under v5 (the
+   * success/exception-report choice was dropped - see reconciliationController),
+   * kept here as an optional column only for any pre-v5 historical rows.
+   */
+  async create({ reconciliationRequestId, spCode, spSysId, transactionDate, reconciliationOption = null }) {
     await db.query(
       `INSERT INTO reconciliation_requests (
         reconciliation_request_id, sp_code, sp_sys_id, transaction_date,
@@ -53,7 +58,7 @@ class ReconciliationRequest {
     };
   }
 
-  /** Called after GePG's immediate gepgSpReconcReqAck */
+  /** Called after GePG's immediate sucSpPmtReqAck */
   async markAcknowledged(reconciliationRequestId, statusCode) {
     await db.query(
       `UPDATE reconciliation_requests SET status = 'PROCESSING', status_code = ? WHERE reconciliation_request_id = ?`,
@@ -68,7 +73,7 @@ class ReconciliationRequest {
     );
   }
 
-  /** Called from the async gepgSpReconcResp webhook with the final batch result */
+  /** Called from the async sucSpPmtRes webhook with the final batch result */
   async markCompleted(reconciliationRequestId, statusCode) {
     await db.query(
       `UPDATE reconciliation_requests SET status = 'COMPLETED', status_code = ? WHERE reconciliation_request_id = ?`,

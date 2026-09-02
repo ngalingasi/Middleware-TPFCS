@@ -43,16 +43,28 @@ async function loadBillDataForSubmission(billId) {
     billApprovedBy: 'SYSTEM',
     currency: bill.currency,
     billEquivAmount: bill.bill_equiv_amount,
-    reminderFlag: bill.reminder_flag,
     billPayOption: bill.bill_pay_option,
-    returnResponseFlag: 'true',
+    // v5-only fields the current bill-create form doesn't collect yet -
+    // sourced from the DB when present, otherwise xmlBuilder defaults apply.
+    custTin: bill.cust_tin,
+    custIdTyp: bill.cust_id_typ,
+    custAccnt: bill.cust_accnt,
+    collCentCode: bill.coll_cent_code,
+    minPayAmt: bill.min_pay_amt,
+    exchRate: bill.exch_rate,
+    payPlan: bill.pay_plan,
+    payLimTyp: bill.pay_lim_typ,
+    payLimAmt: bill.pay_lim_amt,
+    collPsp: bill.coll_psp,
     items: items.map(item => ({
       billItemRef: item.bill_item_ref,
       useItemRefOnPay: item.use_item_ref_on_pay,
       billItemAmount: item.bill_item_amount,
       billItemEquivAmount: item.bill_item_equiv_amount,
       billItemMiscAmount: item.bill_item_misc_amount,
-      gfsCode: item.gfs_code
+      gfsCode: item.gfs_code,
+      refBillId: item.ref_bill_id,
+      collSp: item.coll_sp
     }))
   };
 }
@@ -66,8 +78,8 @@ function formatDateTime(date) {
  * POST /api/bills/submit/:billId
  *
  * Sends the bill to GePG. The response here is only GePG's immediate
- * gepgBillSubReqAck - the real approval/rejection arrives later via the
- * gepgBillSubResp webhook (see handleBillResponseWebhook below).
+ * billSubReqAck - the real approval/rejection arrives later via the
+ * billSubRes webhook (see handleBillResponseWebhook below).
  */
 async function submitBill(req, res) {
   const { billId } = req.params;
@@ -76,9 +88,9 @@ async function submitBill(req, res) {
     const billData = await loadBillDataForSubmission(billId);
     const response = await gepgClient.submitBill(billData);
 
-    const ack = response.gepgBillSubReqAck;
+    const ack = response.billSubReqAck;
     if (ack) {
-      await Bill.markSubmitted(billId, ack.TrxStsCode);
+      await Bill.markSubmitted(billId, ack.AckStsCode);
     }
 
     res.json({ success: true, message: 'Bill submitted to GePG successfully', data: response });
@@ -99,9 +111,9 @@ async function createAndSubmit(req, res) {
     const billData = await loadBillDataForSubmission(req.body.billId);
     const response = await gepgClient.submitBill(billData);
 
-    const ack = response.gepgBillSubReqAck;
+    const ack = response.billSubReqAck;
     if (ack) {
-      await Bill.markSubmitted(req.body.billId, ack.TrxStsCode);
+      await Bill.markSubmitted(req.body.billId, ack.AckStsCode);
     }
 
     res.status(201).json({ success: true, message: 'Bill created and submitted successfully', data: response });
@@ -124,7 +136,19 @@ async function cancelBill(req, res) {
       return res.status(400).json({ success: false, message: 'Bill not found or cannot be cancelled' });
     }
 
+    // Bill cancellation is synchronous in v5 - the HTTP response IS the
+    // billCanclRes, there is no separate ack/webhook step.
     const response = await gepgClient.cancelBill(billId, reason);
+    const canclRes = response.billCanclRes;
+
+    if (canclRes && canclRes.CanclSts !== 'GS') {
+      return res.status(502).json({
+        success: false,
+        message: canclRes.CanclStsDesc || 'GePG declined the cancellation',
+        data: response
+      });
+    }
+
     await Bill.markCancelled(billId);
 
     res.json({ success: true, message: 'Bill cancelled successfully', data: response });
@@ -179,42 +203,51 @@ async function getBillById(req, res) {
 /**
  * POST /api/bills/webhook/response
  *
- * Receives the asynchronous gepgBillSubResp message GePG sends once the
- * bill has actually been processed (spec section 3, steps III-IV). This
- * endpoint was previously missing entirely - bills would sit "PENDING"
- * forever since nothing ever recorded the GS/GF outcome or control number.
+ * Receives the asynchronous billSubRes message GePG sends once the
+ * bill has actually been processed (spec section 4.1, steps III-IV).
  *
  * Every inbound GePG message is signed - we verify it before trusting
- * anything in the body, and always ack with gepgBillSubRespAck so GePG
- * stops retrying.
+ * anything in the body, and always ack with billSubResAck so GePG stops
+ * retrying.
  */
 async function handleBillResponseWebhook(req, res) {
-  try {
-    const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
+  const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
+  let billResp;
 
+  try {
     const verified = await gepgClient.verifyIncomingMessage(envelopeXML);
-    const billResp = verified.gepgBillSubResp;
+    billResp = verified.billSubRes;
 
     if (!billResp) {
-      throw new Error('Payload did not contain gepgBillSubResp');
+      throw new Error('Payload did not contain billSubRes');
     }
 
-    const trxInfList = xmlBuilder.toArray(billResp.BillTrxInf);
+    const billDtlList = xmlBuilder.toArray(billResp.BillDtls && billResp.BillDtls.BillDtl);
 
-    for (const trxInf of trxInfList) {
-      await Bill.applySubmissionResponse(trxInf.BillId, {
-        paymentControlNumber: trxInf.PayCntrNum,
-        transactionStatus: trxInf.TrxSts,
-        transactionStatusCode: trxInf.TrxStsCode
+    for (const billDtl of billDtlList) {
+      await Bill.applySubmissionResponse(billDtl.BillId, {
+        paymentControlNumber: billDtl.BillCntrNum,
+        transactionStatus: billResp.BillHdr.ResSts,
+        transactionStatusCode: billDtl.BillStsCode
       });
     }
 
-    const ackXML = xmlBuilder.buildAcknowledgement('7101', 'bill');
+    const ackXML = xmlBuilder.buildAcknowledgement({
+      ackId: gepgClient.generateReqId(),
+      referenceId: billResp.BillHdr.ResId,
+      statusCode: '7101',
+      type: 'billSubResAck'
+    });
     res.set('Content-Type', 'application/xml');
     res.send(ackXML);
   } catch (error) {
     console.error('Bill response webhook error:', error);
-    const ackXML = xmlBuilder.buildAcknowledgement('7102', 'bill');
+    const ackXML = xmlBuilder.buildAcknowledgement({
+      ackId: gepgClient.generateReqId(),
+      referenceId: billResp && billResp.BillHdr ? billResp.BillHdr.ResId : '',
+      statusCode: '7242',
+      type: 'billSubResAck'
+    });
     res.set('Content-Type', 'application/xml');
     res.status(400).send(ackXML);
   }

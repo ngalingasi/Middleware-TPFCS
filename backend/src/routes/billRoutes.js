@@ -46,8 +46,8 @@ router.post(
 
 /**
  * @route   POST /api/bills/webhook/response
- * @desc    Receive gepgBillSubResp - the asynchronous bill processing
- *          result GePG sends after a submission. Previously missing.
+ * @desc    Receive billSubRes - the asynchronous bill processing
+ *          result GePG sends after a submission.
  * @access  Public (GePG) - message is verified via digital signature
  */
 router.post('/webhook/response', billController.handleBillResponseWebhook);

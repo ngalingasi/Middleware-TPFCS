@@ -4,17 +4,12 @@ const paymentController = require('../controllers/paymentController');
 
 /**
  * @route   POST /api/payments/webhook/notification
- * @desc    Receive payment notification from GePG (gepgPmtSpInfo)
+ * @desc    Receive payment notification from GePG (pmtSpNtfReq). v5 merged
+ *          the old separate online/offline notifications into this one
+ *          flow, so the previous online-notification route is gone.
  * @access  Public (GePG) - message is verified via digital signature
  */
 router.post('/webhook/notification', paymentController.handlePaymentNotification);
-
-/**
- * @route   POST /api/payments/webhook/online-notification
- * @desc    Receive online payment notification from GePG (gepgOlPmtNtfSpInfo)
- * @access  Public (GePG) - message is verified via digital signature
- */
-router.post('/webhook/online-notification', paymentController.handleOnlinePaymentNotification);
 
 /**
  * @route   GET /api/payments

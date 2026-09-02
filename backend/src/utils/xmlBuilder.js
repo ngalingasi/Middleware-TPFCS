@@ -1,5 +1,21 @@
 const xml2js = require('xml2js');
 
+/**
+ * Builds/parses GePG API v5.0 XML payloads.
+ *
+ * Scope: Normal Bill Control Number flow only (BillTyp=1, GrpBillId ==
+ * BillId) - Combined/customer control numbers (BillTyp=2, spanning several
+ * institutions) are not implemented, there being no current use case for
+ * them.
+ *
+ * NOTE on RtrRespFlg/RemFlag: the v5 spec's field table (section 4.6)
+ * still lists both as "Mandatory", but neither appears in any of the
+ * document's four full bill submission/reuse/change sample payloads -
+ * likely a stale carry-over from v4's documentation that wasn't fully
+ * pruned. Omitted here to match the samples; verify with GePG's
+ * integration team before going live in case the table is right and the
+ * samples are merely incomplete.
+ */
 class XMLBuilder {
   constructor() {
     this.builder = new xml2js.Builder({
@@ -10,68 +26,137 @@ class XMLBuilder {
   }
 
   /**
-   * Build GePG Bill Submission Request XML
+   * Build a v5 BillDtl block shared by submission and reuse requests.
    */
-  buildBillSubmissionRequest(billData) {
+  _buildBillDtl(billData) {
+    // xml2js repeats the parent key itself for each array element, so an
+    // array of {BillItem:{...}} objects here would render as
+    // <BillItems>...</BillItems><BillItems>...</BillItems> (one wrapper per
+    // item) instead of one <BillItems> wrapping multiple <BillItem>
+    // children - the array must live at the BillItem key, one level down.
     const billItems = billData.items.map(item => ({
-      BillItem: {
-        BillItemRef: item.billItemRef,
-        UseItemRefOnPay: item.useItemRefOnPay || 'N',
-        BillItemAmt: item.billItemAmount,
-        BillItemEqvAmt: item.billItemEquivAmount,
-        BillItemMiscAmt: item.billItemMiscAmount || 0,
-        GfsCode: item.gfsCode
-      }
+      RefBillId: item.refBillId || billData.billId,
+      SubSpCode: item.subSpCode || billData.subSpCode,
+      GfsCode: item.gfsCode,
+      BillItemRef: item.billItemRef,
+      UseItemRefOnPay: item.useItemRefOnPay || 'N',
+      BillItemAmt: item.billItemAmount,
+      BillItemEqvAmt: item.billItemEquivAmount,
+      BillItemMiscAmt: item.billItemMiscAmount || 0,
+      CollSp: item.collSp || billData.spCode
     }));
 
+    const billDtl = {
+      BillId: billData.billId,
+      SpCode: billData.spCode,
+      CollCentCode: billData.collCentCode || '',
+      BillDesc: billData.billDescription,
+      CustTin: billData.custTin || '',
+      CustId: billData.payerId,
+      CustIdTyp: billData.custIdTyp || '1',
+      CustAccnt: billData.custAccnt || '',
+      CustName: billData.payerName,
+      CustCellNum: billData.payerCellNumber,
+      CustEmail: billData.payerEmail,
+      BillGenDt: billData.billGeneratedDate,
+      BillExprDt: billData.billExpiryDate,
+      BillGenBy: billData.billGeneratedBy,
+      BillApprBy: billData.billApprovedBy,
+      BillAmt: billData.billAmount,
+      BillEqvAmt: billData.billEquivAmount,
+      MinPayAmt: billData.minPayAmt != null ? billData.minPayAmt : 0.01,
+      Ccy: billData.currency || 'TZS',
+      ExchRate: billData.exchRate || '1.00',
+      BillPayOpt: billData.billPayOption || '1',
+      PayPlan: billData.payPlan || '1',
+      PayLimTyp: billData.payLimTyp || '1',
+      PayLimAmt: billData.payLimAmt != null ? billData.payLimAmt : 0,
+      CollPsp: billData.collPsp || ''
+    };
+
+    // Reuse request carries the previously issued control number + a reason
+    if (billData.paymentControlNumber) {
+      billDtl.BillCntrNum = billData.paymentControlNumber;
+      billDtl.ReuseReasn = billData.reuseReason || 'Bill resubmission';
+    }
+
+    billDtl.BillItems = { BillItem: billItems };
+
+    return billDtl;
+  }
+
+  /**
+   * Build GePG Bill Submission Request XML (Normal Bill Control Number).
+   * Also used for control number reuse when billData.paymentControlNumber
+   * is present.
+   */
+  buildBillSubmissionRequest(billData) {
     const xmlObject = {
-      gepgBillSubReq: {
+      billSubReq: {
         BillHdr: {
-          SpCode: billData.spCode,
-          RtrRespFlg: billData.returnResponseFlag || 'true'
+          ReqId: billData.reqId,
+          SpGrpCode: billData.spGrpCode || billData.spCode,
+          SysCode: billData.sysCode,
+          BillTyp: '1',
+          PayTyp: billData.payType || '1',
+          GrpBillId: billData.billId
         },
-        BillTrxInf: {
-          BillId: billData.billId,
-          SubSpCode: billData.subSpCode,
-          SpSysId: billData.spSysId,
-          BillAmt: billData.billAmount,
-          MiscAmt: billData.miscAmount || 0,
-          BillExprDt: billData.billExpiryDate,
-          PyrId: billData.payerId,
-          PyrName: billData.payerName,
-          BillDesc: billData.billDescription,
-          BillGenDt: billData.billGeneratedDate,
-          BillGenBy: billData.billGeneratedBy,
-          BillApprBy: billData.billApprovedBy,
-          PyrCellNum: billData.payerCellNumber,
-          PyrEmail: billData.payerEmail,
-          Ccy: billData.currency || 'TZS',
-          BillEqvAmt: billData.billEquivAmount,
-          RemFlag: billData.reminderFlag || 'true',
-          BillPayOpt: billData.billPayOption || '1',
-          BillItems: billItems
+        BillDtls: {
+          BillDtl: this._buildBillDtl(billData)
         }
       }
     };
-
-    // Add control number for reuse if provided
-    if (billData.paymentControlNumber) {
-      xmlObject.gepgBillSubReq.BillTrxInf.PayCntrNum = billData.paymentControlNumber;
-    }
 
     return this.builder.buildObject(xmlObject);
   }
 
   /**
-   * Build Bill Cancellation Request XML
+   * Build Bill Change/Update (expiry extension) Request XML.
+   */
+  buildBillChangeRequest(data) {
+    const billDtl = {
+      BillId: data.billId,
+      SpCode: data.spCode,
+      BillExprDt: data.billExpiryDate,
+      BillGenBy: data.billGeneratedBy || 'SYSTEM',
+      BillApprBy: data.billApprovedBy || 'SYSTEM',
+      UpdateReasn: data.updateReason || 'Bill expiry extension'
+    };
+
+    const xmlObject = {
+      billSubReq: {
+        BillHdr: {
+          ReqId: data.reqId,
+          SpGrpCode: data.spGrpCode || data.spCode,
+          SysCode: data.sysCode,
+          BillTyp: '1',
+          PayTyp: data.payType || '1',
+          GrpBillId: data.billId
+        },
+        BillDtls: {
+          BillDtl: billDtl
+        }
+      }
+    };
+
+    return this.builder.buildObject(xmlObject);
+  }
+
+  /**
+   * Build Bill Cancellation Request XML. Synchronous API - the HTTP
+   * response to this call is the billCanclRes itself, no separate ack.
    */
   buildBillCancellationRequest(data) {
     const xmlObject = {
-      gepgBillCanclReq: {
-        SpCode: data.spCode,
-        SpSysId: data.spSysId,
-        CanclReasn: data.cancellationReason,
-        BillId: Array.isArray(data.billIds) ? data.billIds : [data.billIds]
+      billCanclReq: {
+        ReqId: data.reqId,
+        SpGrpCode: data.spGrpCode || data.spCode,
+        SysCode: data.sysCode,
+        BillTyp: '1',
+        GrpBillId: data.billId,
+        CanclGenBy: data.cancelledBy || 'SYSTEM',
+        CanclApprBy: data.approvedBy || 'SYSTEM',
+        CanclReasn: data.cancellationReason
       }
     };
 
@@ -79,42 +164,20 @@ class XMLBuilder {
   }
 
   /**
-   * Build Bill Change/Update Request XML
-   */
-  buildBillChangeRequest(data) {
-    const xmlObject = {
-      gepgBillSubReq: {
-        BillHdr: {
-          SpCode: data.spCode,
-          RtrRespFlg: 'true'
-        },
-        BillTrxInf: {
-          BillId: data.billId,
-          SpSysId: data.spSysId,
-          BillExprDt: data.billExpiryDate
-        }
-      }
-    };
-
-    // Add reserved fields if provided
-    if (data.billRsv1) xmlObject.gepgBillSubReq.BillTrxInf.BillRsv1 = data.billRsv1;
-    if (data.billRsv2) xmlObject.gepgBillSubReq.BillTrxInf.BillRsv2 = data.billRsv2;
-    if (data.billRsv3) xmlObject.gepgBillSubReq.BillTrxInf.BillRsv3 = data.billRsv3;
-
-    return this.builder.buildObject(xmlObject);
-  }
-
-  /**
-   * Build Reconciliation Request XML
+   * Build Reconciliation Request XML. v5 dropped the success/exception
+   * report choice (v4's ReconcOpt) - only successful-payments
+   * reconciliation exists now.
    */
   buildReconciliationRequest(data) {
     const xmlObject = {
-      gepgSpReconcReq: {
-        SpReconcReqId: data.reconciliationRequestId,
-        SpCode: data.spCode,
-        SpSysId: data.spSysId,
-        TnxDt: data.transactionDate,
-        ReconcOpt: data.reconciliationOption
+      sucSpPmtReq: {
+        ReqId: data.reqId,
+        SpGrpCode: data.spGrpCode || data.spCode,
+        SysCode: data.sysCode,
+        TrxDt: data.transactionDate,
+        Rsv1: '',
+        Rsv2: '',
+        Rsv3: ''
       }
     };
 
@@ -122,46 +185,42 @@ class XMLBuilder {
   }
 
   /**
-   * Build Acknowledgement XML
+   * Build Acknowledgement XML for the three webhook messages this bridge
+   * must acknowledge: billSubRes, pmtSpNtfReq, sucSpPmtRes.
    */
-  buildAcknowledgement(statusCode, type = 'bill') {
+  buildAcknowledgement({ ackId, referenceId, statusCode, type }) {
     let xmlObject;
 
     switch (type) {
-      case 'bill':
+      case 'billSubResAck':
         xmlObject = {
-          gepgBillSubRespAck: {
-            TrxStsCode: statusCode
+          billSubResAck: {
+            AckId: ackId,
+            ResId: referenceId,
+            AckStsCode: statusCode
           }
         };
         break;
-      case 'payment':
+      case 'pmtSpNtfReqAck':
         xmlObject = {
-          gepgPmtSpInfoAck: {
-            TrxStsCode: statusCode
+          pmtSpNtfReqAck: {
+            AckId: ackId,
+            ReqId: referenceId,
+            AckStsCode: statusCode
           }
         };
         break;
-      case 'online_payment':
+      case 'sucSpPmtResAck':
         xmlObject = {
-          gepgOlPmtNtfSpAck: {
-            OlStsCode: statusCode
-          }
-        };
-        break;
-      case 'reconciliation':
-        xmlObject = {
-          gepgSpReconcRespAck: {
-            ReconcStsCode: statusCode
+          sucSpPmtResAck: {
+            AckId: ackId,
+            ResId: referenceId,
+            AckStsCode: statusCode
           }
         };
         break;
       default:
-        xmlObject = {
-          Ack: {
-            StsCode: statusCode
-          }
-        };
+        throw new Error(`Unknown acknowledgement type: ${type}`);
     }
 
     return this.builder.buildObject(xmlObject);
@@ -179,31 +238,10 @@ class XMLBuilder {
   }
 
   /**
-   * Extract message from Gepg envelope
-   */
-  async extractMessageFromEnvelope(envelopeXML) {
-    try {
-      const parsed = await this.parseXML(envelopeXML);
-      
-      // The actual message is the first child (excluding signature)
-      const messageKey = Object.keys(parsed.Gepg).find(key => key !== 'gepgSignature');
-      const signature = parsed.Gepg.gepgSignature;
-      
-      return {
-        message: parsed.Gepg[messageKey],
-        signature: signature,
-        messageType: messageKey
-      };
-    } catch (error) {
-      throw new Error(`Failed to extract message: ${error.message}`);
-    }
-  }
-
-  /**
    * xml2js (with explicitArray:false) returns a single object when a
    * repeatable tag appears once, and an array when it appears multiple
-   * times. Repeatable tags like BillId, ReconcTrxInf, BillCanclTrxDt need
-   * consistent array handling regardless of count.
+   * times. Repeatable tags like BillDtl, PmtTrxDtl need consistent array
+   * handling regardless of count.
    */
   toArray(value) {
     if (value === undefined || value === null) return [];

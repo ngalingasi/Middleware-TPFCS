@@ -6,44 +6,38 @@ const xmlBuilder = require('../utils/xmlBuilder');
 /**
  * POST /api/reconciliation/request
  *
- * Submits a gepgSpReconcReq to GePG (spec section 6). This endpoint did
- * not exist before - gepgClient.submitReconciliationRequest was written
- * but never wired to a route, so reconciliation could never actually be
- * requested from this system.
+ * Submits a sucSpPmtReq to GePG (spec section 7.2). v5 dropped the v4
+ * success/exception-report choice (ReconcOpt) - only successful-payments
+ * reconciliation exists now, so it is no longer sent to GePG.
  */
 async function submitReconciliationRequest(req, res) {
   try {
-    const { transactionDate, reconciliationOption = 1 } = req.body;
+    const { transactionDate } = req.body;
 
     if (!transactionDate) {
       return res.status(400).json({ success: false, message: 'transactionDate is required (YYYY-MM-DD)' });
     }
 
-    const reconciliationRequestId = Date.now().toString();
+    const reqId = gepgClient.generateReqId();
 
     await ReconciliationRequest.create({
-      reconciliationRequestId,
+      reconciliationRequestId: reqId,
       spCode: gepgClient.spCode,
-      spSysId: gepgClient.spSysId,
-      transactionDate,
-      reconciliationOption
+      spSysId: gepgClient.sysCode,
+      transactionDate
     });
 
-    const response = await gepgClient.submitReconciliationRequestWithId(
-      reconciliationRequestId,
-      transactionDate,
-      reconciliationOption
-    );
+    const response = await gepgClient.submitReconciliationRequestWithId(reqId, transactionDate);
 
-    const ack = response.gepgSpReconcReqAck;
+    const ack = response.sucSpPmtReqAck;
     if (ack) {
-      await ReconciliationRequest.markAcknowledged(reconciliationRequestId, ack.ReconcStsCode);
+      await ReconciliationRequest.markAcknowledged(reqId, ack.AckStsCode);
     }
 
     res.status(201).json({
       success: true,
       message: 'Reconciliation request submitted to GePG',
-      data: { reconciliationRequestId, ...response }
+      data: { reconciliationRequestId: reqId, ...response }
     });
   } catch (error) {
     console.error('Submit reconciliation request error:', error);
@@ -54,53 +48,66 @@ async function submitReconciliationRequest(req, res) {
 /**
  * POST /api/reconciliation/webhook/response
  *
- * Receives the asynchronous gepgSpReconcResp GePG sends after processing
- * a reconciliation request (spec section 6, steps III-IV). This webhook
- * did not exist before - the reconciliation_transactions table was
- * defined in the schema but nothing ever wrote to it.
+ * Receives the asynchronous sucSpPmtRes GePG sends after processing a
+ * reconciliation request (spec section 7.1, steps III-IV).
  */
 async function handleReconciliationResponseWebhook(req, res) {
-  try {
-    const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
+  const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
+  let reconcResp;
 
+  try {
     const verified = await gepgClient.verifyIncomingMessage(envelopeXML);
-    const reconcResp = verified.gepgSpReconcResp;
+    reconcResp = verified.sucSpPmtRes;
 
     if (!reconcResp) {
-      throw new Error('Payload did not contain gepgSpReconcResp');
+      throw new Error('Payload did not contain sucSpPmtRes');
     }
 
-    const batchInfo = reconcResp.ReconcBatchInfo;
-    const reconciliationRequestId = batchInfo.SpReconcReqId;
+    const batchHdr = reconcResp.BatchHdr;
+    const reconciliationRequestId = batchHdr.ReqId;
 
-    const rawTransactions = xmlBuilder.toArray(reconcResp.ReconcTrans && reconcResp.ReconcTrans.ReconcTrxInf);
+    const rawTransactions = xmlBuilder.toArray(reconcResp.PmtDtls && reconcResp.PmtDtls.PmtTrxDtl);
     const transactions = rawTransactions.map(t => ({
-      spBillId: t.SpBillId,
+      spBillId: t.BillId,
       billControlNumber: t.BillCtrNum,
-      pspTransactionId: t.pspTrxId,
+      pspTransactionId: t.TrxId,
       paidAmount: t.PaidAmt,
-      currency: t.CCy,
+      billAmount: t.BillAmt,
+      billPayOption: t.BillPayOpt,
+      currency: t.Ccy,
       payRefId: t.PayRefId,
       transactionDateTime: t.TrxDtTm,
-      creditedAccountNumber: t.CtrAccNum,
+      creditedAccountNumber: t.CollAccNum,
       usedPaymentChannel: t.UsdPayChnl,
       pspName: t.PspName,
       pspCode: t.PspCode,
-      depositorCellNum: t.DptCellNum,
-      depositorName: t.DptName,
-      depositorEmail: t.DptEmailAddr,
+      // v5 renamed the v4 "depositor" (Dpt*) fields to "payer" (Pyr*) -
+      // same semantic, kept in the existing depositor_* columns.
+      depositorCellNum: t.PyrCellNum,
+      depositorName: t.PyrName,
+      depositorEmail: t.PyrEmail,
       remarks: t.Remarks
     }));
 
     await ReconciliationTransaction.createMany(reconciliationRequestId, transactions);
-    await ReconciliationRequest.markCompleted(reconciliationRequestId, batchInfo.ReconcStsCode);
+    await ReconciliationRequest.markCompleted(reconciliationRequestId, batchHdr.PayStsCode);
 
-    const ackXML = xmlBuilder.buildAcknowledgement('7101', 'reconciliation');
+    const ackXML = xmlBuilder.buildAcknowledgement({
+      ackId: gepgClient.generateReqId(),
+      referenceId: batchHdr.ResId,
+      statusCode: '7101',
+      type: 'sucSpPmtResAck'
+    });
     res.set('Content-Type', 'application/xml');
     res.send(ackXML);
   } catch (error) {
     console.error('Reconciliation response webhook error:', error);
-    const ackXML = xmlBuilder.buildAcknowledgement('7102', 'reconciliation');
+    const ackXML = xmlBuilder.buildAcknowledgement({
+      ackId: gepgClient.generateReqId(),
+      referenceId: reconcResp && reconcResp.BatchHdr ? reconcResp.BatchHdr.ResId : '',
+      statusCode: '7242',
+      type: 'sucSpPmtResAck'
+    });
     res.set('Content-Type', 'application/xml');
     res.status(400).send(ackXML);
   }

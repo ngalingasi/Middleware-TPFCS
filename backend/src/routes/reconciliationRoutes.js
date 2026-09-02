@@ -5,23 +5,21 @@ const reconciliationController = require('../controllers/reconciliationControlle
 
 /**
  * @route   POST /api/reconciliation/request
- * @desc    Submit a gepgSpReconcReq to GePG
+ * @desc    Submit a sucSpPmtReq to GePG
  * @access  Public
  */
 router.post(
   '/request',
   [
-    body('transactionDate').isISO8601().withMessage('transactionDate must be YYYY-MM-DD'),
-    body('reconciliationOption').optional().isIn([1, 2]).withMessage('reconciliationOption must be 1 or 2')
+    body('transactionDate').isISO8601().withMessage('transactionDate must be YYYY-MM-DD')
   ],
   reconciliationController.submitReconciliationRequest
 );
 
 /**
  * @route   POST /api/reconciliation/webhook/response
- * @desc    Receive gepgSpReconcResp - the asynchronous reconciliation
- *          result GePG sends after processing a request. Previously
- *          missing entirely, despite the DB schema already anticipating it.
+ * @desc    Receive sucSpPmtRes - the asynchronous reconciliation
+ *          result GePG sends after processing a request.
  * @access  Public (GePG) - message is verified via digital signature
  */
 router.post('/webhook/response', reconciliationController.handleReconciliationResponseWebhook);

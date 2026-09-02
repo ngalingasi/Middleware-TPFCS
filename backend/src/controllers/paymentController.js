@@ -2,85 +2,77 @@ const Payment = require('../models/Payment');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
 
+// v5 has no online/offline distinction at the protocol level (both were
+// merged into pmtSpNtfReq) - this is a local approximation only, so the
+// dashboard's existing online/offline split keeps working.
+const ONLINE_CHANNELS = new Set(['MC', 'VC', 'OT', 'AMEX', 'UPI']);
+
 /**
  * POST /api/payments/webhook/notification
- * Receives gepgPmtSpInfo (offline/bank payment notification).
+ * Receives pmtSpNtfReq (spec section 6.2). A single notification may carry
+ * multiple payment entries (PmtHdr.EntryCnt), one PmtTrxDtl each.
  */
 async function handlePaymentNotification(req, res) {
+  const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
+  let pmtReq;
+
   try {
-    const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
-
     const verified = await gepgClient.verifyIncomingMessage(envelopeXML);
-    const pymtTrxInf = verified.gepgPmtSpInfo.PymtTrxInf;
+    pmtReq = verified.pmtSpNtfReq;
 
-    const paymentData = {
-      transactionId: pymtTrxInf.TrxId,
-      spCode: pymtTrxInf.SpCode,
-      payRefId: pymtTrxInf.PayRefId,
-      billId: pymtTrxInf.BillId,
-      paymentControlNumber: pymtTrxInf.PayCtrNum,
-      billAmount: parseFloat(pymtTrxInf.BillAmt),
-      paidAmount: parseFloat(pymtTrxInf.PaidAmt),
-      billPayOption: pymtTrxInf.BillPayOpt,
-      currency: pymtTrxInf.CCy,
-      transactionDateTime: pymtTrxInf.TrxDtTm,
-      usedPaymentChannel: pymtTrxInf.UsdPayChnl,
-      payerCellNumber: pymtTrxInf.PyrCellNum,
-      payerName: pymtTrxInf.PyrName,
-      payerEmail: pymtTrxInf.PyrEmail,
-      pspReceiptNumber: pymtTrxInf.PspReceiptNumber,
-      pspName: pymtTrxInf.PspName,
-      creditedAccountNumber: pymtTrxInf.CtrAccNum
-    };
+    if (!pmtReq) {
+      throw new Error('Payload did not contain pmtSpNtfReq');
+    }
 
-    await Payment.createOffline(paymentData);
+    const trxDtlList = xmlBuilder.toArray(pmtReq.PmtDtls && pmtReq.PmtDtls.PmtTrxDtl);
 
-    const ackXML = xmlBuilder.buildAcknowledgement('7101', 'payment');
+    for (const trxDtl of trxDtlList) {
+      const usedPaymentChannel = trxDtl.UsdPayChnl;
+
+      const paymentData = {
+        transactionId: trxDtl.TrxId,
+        spCode: trxDtl.SpCode,
+        payRefId: trxDtl.PayRefId,
+        billId: trxDtl.BillId,
+        paymentControlNumber: trxDtl.BillCtrNum,
+        billAmount: parseFloat(trxDtl.BillAmt),
+        paidAmount: parseFloat(trxDtl.PaidAmt),
+        billPayOption: trxDtl.BillPayOpt,
+        currency: trxDtl.Ccy,
+        transactionDateTime: trxDtl.TrxDtTm,
+        usedPaymentChannel,
+        payerCellNumber: trxDtl.PyrCellNum,
+        payerName: trxDtl.PyrName,
+        payerEmail: trxDtl.PyrEmail,
+        // v5 has no direct PSP receipt tag - TrdPtyTrxId is the closest
+        // analogue ("third party receipt ... Issuing Bank authorization,
+        // MNO Receipt, Aggregator Receipt etc.").
+        pspReceiptNumber: trxDtl.TrdPtyTrxId,
+        pspName: trxDtl.PspName,
+        pspCode: trxDtl.PspCode,
+        creditedAccountNumber: trxDtl.CollAccNum,
+        paymentType: ONLINE_CHANNELS.has((usedPaymentChannel || '').toUpperCase()) ? 'ONLINE' : 'OFFLINE'
+      };
+
+      await Payment.create(paymentData);
+    }
+
+    const ackXML = xmlBuilder.buildAcknowledgement({
+      ackId: gepgClient.generateReqId(),
+      referenceId: pmtReq.PmtHdr.ReqId,
+      statusCode: '7101',
+      type: 'pmtSpNtfReqAck'
+    });
     res.set('Content-Type', 'application/xml');
     res.send(ackXML);
   } catch (error) {
     console.error('Payment notification error:', error);
-    const ackXML = xmlBuilder.buildAcknowledgement('7102', 'payment');
-    res.set('Content-Type', 'application/xml');
-    res.status(400).send(ackXML);
-  }
-}
-
-/**
- * POST /api/payments/webhook/online-notification
- * Receives gepgOlPmtNtfSpInfo (card/mobile online payment notification).
- */
-async function handleOnlinePaymentNotification(req, res) {
-  try {
-    const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
-
-    const verified = await gepgClient.verifyIncomingMessage(envelopeXML);
-    const olPymtTrxInf = verified.gepgOlPmtNtfSpInfo.OlPymtTrxInf;
-
-    const paymentData = {
-      transactionId: olPymtTrxInf.TrxId,
-      authorizationCode: olPymtTrxInf.Auth,
-      spCode: olPymtTrxInf.SpCode,
-      payRefId: olPymtTrxInf.PayRefId,
-      billId: olPymtTrxInf.BillId,
-      paymentControlNumber: olPymtTrxInf.PayCtrNum,
-      paidAmount: parseFloat(olPymtTrxInf.PaidAmt),
-      currency: olPymtTrxInf.CCy,
-      transactionDateTime: olPymtTrxInf.TrxDtTm,
-      usedPaymentChannel: olPymtTrxInf.UsdPayChnl,
-      payerCellNumber: olPymtTrxInf.PyrCellNum,
-      payerName: olPymtTrxInf.PyrName,
-      payerEmail: olPymtTrxInf.PyrEmail
-    };
-
-    await Payment.createOnline(paymentData);
-
-    const ackXML = xmlBuilder.buildAcknowledgement('7101', 'online_payment');
-    res.set('Content-Type', 'application/xml');
-    res.send(ackXML);
-  } catch (error) {
-    console.error('Online payment notification error:', error);
-    const ackXML = xmlBuilder.buildAcknowledgement('7102', 'online_payment');
+    const ackXML = xmlBuilder.buildAcknowledgement({
+      ackId: gepgClient.generateReqId(),
+      referenceId: pmtReq && pmtReq.PmtHdr ? pmtReq.PmtHdr.ReqId : '',
+      statusCode: '7242',
+      type: 'pmtSpNtfReqAck'
+    });
     res.set('Content-Type', 'application/xml');
     res.status(400).send(ackXML);
   }
@@ -145,7 +137,6 @@ async function getPaymentStatistics(req, res) {
 
 module.exports = {
   handlePaymentNotification,
-  handleOnlinePaymentNotification,
   getPayments,
   getPaymentById,
   getPaymentStatistics

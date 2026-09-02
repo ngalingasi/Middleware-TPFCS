@@ -1,7 +1,13 @@
 const db = require('../config/database');
 
 class Payment {
-  async createOffline(paymentData) {
+  /**
+   * Persist a payment from GePG's pmtSpNtfReq (spec section 6.2). v5 has a
+   * single payment posting flow - paymentData.paymentType is a local
+   * ONLINE/OFFLINE approximation derived from the payment channel, not a
+   * GePG concept, kept only so existing dashboard stats keep working.
+   */
+  async create(paymentData) {
     const connection = await db.getConnection();
 
     try {
@@ -12,8 +18,9 @@ class Payment {
           transaction_id, sp_code, pay_ref_id, bill_id, payment_control_number,
           bill_amount, paid_amount, bill_pay_option, currency, transaction_datetime,
           used_payment_channel, payer_cell_num, payer_name, payer_email,
-          psp_receipt_number, psp_name, credited_account_number, payment_type, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OFFLINE', 'PENDING')`,
+          psp_receipt_number, psp_name, psp_code, credited_account_number,
+          payment_type, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
         [
           paymentData.transactionId,
           paymentData.spCode,
@@ -31,49 +38,9 @@ class Payment {
           paymentData.payerEmail,
           paymentData.pspReceiptNumber,
           paymentData.pspName,
-          paymentData.creditedAccountNumber
-        ]
-      );
-
-      await connection.query('UPDATE bills SET status = ? WHERE bill_id = ?', ['PAID', paymentData.billId]);
-
-      await connection.commit();
-      return { success: true, paymentId: result.insertId };
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-  }
-
-  async createOnline(paymentData) {
-    const connection = await db.getConnection();
-
-    try {
-      await connection.beginTransaction();
-
-      const [result] = await connection.query(
-        `INSERT INTO payments (
-          transaction_id, sp_code, pay_ref_id, bill_id, payment_control_number,
-          paid_amount, currency, transaction_datetime, used_payment_channel,
-          payer_cell_num, payer_name, payer_email, authorization_code,
-          payment_type, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ONLINE', 'PENDING')`,
-        [
-          paymentData.transactionId,
-          paymentData.spCode,
-          paymentData.payRefId,
-          paymentData.billId,
-          paymentData.paymentControlNumber,
-          paymentData.paidAmount,
-          paymentData.currency,
-          paymentData.transactionDateTime,
-          paymentData.usedPaymentChannel,
-          paymentData.payerCellNumber,
-          paymentData.payerName,
-          paymentData.payerEmail,
-          paymentData.authorizationCode
+          paymentData.pspCode,
+          paymentData.creditedAccountNumber,
+          paymentData.paymentType || 'OFFLINE'
         ]
       );
 

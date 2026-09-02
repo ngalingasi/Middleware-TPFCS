@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS bill_items (
   bill_item_equiv_amount DECIMAL(15, 2),
   bill_item_misc_amount DECIMAL(15, 2) DEFAULT 0,
   gfs_code VARCHAR(10) NOT NULL,
+  ref_bill_id VARCHAR(100),
+  coll_sp VARCHAR(10),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (bill_id) REFERENCES bills(bill_id) ON DELETE CASCADE,
   INDEX idx_bill_id (bill_id)
@@ -127,6 +129,31 @@ CREATE TABLE IF NOT EXISTS reconciliation_transactions (
   INDEX idx_bill_id (sp_bill_id),
   INDEX idx_control_number (bill_control_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- GePG API v5.0 upgrade path: additive columns for fields introduced in
+-- v5 that v4 had no equivalent for. Nullable/optional since existing rows
+-- predate v5 and the bill-create form doesn't collect all of them yet.
+-- Requires MySQL 8.0.29+ or MariaDB 10.0.2+ for "ADD COLUMN IF NOT EXISTS".
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS cust_tin VARCHAR(20) AFTER payer_id;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS cust_id_typ VARCHAR(5) AFTER cust_tin;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS cust_accnt VARCHAR(50) AFTER cust_id_typ;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS coll_cent_code VARCHAR(20) AFTER cust_accnt;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS min_pay_amt DECIMAL(15, 2) AFTER bill_equiv_amount;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS exch_rate DECIMAL(15, 2) AFTER min_pay_amt;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS pay_plan TINYINT AFTER bill_pay_option;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS pay_lim_typ TINYINT AFTER pay_plan;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS pay_lim_amt DECIMAL(15, 2) AFTER pay_lim_typ;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS coll_psp VARCHAR(100) AFTER pay_lim_amt;
+
+ALTER TABLE bill_items ADD COLUMN IF NOT EXISTS ref_bill_id VARCHAR(100) AFTER gfs_code;
+ALTER TABLE bill_items ADD COLUMN IF NOT EXISTS coll_sp VARCHAR(10) AFTER ref_bill_id;
+
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS psp_code VARCHAR(10) AFTER psp_name;
+
+ALTER TABLE reconciliation_requests MODIFY COLUMN reconciliation_option TINYINT NULL;
+
+ALTER TABLE reconciliation_transactions ADD COLUMN IF NOT EXISTS bill_amount DECIMAL(15, 2) AFTER paid_amount;
+ALTER TABLE reconciliation_transactions ADD COLUMN IF NOT EXISTS bill_pay_option VARCHAR(10) AFTER bill_amount;
 
 -- API logs table
 CREATE TABLE IF NOT EXISTS api_logs (
@@ -228,12 +255,17 @@ INSERT INTO users (username, email, password, full_name, role, status) VALUES
 ON DUPLICATE KEY UPDATE password=VALUES(password);
 
 -- Insert default configurations
+-- NOTE: these paths are the last known-good v4 endpoints, kept only as
+-- fallback defaults in gepgClient.js. GePG API v5.0 section 1.6 states
+-- endpoints are "communicated during integration" rather than published
+-- as fixed paths - confirm/replace via the GEPG_ENDPOINT_* env vars once
+-- GePG's v5 integration pack provides the real values.
 INSERT INTO system_config (config_key, config_value, description) VALUES
-('gepg_endpoint_bill_submission', 'http://<gepgIP>:<port>/api/bill/sigqrequest', 'GePG Bill Submission Endpoint'),
-('gepg_endpoint_bill_reuse', 'http://<gepgIP>:<port>/api/bill/sigqrequest_reuse', 'GePG Bill Control Number Reuse Endpoint'),
-('gepg_endpoint_bill_update', 'http://<gepgIP>:<port>/api/bill/sigqrequest_change', 'GePG Bill Update Endpoint'),
-('gepg_endpoint_bill_cancellation', 'http://<gepgIP>:<port>/api/bill/sigcancel_request', 'GePG Bill Cancellation Endpoint'),
-('gepg_endpoint_reconciliation', 'http://<gepgIP>:<port>/api/reconciliations/sig_sp_qrequest', 'GePG Reconciliation Endpoint')
+('gepg_endpoint_bill_submission', 'http://<gepgIP>:<port>/api/bill/sigqrequest', 'GePG Bill Submission Endpoint (v4 fallback - confirm v5 value with GePG)'),
+('gepg_endpoint_bill_reuse', 'http://<gepgIP>:<port>/api/bill/sigqrequest_reuse', 'GePG Bill Control Number Reuse Endpoint (v4 fallback - confirm v5 value with GePG)'),
+('gepg_endpoint_bill_update', 'http://<gepgIP>:<port>/api/bill/sigqrequest_change', 'GePG Bill Update Endpoint (v4 fallback - confirm v5 value with GePG)'),
+('gepg_endpoint_bill_cancellation', 'http://<gepgIP>:<port>/api/bill/sigcancel_request', 'GePG Bill Cancellation Endpoint (v4 fallback - confirm v5 value with GePG)'),
+('gepg_endpoint_reconciliation', 'http://<gepgIP>:<port>/api/reconciliations/sig_sp_qrequest', 'GePG Reconciliation Endpoint (v4 fallback - confirm v5 value with GePG)')
 ON DUPLICATE KEY UPDATE config_value=VALUES(config_value);
 
 -- OTP verifications table - backs the 3-step OTP login flow

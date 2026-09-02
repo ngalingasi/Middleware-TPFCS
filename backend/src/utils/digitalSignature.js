@@ -3,18 +3,15 @@ const fs = require('fs');
 const forge = require('node-forge');
 
 /**
- * Implements GePG's digital signature requirements (API v4.0, section 7):
+ * Implements GePG's digital signature requirements (API v5.0, section 13):
  *  - Messages are signed with the participant's PKCS#12 (.p12/.pfx) private key
- *  - Algorithm: SHA1withRSA
+ *  - Algorithm: SHA256withRSA
  *  - Signature is BASE64 encoded
- *  - Signed envelope shape: <Gepg><message/><gepgSignature/></Gepg>
- *
- * Online payment redirect forms (section 5.8) use a *different* scheme -
- * HMAC-SHA256 over a sorted field list - kept separate below.
+ *  - Signed envelope shape: <Gepg><message/><signature/></Gepg>
  */
 class DigitalSignature {
   constructor() {
-    this.algorithm = 'RSA-SHA1'; // Node's name for SHA1withRSA
+    this.algorithm = 'RSA-SHA256'; // Node's name for SHA256withRSA
     this.encoding = 'base64';
     this._privateKeyPemCache = new Map();
   }
@@ -68,7 +65,7 @@ class DigitalSignature {
   }
 
   /**
-   * Sign a message per GePG's rules: SHA1withRSA, base64 encoded.
+   * Sign a message per GePG's rules: SHA256withRSA, base64 encoded.
    */
   signMessage(message, certPath, password) {
     try {
@@ -113,7 +110,7 @@ class DigitalSignature {
   createSignedEnvelope(message, certPath, password) {
     try {
       const signature = this.signMessage(message, certPath, password);
-      return `<Gepg>\n${message}\n<gepgSignature>${signature}</gepgSignature>\n</Gepg>`;
+      return `<Gepg>\n${message}\n<signature>${signature}</signature>\n</Gepg>`;
     } catch (error) {
       throw new Error(`Failed to create signed envelope: ${error.message}`);
     }
@@ -126,11 +123,11 @@ class DigitalSignature {
    */
   extractAndVerifyEnvelope(envelopeXML, publicKeyPath) {
     try {
-      const messageMatch = envelopeXML.match(/<Gepg>\s*([\s\S]*?)\s*<gepgSignature>/);
-      const signatureMatch = envelopeXML.match(/<gepgSignature>([\s\S]*?)<\/gepgSignature>/);
+      const messageMatch = envelopeXML.match(/<Gepg>\s*([\s\S]*?)\s*<signature>/);
+      const signatureMatch = envelopeXML.match(/<signature>([\s\S]*?)<\/signature>/);
 
       if (!messageMatch || !signatureMatch) {
-        throw new Error('Invalid envelope format: missing <Gepg> message or <gepgSignature>');
+        throw new Error('Invalid envelope format: missing <Gepg> message or <signature>');
       }
 
       const message = messageMatch[1].trim();
@@ -141,33 +138,6 @@ class DigitalSignature {
       return { message, signature, isValid };
     } catch (error) {
       throw new Error(`Failed to extract and verify envelope: ${error.message}`);
-    }
-  }
-
-  /**
-   * Section 5.8 - Hash Generation for online payment redirect forms.
-   * Distinct scheme: HMAC-SHA256 over field values sorted by field name.
-   */
-  generateHash(data, secretKey) {
-    try {
-      const sortedKeys = Object.keys(data).sort();
-      const sourceString = sortedKeys.map(key => data[key]).join('');
-
-      const hmac = crypto.createHmac('sha256', secretKey);
-      hmac.update(sourceString);
-
-      return hmac.digest('hex').toUpperCase();
-    } catch (error) {
-      throw new Error(`Hash generation failed: ${error.message}`);
-    }
-  }
-
-  verifyHash(data, providedHash, secretKey) {
-    try {
-      const calculatedHash = this.generateHash(data, secretKey);
-      return calculatedHash === providedHash.toUpperCase();
-    } catch (error) {
-      throw new Error(`Hash verification failed: ${error.message}`);
     }
   }
 }

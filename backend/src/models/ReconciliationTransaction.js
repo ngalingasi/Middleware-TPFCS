@@ -2,7 +2,7 @@ const db = require('../config/database');
 
 class ReconciliationTransaction {
   /**
-   * Bulk-insert the ReconcTrxInf entries carried in a gepgSpReconcResp.
+   * Bulk-insert the PmtTrxDtl entries carried in a sucSpPmtRes.
    */
   async createMany(reconciliationRequestId, transactions = []) {
     if (transactions.length === 0) return { inserted: 0 };
@@ -13,6 +13,8 @@ class ReconciliationTransaction {
       t.billControlNumber,
       t.pspTransactionId,
       t.paidAmount,
+      t.billAmount,
+      t.billPayOption,
       t.currency,
       t.payRefId,
       t.transactionDateTime,
@@ -29,9 +31,9 @@ class ReconciliationTransaction {
     const [result] = await db.query(
       `INSERT INTO reconciliation_transactions (
         reconciliation_request_id, sp_bill_id, bill_control_number, psp_transaction_id,
-        paid_amount, currency, pay_ref_id, transaction_datetime, credited_account_number,
-        used_payment_channel, psp_name, psp_code, depositor_cell_num, depositor_name,
-        depositor_email, remarks
+        paid_amount, bill_amount, bill_pay_option, currency, pay_ref_id, transaction_datetime,
+        credited_account_number, used_payment_channel, psp_name, psp_code, depositor_cell_num,
+        depositor_name, depositor_email, remarks
       ) VALUES ?`,
       [values]
     );

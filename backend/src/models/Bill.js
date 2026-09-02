@@ -22,8 +22,11 @@ class Bill {
           bill_id, sub_sp_code, sp_sys_id, bill_amount, misc_amount,
           bill_expiry_date, payer_id, payer_name, payer_cell_num,
           payer_email, bill_description, currency, bill_equiv_amount,
-          reminder_flag, bill_pay_option, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+          reminder_flag, bill_pay_option,
+          cust_tin, cust_id_typ, cust_accnt, coll_cent_code, min_pay_amt,
+          exch_rate, pay_plan, pay_lim_typ, pay_lim_amt, coll_psp,
+          status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
         [
           billData.billId,
           billData.subSpCode,
@@ -39,7 +42,17 @@ class Bill {
           billData.currency || 'TZS',
           billData.billEquivAmount,
           billData.reminderFlag !== false,
-          billData.billPayOption || 1
+          billData.billPayOption || 1,
+          billData.custTin || null,
+          billData.custIdTyp || null,
+          billData.custAccnt || null,
+          billData.collCentCode || null,
+          billData.minPayAmt != null ? billData.minPayAmt : null,
+          billData.exchRate != null ? billData.exchRate : null,
+          billData.payPlan || null,
+          billData.payLimTyp || null,
+          billData.payLimAmt != null ? billData.payLimAmt : null,
+          billData.collPsp || null
         ]
       );
 
@@ -51,13 +64,16 @@ class Bill {
           item.billItemAmount,
           item.billItemEquivAmount,
           item.billItemMiscAmount || 0,
-          item.gfsCode
+          item.gfsCode,
+          item.refBillId || billData.billId,
+          item.collSp || null
         ]);
 
         await connection.query(
           `INSERT INTO bill_items (
             bill_id, bill_item_ref, use_item_ref_on_pay, bill_item_amount,
-            bill_item_equiv_amount, bill_item_misc_amount, gfs_code
+            bill_item_equiv_amount, bill_item_misc_amount, gfs_code,
+            ref_bill_id, coll_sp
           ) VALUES ?`,
           [itemValues]
         );
@@ -133,7 +149,7 @@ class Bill {
   }
 
   /**
-   * Called after GePG's immediate acknowledgement (gepgBillSubReqAck) to the
+   * Called after GePG's immediate acknowledgement (billSubReqAck) to the
    * submit call. This is NOT the final bill status - just "GePG received it".
    */
   async markSubmitted(billId, ackStatusCode) {
@@ -151,7 +167,7 @@ class Bill {
   }
 
   /**
-   * Called from the async gepgBillSubResp webhook - this carries the real
+   * Called from the async billSubRes webhook - this carries the real
    * outcome (GS/GF) and the payment control number.
    */
   async applySubmissionResponse(billId, { paymentControlNumber, transactionStatus, transactionStatusCode }) {

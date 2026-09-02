@@ -199,6 +199,10 @@ After login, copy the token and:
 ```
 
 ### Sample Payment Notification (Webhook)
+The real webhook (`POST /api/payments/webhook/notification`) receives a
+signed XML `pmtSpNtfReq` body, not JSON - the fields below are shown as
+JSON only for readability. See GePG API v5.0 section 6.2 for the full XML
+shape (`PmtHdr` + `PmtDtls > PmtTrxDtl`).
 ```json
 {
   "transactionId": "TXN001",
@@ -211,9 +215,13 @@ After login, copy the token and:
   "transactionDateTime": "2025-01-21T10:30:00",
   "usedPaymentChannel": "MOBILE",
   "payerName": "Test User",
-  "pspName": "Test Bank"
+  "pspName": "Test Bank",
+  "pspCode": "PSP900"
 }
 ```
+Note: v5 merged v4's separate online/offline payment notifications into
+this single flow - there is no longer a distinct online-notification
+webhook or endpoint.
 
 ## 🚀 Advanced Testing
 

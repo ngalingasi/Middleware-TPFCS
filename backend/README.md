@@ -13,11 +13,10 @@ gepg-bridge-system/
 ## 🚀 Features
 
 ### Backend (API Server)
-- ✅ Bill submission and management
+- ✅ Bill submission and management (Normal Bill Control Number flow)
 - ✅ Payment notification handling
 - ✅ Bill control number reuse
 - ✅ Bill cancellation
-- ✅ Online payment support
 - ✅ Reconciliation requests
 - ✅ Digital signature support (PKCS#12)
 - ✅ MySQL database
@@ -96,12 +95,23 @@ DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=gepg_bridge
 
-# GePG Settings
+# GePG Settings (API v5.0)
 GEPG_IP=your_gepg_ip
 GEPG_PORT=your_gepg_port
 GEPG_SP_CODE=SP023
 GEPG_SUB_SP_CODE=2001
-GEPG_SP_SYS_ID=your_system_id
+GEPG_SYS_CODE=your_system_id
+GEPG_SP_GRP_CODE=            # defaults to GEPG_SP_CODE for the Normal Bill flow
+GEPG_ALG=your_encryption_algorithm   # "shall be given during the integration" per GePG
+
+# GePG v5 endpoints (also "communicated during integration" - not fixed
+# paths like v4 was; leave unset to fall back to the last known-good v4
+# paths until GePG confirms the v5 equivalents)
+GEPG_ENDPOINT_BILL_SUBMISSION=
+GEPG_ENDPOINT_BILL_REUSE=
+GEPG_ENDPOINT_BILL_UPDATE=
+GEPG_ENDPOINT_BILL_CANCELLATION=
+GEPG_ENDPOINT_RECONCILIATION=
 
 # Certificates
 CERT_PATH=./certificates/sp_certificate.p12
@@ -114,7 +124,10 @@ GEPG_PUBLIC_CERT_PATH=./certificates/gepg_public_cert.pem
 Configure these URLs in your GePG portal:
 - Bill Response: `http://your-server:5001/api/bills/webhook/response`
 - Payment Notification: `http://your-server:5001/api/payments/webhook/notification`
-- Online Payment: `http://your-server:5001/api/payments/webhook/online-notification`
+- Reconciliation Response: `http://your-server:5001/api/reconciliation/webhook/response`
+
+Note: v5 merged v4's separate online/offline payment notifications into
+one flow, so there is no longer a distinct online-payment callback URL.
 
 ## 🔐 Digital Certificates
 
@@ -133,8 +146,7 @@ Configure these URLs in your GePG portal:
 - `GET /api/bills/:billId` - Get bill details
 
 ### Payments
-- `POST /api/payments/webhook/notification` - GePG payment webhook
-- `POST /api/payments/webhook/online-notification` - Online payment webhook
+- `POST /api/payments/webhook/notification` - GePG payment webhook (pmtSpNtfReq)
 - `GET /api/payments` - List all payments
 - `GET /api/payments/:paymentId` - Get payment details
 - `GET /api/payments/statistics/summary` - Payment statistics
@@ -258,12 +270,16 @@ npm run build
 
 ## 📚 GePG Documentation
 
-This system implements GePG API v4.0 specifications:
-- Bill submission and management
-- Payment notifications
-- Digital signatures (PKCS#12)
-- Reconciliation
-- Online payments
+This system implements GePG API v5.0 specifications:
+- Bill submission and management (Normal Bill Control Number flow only -
+  Combined/customer control numbers are not implemented)
+- Payment notifications (single pmtSpNtfReq flow, no online/offline split)
+- Digital signatures (PKCS#12, SHA256withRSA)
+- Reconciliation (successful-payments only - v4's exception-report option
+  was dropped in v5)
+
+Quote Posting (prepaid/token services, v5 section 5) is not implemented -
+there is no current business use case for it.
 
 ## 🤝 Support
 
@@ -280,7 +296,7 @@ This project is provided as-is for GePG integration purposes.
 
 - Backend: v1.0.0
 - Frontend: v1.0.0
-- GePG API: v4.0
+- GePG API: v5.0
 
 ---
 
