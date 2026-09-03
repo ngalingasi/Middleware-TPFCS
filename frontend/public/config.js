@@ -10,5 +10,9 @@
 // setup). Only change this if the API is genuinely on a different origin.
 window.__RUNTIME_CONFIG__ = {
   API_URL: '/api',
-  GEPG_API_URL: '/api',
+  // Local dev: no reverse proxy in front of the GePG bridge backend - it's
+  // genuinely on a different origin (port 5001) from the Vite dev server
+  // (port 3000), so '/api' would resolve against 3000 itself. Revert to
+  // '/api' when deploying behind a proxy that puts both on one domain.
+  GEPG_API_URL: 'http://localhost:5001/api',
 };
