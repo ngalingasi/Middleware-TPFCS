@@ -1,23 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import ComponentCard from '../../components/common/ComponentCard';
 import Label from '../../components/form/Label';
 import Input from '../../components/form/input/InputField';
+import Select from '../../components/form/Select';
 import GepgDatePicker from '../../components/form/GepgDatePicker';
 import Button from '../../components/ui/button/Button';
 import { billsApi } from '../../api/bills';
-import type { CreateBillPayload } from '../../types/gepg';
+import { gfsCodesApi } from '../../api/gfsCodes';
+import type { CreateBillPayload, GfsCodeRecord } from '../../types/gepg';
 import { toast } from '../../components/tpfcs/Toast';
 
 interface ItemRow {
+  uid: number; // stable identity for React's key - array index isn't
+  // enough here: Select (below) is uncontrolled (defaultValue only, no
+  // re-sync after mount), so removing a middle row would otherwise leave
+  // a stale dropdown value showing at the shifted position.
   billItemRef: string;
   billItemAmount: string;
   gfsCode: string;
 }
-
-const emptyItem = (): ItemRow => ({ billItemRef: '', billItemAmount: '', gfsCode: '' });
 
 export default function BillCreatePage() {
   const navigate = useNavigate();
@@ -31,17 +35,36 @@ export default function BillCreatePage() {
   const [billDescription, setBillDescription] = useState('');
   const [billExpiryDate, setBillExpiryDate] = useState('');
   const [currency, setCurrency] = useState('TZS');
-  const [items, setItems] = useState<ItemRow[]>([emptyItem()]);
+
+  const nextUid = useRef(1);
+  const emptyItem = (): ItemRow => ({ uid: nextUid.current++, billItemRef: '', billItemAmount: '', gfsCode: '' });
+  const [items, setItems] = useState<ItemRow[]>(() => [emptyItem()]);
   const [submitImmediately, setSubmitImmediately] = useState(true);
+
+  const [gfsCodes, setGfsCodes] = useState<GfsCodeRecord[]>([]);
+  const [loadingGfsCodes, setLoadingGfsCodes] = useState(true);
+
+  useEffect(() => {
+    gfsCodesApi
+      .listActive()
+      .then((res) => setGfsCodes(res.data.data))
+      .catch(() => toast.error('Failed to load GFS codes', 'Bill items cannot be created until this list loads - try refreshing.'))
+      .finally(() => setLoadingGfsCodes(false));
+  }, []);
+
+  const gfsCodeOptions = gfsCodes.map((g) => ({
+    value: g.code,
+    label: g.description ? `${g.code} — ${g.description}` : g.code,
+  }));
 
   const totalAmount = items.reduce((sum, it) => sum + (parseFloat(it.billItemAmount) || 0), 0);
 
-  const updateItem = (idx: number, field: keyof ItemRow, value: string) => {
-    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+  const updateItem = (uid: number, field: keyof ItemRow, value: string) => {
+    setItems((prev) => prev.map((it) => (it.uid === uid ? { ...it, [field]: value } : it)));
   };
 
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
-  const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
+  const removeItem = (uid: number) => setItems((prev) => prev.filter((it) => it.uid !== uid));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,22 +160,32 @@ export default function BillCreatePage() {
 
         <ComponentCard title="Bill Items" desc="Each item needs a GFS (Government Finance Statistics) code">
           <div className="space-y-4">
-            {items.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-100 p-3 sm:grid-cols-[1fr_1fr_1fr_auto] dark:border-gray-800">
+            {!loadingGfsCodes && gfsCodes.length === 0 && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                No GFS codes configured yet — ask an admin to add one under GFS Codes before creating a bill.
+              </p>
+            )}
+            {items.map((item) => (
+              <div key={item.uid} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-100 p-3 sm:grid-cols-[1fr_1fr_1fr_auto] dark:border-gray-800">
                 <div>
                   <Label>Item Ref *</Label>
-                  <Input value={item.billItemRef} onChange={(e) => updateItem(idx, 'billItemRef', e.target.value)} />
+                  <Input value={item.billItemRef} onChange={(e) => updateItem(item.uid, 'billItemRef', e.target.value)} />
                 </div>
                 <div>
                   <Label>GFS Code *</Label>
-                  <Input value={item.gfsCode} onChange={(e) => updateItem(idx, 'gfsCode', e.target.value)} />
+                  <Select
+                    options={gfsCodeOptions}
+                    defaultValue={item.gfsCode}
+                    placeholder={loadingGfsCodes ? 'Loading…' : 'Select GFS code'}
+                    onChange={(value) => updateItem(item.uid, 'gfsCode', value)}
+                  />
                 </div>
                 <div>
                   <Label>Amount *</Label>
-                  <Input type="number" value={item.billItemAmount} onChange={(e) => updateItem(idx, 'billItemAmount', e.target.value)} />
+                  <Input type="number" value={item.billItemAmount} onChange={(e) => updateItem(item.uid, 'billItemAmount', e.target.value)} />
                 </div>
                 <div className="flex items-end">
-                  <Button type="button" variant="outline" size="sm" onClick={() => removeItem(idx)} disabled={items.length === 1}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => removeItem(item.uid)} disabled={items.length === 1}>
                     Remove
                   </Button>
                 </div>

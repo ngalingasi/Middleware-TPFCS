@@ -224,6 +224,19 @@ export interface CreatedApiKey {
   status: ApiKeyStatus;
 }
 
+// ── GFS Codes ───────────────────────────────────────────────────────────────────
+export type GfsCodeStatus = 'ACTIVE' | 'INACTIVE';
+
+export interface GfsCodeRecord {
+  id: number;
+  code: string;
+  description?: string | null;
+  status: GfsCodeStatus;
+  created_at?: string;
+  updated_at?: string;
+  created_by_username?: string | null;
+}
+
 // ── Dashboard ───────────────────────────────────────────────────────────────────
 export interface DashboardBillStats {
   total_bills: number;

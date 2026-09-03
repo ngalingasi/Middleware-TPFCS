@@ -39,6 +39,11 @@ const Icon = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
   ),
+  Tag: () => (
+    <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M3 7.8V5a2 2 0 012-2h2.8a2 2 0 011.415.586l9.2 9.2a2 2 0 010 2.828l-4.8 4.8a2 2 0 01-2.828 0l-9.2-9.2A2 2 0 013 8.8V7.8z" />
+    </svg>
+  ),
 };
 
 type NavItem = { name: string; icon: React.ReactNode; path: string };
@@ -53,6 +58,7 @@ const NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { name: 'Users', icon: <Icon.Users />, path: '/users' },
   { name: 'API Keys', icon: <Icon.ApiKey />, path: '/api-keys' },
+  { name: 'GFS Codes', icon: <Icon.Tag />, path: '/gfs-codes' },
 ];
 
 const BOTTOM_NAV: NavItem[] = [{ name: 'Profile', icon: <Icon.Profile />, path: '/profile' }];

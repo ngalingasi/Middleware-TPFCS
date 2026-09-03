@@ -310,6 +310,31 @@ CREATE TABLE IF NOT EXISTS api_keys (
   INDEX idx_key_hash (key_hash),
   INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- GFS (Government Financial Statistics) codes master list — admin-managed
+-- reference data. Bill items are validated against the ACTIVE codes here
+-- at creation time (see billRoutes.js) instead of accepting any string.
+-- No FK from bill_items.gfs_code to this table on purpose: historical bill
+-- rows may predate this master list, and disabling a code (status update)
+-- rather than deleting it is the intended way to retire one without
+-- breaking anything that already used it.
+CREATE TABLE IF NOT EXISTS gfs_codes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(20) UNIQUE NOT NULL,
+  description VARCHAR(255),
+  status ENUM('ACTIVE', 'INACTIVE') DEFAULT 'ACTIVE',
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_code (code),
+  INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- bill_items.gfs_code was VARCHAR(10), but GePG API v5.0's own field table
+-- (section 4.6) declares GfsCode as String(20) - a legitimate 20-char code
+-- would have silently truncated. Widening is safe (never loses data).
+ALTER TABLE bill_items MODIFY COLUMN gfs_code VARCHAR(20) NOT NULL;
 `;
 
 async function runMigrations() {

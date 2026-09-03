@@ -1,3 +1,4 @@
+const { validationResult } = require('express-validator');
 const Bill = require('../models/Bill');
 const BillItem = require('../models/BillItem');
 const Payment = require('../models/Payment');
@@ -9,6 +10,14 @@ const xmlBuilder = require('../utils/xmlBuilder');
  */
 async function createBill(req, res) {
   try {
+    // billRoutes.js's billValidation (including the GFS-code check) was
+    // previously never enforced here - express-validator's body() rules
+    // only populate req, they don't reject on their own without this.
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: errors.array()[0].msg, errors: errors.array() });
+    }
+
     const result = await Bill.create(req.body, req.body.items || []);
     res.status(201).json({ success: true, message: 'Bill created successfully', data: result });
   } catch (error) {
@@ -107,6 +116,11 @@ async function submitBill(req, res) {
  */
 async function createAndSubmit(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: errors.array()[0].msg, errors: errors.array() });
+    }
+
     await Bill.create(req.body, req.body.items || []);
 
     const billData = await loadBillDataForSubmission(req.body.billId);

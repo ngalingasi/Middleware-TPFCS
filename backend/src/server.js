@@ -12,6 +12,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const logsRoutes = require('./routes/logsRoutes');
 const apiKeyRoutes = require('./routes/apiKeyRoutes');
+const gfsCodeRoutes = require('./routes/gfsCodeRoutes');
 const activityLogger = require('./middleware/activityLogger');
 
 const app = express();
@@ -45,6 +46,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reconciliation', reconciliationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/api-keys', apiKeyRoutes);
+app.use('/api/gfs-codes', gfsCodeRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -70,6 +72,7 @@ app.get('/', (req, res) => {
       reconciliation: '/api/reconciliation',
       dashboard: '/api/dashboard',
       apiKeys: '/api/api-keys',
+      gfsCodes: '/api/gfs-codes',
       health: '/health'
     }
   });

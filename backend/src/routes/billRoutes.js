@@ -3,6 +3,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const billController = require('../controllers/billController');
 const authenticateAny = require('../middleware/authenticateAny');
+const GfsCode = require('../models/GfsCode');
 
 const billValidation = [
   body('billId').notEmpty().withMessage('Bill ID is required'),
@@ -10,7 +11,24 @@ const billValidation = [
   body('billExpiryDate').isISO8601().withMessage('Invalid expiry date format'),
   body('payerId').notEmpty().withMessage('Payer ID is required'),
   body('payerName').notEmpty().withMessage('Payer name is required'),
-  body('items').isArray({ min: 1 }).withMessage('At least one bill item is required')
+  body('items').isArray({ min: 1 }).withMessage('At least one bill item is required'),
+  // Single query regardless of item count - diffs submitted codes against
+  // the ACTIVE master list (managed at /api/gfs-codes) rather than
+  // accepting any free-text string. Applies equally to the dashboard form
+  // and any child system calling this route directly.
+  body('items').custom(async (items) => {
+    if (!Array.isArray(items)) return true; // the isArray rule above already covers this case
+    const submitted = [...new Set(items.map(i => i && i.gfsCode).filter(Boolean))];
+    if (submitted.length === 0) return true;
+
+    const valid = await GfsCode.findActiveCodesIn(submitted);
+    const invalid = submitted.filter(c => !valid.includes(c));
+
+    if (invalid.length > 0) {
+      throw new Error(`Unknown or inactive GFS code(s): ${invalid.join(', ')}`);
+    }
+    return true;
+  })
 ];
 
 /**

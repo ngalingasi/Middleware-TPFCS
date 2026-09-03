@@ -28,6 +28,7 @@ import ReconciliationDetailPage from './pages/Gepg/ReconciliationDetailPage';
 // ── Admin ───────────────────────────────────────────────────────────────────
 import GepgUsersPage from './pages/Gepg/UsersPage';
 import ApiKeysPage from './pages/Gepg/ApiKeysPage';
+import GfsCodesPage from './pages/Gepg/GfsCodesPage';
 import ProfilePage from './pages/Gepg/ProfilePage';
 
 // ── Fallback ────────────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ export default function App() {
             <Route element={<GepgAppLayout />}>
               <Route path="/users" element={<GepgUsersPage />} />
               <Route path="/api-keys" element={<ApiKeysPage />} />
+              <Route path="/gfs-codes" element={<GfsCodesPage />} />
             </Route>
           </Route>
 
