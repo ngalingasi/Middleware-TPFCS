@@ -25,8 +25,8 @@ class Bill {
           reminder_flag, bill_pay_option,
           cust_tin, cust_id_typ, cust_accnt, coll_cent_code, min_pay_amt,
           exch_rate, pay_plan, pay_lim_typ, pay_lim_amt, coll_psp,
-          status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+          generated_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
         [
           billData.billId,
           billData.subSpCode,
@@ -52,7 +52,8 @@ class Bill {
           billData.payPlan || null,
           billData.payLimTyp || null,
           billData.payLimAmt != null ? billData.payLimAmt : null,
-          billData.collPsp || null
+          billData.collPsp || null,
+          billData.generatedBy || null
         ]
       );
 

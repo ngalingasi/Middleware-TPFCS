@@ -363,6 +363,10 @@ ALTER TABLE payments MODIFY COLUMN sp_code VARCHAR(10);
 ALTER TABLE payments MODIFY COLUMN payment_control_number VARCHAR(20);
 ALTER TABLE payments MODIFY COLUMN credited_account_number VARCHAR(50);
 ALTER TABLE payments MODIFY COLUMN payer_cell_num VARCHAR(15);
+
+-- Who raised the bill; printed as "Prepared By" on the bill (GePG bill guide
+-- requires the name of the person who issued it).
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS generated_by VARCHAR(30) AFTER payer_email;
 `;
 
 async function runMigrations() {

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const billController = require('../controllers/billController');
+const printController = require('../controllers/printController');
 const authenticateAny = require('../middleware/authenticateAny');
 const GfsCode = require('../models/GfsCode');
 
@@ -124,6 +125,15 @@ router.get('/', authenticateAny, billController.getBills);
  * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
 router.get('/:billId', authenticateAny, billController.getBillById);
+
+/**
+ * @route   GET /api/bills/:billId/print
+ * @desc    Data for the printable bill (?type=bill, default) or TISS/SWIFT
+ *          transfer bill (?type=transfer). Only available once the bill has
+ *          a control number.
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
+ */
+router.get('/:billId/print', authenticateAny, printController.getBillPrintData);
 
 /**
  * @route   GET /api/bills/:billId/status

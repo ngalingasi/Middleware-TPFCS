@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
 import ComponentCard from '../../components/common/ComponentCard';
 import Badge from '../../components/ui/badge/Badge';
+import Button from '../../components/ui/button/Button';
 import { paymentsApi } from '../../api/payments';
 import type { Payment } from '../../types/gepg';
 
 export default function PaymentDetailPage() {
   const { paymentId } = useParams<{ paymentId: string }>();
+  const navigate = useNavigate();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,6 +29,12 @@ export default function PaymentDetailPage() {
     <div>
       <PageMeta title={`Payment ${payment.pay_ref_id} | Tanzania Police Force Corporation Sole`} description="Payment detail" />
       <PageBreadcrumb pageTitle={`Payment ${payment.pay_ref_id}`} />
+
+      <div className="mb-4 flex justify-end">
+        <Button size="sm" variant="outline" onClick={() => navigate(`/payments/${payment.id ?? paymentId}/receipt`)}>
+          Print Receipt
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">

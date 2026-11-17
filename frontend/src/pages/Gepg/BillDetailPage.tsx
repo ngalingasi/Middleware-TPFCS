@@ -192,6 +192,16 @@ export default function BillDetailPage() {
               Submit to GePG
             </Button>
           )}
+          {bill.payment_control_number && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/bills/${bill.bill_id}/print`)} disabled={submitting}>
+                Print Bill
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/bills/${bill.bill_id}/print?type=transfer`)} disabled={submitting}>
+                Transfer Bill
+              </Button>
+            </>
+          )}
           {canExtend && (
             <Button size="sm" variant="outline" onClick={openExtend} disabled={submitting}>
               Extend Expiry

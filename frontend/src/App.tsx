@@ -16,6 +16,8 @@ import GepgDashboard from './pages/Gepg/Dashboard';
 import BillsListPage from './pages/Gepg/BillsListPage';
 import BillDetailPage from './pages/Gepg/BillDetailPage';
 import BillCreatePage from './pages/Gepg/BillCreatePage';
+import BillPrintPage from './pages/Gepg/BillPrintPage';
+import ReceiptPrintPage from './pages/Gepg/ReceiptPrintPage';
 
 // ── Payments ────────────────────────────────────────────────────────────────
 import PaymentsListPage from './pages/Gepg/PaymentsListPage';
@@ -47,6 +49,10 @@ export default function App() {
           {/* ── All authenticated users ────────────────────────────────── */}
           <Route element={<GepgProtectedRoute />}>
             <Route path="/change-password" element={<ChangePasswordPage />} />
+
+            {/* Print views sit outside GepgAppLayout so only the document prints */}
+            <Route path="/bills/:billId/print" element={<BillPrintPage />} />
+            <Route path="/payments/:paymentId/receipt" element={<ReceiptPrintPage />} />
 
             <Route element={<GepgAppLayout />}>
               <Route index path="/" element={<GepgDashboard />} />

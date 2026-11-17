@@ -263,3 +263,73 @@ export interface DashboardData {
   recentPayments: Payment[];
   monthlyTrend: Array<{ month: string; payment_count: number; total_amount: number }>;
 }
+
+// ── Printable documents (GET /bills/:id/print, GET /payments/:id/receipt) ─────
+
+export interface PrintInstitution {
+  name: string;
+  subtitle: string;
+}
+
+export interface PrintBillDocument {
+  type: 'bill' | 'transfer';
+  title: string;
+  institution: PrintInstitution;
+  logos: { coatOfArms: string; gepg: string };
+  bill: {
+    controlNumber: string;
+    paymentReference: string;
+    billReference: string;
+    serviceProviderCode: string;
+    payerName: string;
+    payerPhone: string;
+    description: string;
+    items: Array<{ no: number; description: string; amount: string }>;
+    total: string;
+    currency: string;
+    amountInWords: string;
+    expiresOn: string;
+    preparedBy: string;
+    collectionCentre: string;
+    printedBy: string;
+    printedOn: string;
+  };
+  qr: { image: string | null; payload: Record<string, string>; caption: string } | null;
+  payment: { controlNumber: string; banks: string[]; mobileMoney: boolean };
+  transfer?: {
+    beneficiaryName: string;
+    bankName: string;
+    accountNumber: string;
+    swiftCode: string;
+    field59: string;
+    field70: string;
+    beingPaymentFor: string;
+  };
+  warnings: string[];
+}
+
+export interface PrintReceiptDocument {
+  type: 'receipt';
+  title: string;
+  titleSw: string;
+  institution: PrintInstitution;
+  logos: { coatOfArms: string; gepg: string };
+  receipt: {
+    receiptNumber: string;
+    receivedFrom: string;
+    amount: string;
+    currency: string;
+    amountInWords: string;
+    outstandingBalance: string;
+    items: Array<{ description: string; amount: string }>;
+    totalBilled: string;
+    billReference: string;
+    controlNumber: string;
+    paymentDate: string;
+    paymentChannel: string;
+    pspName: string;
+    issuedBy: string;
+    dateIssued: string;
+  };
+  warnings: string[];
+}

@@ -1,5 +1,5 @@
 import gepgClient from './gepgClient';
-import type { GepgApiResponse, GepgPaginatedResponse, Payment, PaymentStatistics } from '../types/gepg';
+import type { GepgApiResponse, GepgPaginatedResponse, Payment, PaymentStatistics, PrintReceiptDocument } from '../types/gepg';
 
 export interface PaymentListParams {
   page?: number;
@@ -17,6 +17,9 @@ export const paymentsApi = {
 
   get: (paymentId: number | string) =>
     gepgClient.get<GepgApiResponse<Payment>>(`/payments/${paymentId}`),
+
+  receiptData: (paymentId: number | string) =>
+    gepgClient.get<GepgApiResponse<PrintReceiptDocument>>(`/payments/${paymentId}/receipt`),
 
   statistics: (startDate?: string, endDate?: string) =>
     gepgClient.get<GepgApiResponse<PaymentStatistics>>('/payments/statistics/summary', {

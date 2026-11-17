@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
+const printController = require('../controllers/printController');
 const authenticateAny = require('../middleware/authenticateAny');
 
 /**
@@ -26,6 +27,13 @@ router.get('/', authenticateAny, paymentController.getPayments);
  * @access  Dashboard (JWT) or child system (X-Api-Key)
  */
 router.get('/statistics/summary', authenticateAny, paymentController.getPaymentStatistics);
+
+/**
+ * @route   GET /api/payments/:paymentId/receipt
+ * @desc    Data for the printable GePG receipt.
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
+ */
+router.get('/:paymentId/receipt', authenticateAny, printController.getReceiptData);
 
 /**
  * @route   GET /api/payments/:paymentId

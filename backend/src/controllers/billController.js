@@ -20,7 +20,7 @@ async function createBill(req, res) {
       return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
     }
 
-    const result = await Bill.create(req.body, req.body.items || []);
+    const result = await Bill.create({ ...req.body, generatedBy: actorName(req) }, req.body.items || []);
     res.status(201).json({ success: true, message: 'Bill created successfully', data: result });
   } catch (error) {
     console.error('Create bill error:', error);
@@ -179,7 +179,7 @@ async function createAndSubmit(req, res) {
       return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
     }
 
-    await Bill.create(req.body, req.body.items || []);
+    await Bill.create({ ...req.body, generatedBy: actorName(req) }, req.body.items || []);
 
     const billData = await loadBillDataForSubmission(req.body.billId, actorName(req));
     const response = await gepgClient.submitBill(billData);
@@ -267,7 +267,7 @@ async function reuseBill(req, res) {
       });
     }
 
-    await Bill.create(req.body, req.body.items || []);
+    await Bill.create({ ...req.body, generatedBy: actorName(req) }, req.body.items || []);
 
     const billData = await loadBillDataForSubmission(req.body.billId, actorName(req));
     billData.paymentControlNumber = String(paymentControlNumber);
@@ -427,7 +427,7 @@ async function bulkCreateAndSubmit(req, res) {
         continue;
       }
 
-      await Bill.create(bill, bill.items);
+      await Bill.create({ ...bill, generatedBy: actor }, bill.items);
 
       const billData = await loadBillDataForSubmission(billId, actor);
       const response = await gepgClient.submitBill(billData);

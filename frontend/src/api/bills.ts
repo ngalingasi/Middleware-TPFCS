@@ -1,5 +1,5 @@
 import gepgClient from './gepgClient';
-import type { Bill, CreateBillPayload, GepgApiResponse, GepgPaginatedResponse } from '../types/gepg';
+import type { Bill, CreateBillPayload, GepgApiResponse, GepgPaginatedResponse, PrintBillDocument } from '../types/gepg';
 
 export interface BillListParams {
   page?: number;
@@ -25,6 +25,10 @@ export const billsApi = {
 
   submit: (billId: string) =>
     gepgClient.post<GepgApiResponse<unknown>>(`/bills/submit/${billId}`),
+
+  /** Data for the printable bill, or the TISS/SWIFT transfer bill. */
+  printData: (billId: string, type: 'bill' | 'transfer' = 'bill') =>
+    gepgClient.get<GepgApiResponse<PrintBillDocument>>(`/bills/${billId}/print`, { params: { type } }),
 
   /** Extend an approved bill's expiry date; the control number is unchanged. */
   changeExpiry: (billId: string, billExpiryDate: string, reason: string) =>
