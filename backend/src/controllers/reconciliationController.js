@@ -158,7 +158,8 @@ async function handleReconciliationResponseWebhook(req, res) {
           pspName: t.PspName,
           pspCode: t.PspCode,
           creditedAccountNumber: t.CollAccNum,
-          paymentType: ONLINE_CHANNELS.has((t.UsdPayChnl || '').toUpperCase()) ? 'ONLINE' : 'OFFLINE'
+          paymentType: ONLINE_CHANNELS.has((t.UsdPayChnl || '').toUpperCase()) ? 'ONLINE' : 'OFFLINE',
+          source: 'reconciliation'
         });
 
         if (!result.duplicate) {

@@ -7,11 +7,11 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const reconciliationController = require('../controllers/reconciliationController');
-const authenticateAny = require('../middleware/authenticateAny');
+const { authenticate } = require('../middleware/auth');
 
 router.post(
   '/request',
-  authenticateAny,
+  authenticate,
   [
     body('transactionDate').isISO8601().withMessage('transactionDate must be YYYY-MM-DD')
   ],
@@ -20,8 +20,8 @@ router.post(
 
 router.post('/webhook/response', reconciliationController.handleReconciliationResponseWebhook);
 
-router.get('/', authenticateAny, reconciliationController.getReconciliationRequests);
+router.get('/', authenticate, reconciliationController.getReconciliationRequests);
 
-router.get('/:requestId', authenticateAny, reconciliationController.getReconciliationRequestById);
+router.get('/:requestId', authenticate, reconciliationController.getReconciliationRequestById);
 
 module.exports = router;

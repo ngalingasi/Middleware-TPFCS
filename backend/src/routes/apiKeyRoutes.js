@@ -15,7 +15,7 @@ router.post(
   '/',
   authenticate,
   authorize('ADMIN'),
-  [body('name').notEmpty().withMessage('Key name is required')],
+  [body('name').notEmpty().withMessage('Key name is required'), body('billingSystemId').isInt().withMessage('Choose the billing system this key is for')],
   apiKeyController.createApiKey
 );
 
@@ -26,6 +26,8 @@ router.patch(
   [body('status').isIn(['ACTIVE', 'DISABLED'])],
   apiKeyController.setApiKeyStatus
 );
+
+router.patch('/:id/system', authenticate, authorize('ADMIN'), [body('billingSystemId').isInt()], apiKeyController.assignBillingSystem);
 
 router.delete('/:id', authenticate, authorize('ADMIN'), apiKeyController.deleteApiKey);
 

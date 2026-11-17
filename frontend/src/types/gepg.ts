@@ -105,6 +105,8 @@ export interface Bill {
   items?: BillItem[];
   totalPaid?: number;
   remainingAmount?: number;
+  billing_system_code?: string | null;
+  external_ref?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -221,6 +223,8 @@ export interface ApiKeyRecord {
   last_used_at?: string | null;
   created_at: string;
   created_by_username?: string | null;
+  billing_system_id?: number | null;
+  billing_system_code?: string | null;
 }
 
 export interface CreatedApiKey {
@@ -390,3 +394,85 @@ export interface CertificateStatus {
   message: string;
   subject?: string;
 }
+
+// Billing systems and the outbox
+export interface BillingSystem {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  contact?: string | null;
+  status: 'ACTIVE' | 'DISABLED';
+  callback_url?: string | null;
+  retry_window_hours: number;
+  created_at: string;
+  active_keys: number;
+  bill_count: number;
+  pending_events: number;
+  dead_events: number;
+  last_delivered_at?: string | null;
+}
+
+export interface BillingSystemList {
+  systems: BillingSystem[];
+  retryWindows: number[];
+  defaultRetryWindow: number;
+}
+
+export interface BillingSystemInput {
+  code?: string;
+  name: string;
+  description?: string;
+  contact?: string;
+  callbackUrl?: string;
+  retryWindowHours: number;
+  status?: 'ACTIVE' | 'DISABLED';
+}
+
+export interface SystemTestResult {
+  eventId: number;
+  ok: boolean;
+  httpStatus: number | null;
+  error: string | null;
+  response: string;
+  durationMs: number;
+}
+
+export type EventStatus = 'PENDING' | 'DELIVERED' | 'DEAD' | 'PULL_ONLY';
+
+export interface OutboxEvent {
+  id: number;
+  type: string;
+  bill_id?: string | null;
+  delivery_status: EventStatus;
+  attempts: number;
+  next_attempt_at?: string | null;
+  deadline_at?: string | null;
+  last_attempt_at?: string | null;
+  last_http_status?: number | null;
+  last_error?: string | null;
+  delivered_at?: string | null;
+  created_at: string;
+  system_code: string;
+  system_name: string;
+}
+
+export interface OutboxDelivery {
+  id: number;
+  attempt: number;
+  url?: string | null;
+  http_status?: number | null;
+  ok: number;
+  error?: string | null;
+  response_snippet?: string | null;
+  duration_ms?: number | null;
+  created_at: string;
+}
+
+export interface OutboxEventDetail extends OutboxEvent {
+  callback_url?: string | null;
+  envelope: unknown;
+  deliveries: OutboxDelivery[];
+}
+
+export type OutboxStats = Record<EventStatus, number>;

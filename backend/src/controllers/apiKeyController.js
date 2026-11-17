@@ -4,6 +4,7 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const ApiKey = require('../models/ApiKey');
+const BillingSystem = require('../models/BillingSystem');
 
 // list keys: only the masked prefix is returned, never the key or its hash
 async function getApiKeys(req, res) {
@@ -19,13 +20,17 @@ async function getApiKeys(req, res) {
 // the plaintext key is returned once, at creation
 async function createApiKey(req, res) {
   try {
-    const { name } = req.body;
+    const { name, billingSystemId } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: 'Key name is required' });
     }
+    const system = await BillingSystem.findById(billingSystemId);
+    if (!system) {
+      return res.status(400).json({ success: false, message: 'Choose the billing system this key is for' });
+    }
 
     const { plaintextKey, keyHash, keyPrefix } = ApiKey.generateKey();
-    const id = await ApiKey.create({ name: name.trim(), keyHash, keyPrefix, createdBy: req.user.id });
+    const id = await ApiKey.create({ name: name.trim(), keyHash, keyPrefix, createdBy: req.user.id, billingSystemId: system.id });
 
     res.status(201).json({
       success: true,
@@ -35,6 +40,7 @@ async function createApiKey(req, res) {
         name: name.trim(),
         key: plaintextKey,
         keyPrefix,
+        billingSystemCode: system.code,
         status: 'ACTIVE'
       }
     });
@@ -82,4 +88,23 @@ async function deleteApiKey(req, res) {
   }
 }
 
-module.exports = { getApiKeys, createApiKey, setApiKeyStatus, deleteApiKey };
+async function assignBillingSystem(req, res) {
+  try {
+    const key = await ApiKey.findById(req.params.id);
+    if (!key) {
+      return res.status(404).json({ success: false, message: 'API key not found' });
+    }
+    const system = await BillingSystem.findById(req.body.billingSystemId);
+    if (!system) {
+      return res.status(400).json({ success: false, message: 'Billing system not found' });
+    }
+    await ApiKey.setBillingSystem(key.id, system.id);
+    res.json({ success: true, message: `Key now belongs to ${system.code}` });
+  } catch (error) {
+    console.error('Assign API key error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update API key' });
+  }
+}
+
+module.exports = {
+  assignBillingSystem, getApiKeys, createApiKey, setApiKeyStatus, deleteApiKey };

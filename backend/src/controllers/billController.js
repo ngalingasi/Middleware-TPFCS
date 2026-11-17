@@ -12,6 +12,38 @@ const xmlBuilder = require('../utils/xmlBuilder');
 const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErrors');
 const GfsCode = require('../models/GfsCode');
 const { describeCode, describeCodes } = require('../utils/gepgCodes');
+const caller = require('../utils/caller');
+const BillingSystem = require('../models/BillingSystem');
+
+// the caller's own id and the id GePG knows the bill by
+function billRef(bill) {
+  return { billId: bill.externalRef || bill.billId, gepgBillId: bill.billId };
+}
+
+function duplicateResponse(res) {
+  return res.status(409).json({ success: false, code: '7226', message: 'A bill with this billId already exists' });
+}
+
+function invalidBill(res, error) {
+  return res.status(400).json({ success: false, code: error.code, message: error.message });
+}
+
+// finds the bill named in the URL among the caller's own bills (404 for anyone else's)
+function withBill(handler) {
+  return async (req, res) => {
+    try {
+      const bill = await caller.resolveBill(req, req.params.billId);
+      if (!bill) {
+        return res.status(404).json({ success: false, code: '7204', message: 'Bill not found' });
+      }
+      req.bill = bill;
+    } catch (error) {
+      console.error('Find bill error:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+    return handler(req, res);
+  };
+}
 
 async function createBill(req, res) {
   try {
@@ -20,9 +52,13 @@ async function createBill(req, res) {
       return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
     }
 
-    const result = await Bill.create({ ...req.body, generatedBy: actorName(req) }, req.body.items || []);
-    res.status(201).json({ success: true, message: 'Bill created successfully', data: result });
+    const prepared = caller.prepare(caller.systemOf(req), req.body, actorName(req));
+    if (prepared.error) return invalidBill(res, prepared.error);
+
+    const result = await Bill.create(prepared.bill, req.body.items || []);
+    res.status(201).json({ success: true, message: 'Bill created successfully', data: result, bill: billRef(prepared.bill) });
   } catch (error) {
+    if (caller.isDuplicate(error)) return duplicateResponse(res);
     console.error('Create bill error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
@@ -124,7 +160,7 @@ function formatDateTime(date) {
 }
 
 async function submitBill(req, res) {
-  const { billId } = req.params;
+  const billId = req.bill.bill_id;
 
   try {
     const billData = await loadBillDataForSubmission(billId, actorName(req));
@@ -150,12 +186,16 @@ async function createAndSubmit(req, res) {
       return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
     }
 
-    await Bill.create({ ...req.body, generatedBy: actorName(req) }, req.body.items || []);
+    const prepared = caller.prepare(caller.systemOf(req), req.body, actorName(req));
+    if (prepared.error) return invalidBill(res, prepared.error);
+    const gepgBillId = prepared.bill.billId;
 
-    const billData = await loadBillDataForSubmission(req.body.billId, actorName(req));
+    await Bill.create(prepared.bill, req.body.items || []);
+
+    const billData = await loadBillDataForSubmission(gepgBillId, actorName(req));
     const response = await gepgClient.submitBill(billData);
 
-    const ack = await recordSubmissionAck(req.body.billId, response);
+    const ack = await recordSubmissionAck(gepgBillId, response);
     if (!ack.ok) {
       // the bill is kept (as REJECTED) so it can be fixed and resubmitted
       return res.status(422).json({
@@ -164,8 +204,9 @@ async function createAndSubmit(req, res) {
       });
     }
 
-    res.status(201).json({ success: true, message: 'Bill created and submitted successfully', ack, data: response });
+    res.status(201).json({ success: true, message: 'Bill created and submitted successfully', ack, data: response, bill: billRef(prepared.bill) });
   } catch (error) {
+    if (caller.isDuplicate(error)) return duplicateResponse(res);
     console.error('Create and submit error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
@@ -173,7 +214,7 @@ async function createAndSubmit(req, res) {
 
 async function cancelBill(req, res) {
   try {
-    const { billId } = req.params;
+    const billId = req.bill.bill_id;
     const { reason } = req.body;
 
     const bill = await Bill.findCancellable(billId);
@@ -214,7 +255,8 @@ async function reuseBill(req, res) {
 
     // GePG only lets an institution reuse a control number it was issued.
     const prior = await Bill.findByControlNumber(paymentControlNumber);
-    if (!prior) {
+    const system = caller.systemOf(req);
+    if (!prior || (system && prior.billing_system_id !== system.id)) {
       return res.status(404).json({
         success: false,
         code: '7335',
@@ -222,15 +264,19 @@ async function reuseBill(req, res) {
       });
     }
 
-    await Bill.create({ ...req.body, generatedBy: actorName(req) }, req.body.items || []);
+    const prepared = caller.prepare(caller.systemOf(req), req.body, actorName(req));
+    if (prepared.error) return invalidBill(res, prepared.error);
+    const gepgBillId = prepared.bill.billId;
 
-    const billData = await loadBillDataForSubmission(req.body.billId, actorName(req));
+    await Bill.create(prepared.bill, req.body.items || []);
+
+    const billData = await loadBillDataForSubmission(gepgBillId, actorName(req));
     billData.paymentControlNumber = String(paymentControlNumber);
     billData.reuseReason = reuseReason;
 
     const response = await gepgClient.reuseBillControlNumber(billData);
 
-    const ack = await recordSubmissionAck(req.body.billId, response);
+    const ack = await recordSubmissionAck(gepgBillId, response);
     if (!ack.ok) {
       return res.status(422).json({
         ...ackFailureBody(ack, response),
@@ -238,8 +284,9 @@ async function reuseBill(req, res) {
       });
     }
 
-    res.status(201).json({ success: true, message: 'Control number reuse submitted to GePG', ack, data: response });
+    res.status(201).json({ success: true, message: 'Control number reuse submitted to GePG', ack, data: response, bill: billRef(prepared.bill) });
   } catch (error) {
+    if (caller.isDuplicate(error)) return duplicateResponse(res);
     console.error('Reuse bill error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
@@ -247,7 +294,7 @@ async function reuseBill(req, res) {
 
 async function changeBillExpiry(req, res) {
   try {
-    const { billId } = req.params;
+    const billId = req.bill.bill_id;
     const { billExpiryDate, reason } = req.body;
 
     if (!billExpiryDate || !reason || !String(reason).trim()) {
@@ -346,6 +393,7 @@ async function bulkCreateAndSubmit(req, res) {
   }
 
   const actor = actorName(req);
+  const system = caller.systemOf(req);
   const results = [];
 
   for (const bill of bills) {
@@ -358,11 +406,18 @@ async function bulkCreateAndSubmit(req, res) {
         continue;
       }
 
-      await Bill.create({ ...bill, generatedBy: actor }, bill.items);
+      const prepared = caller.prepare(system, bill, actor);
+      if (prepared.error) {
+        results.push({ billId, success: false, code: prepared.error.code, message: prepared.error.message });
+        continue;
+      }
+      const gepgBillId = prepared.bill.billId;
 
-      const billData = await loadBillDataForSubmission(billId, actor);
+      await Bill.create(prepared.bill, bill.items);
+
+      const billData = await loadBillDataForSubmission(gepgBillId, actor);
       const response = await gepgClient.submitBill(billData);
-      const ack = await recordSubmissionAck(billId, response);
+      const ack = await recordSubmissionAck(gepgBillId, response);
 
       results.push(ack.ok
         ? { billId, success: true, code: ack.code, message: 'Submitted to GePG' }
@@ -394,7 +449,9 @@ async function getBills(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
 
+    const system = caller.systemOf(req);
     const result = await Bill.findAll(page, limit, {
+      billingSystemId: system ? system.id : req.query.systemId,
       status: req.query.status,
       paymentControlNumber: req.query.controlNumber,
       startDate: req.query.startDate,
@@ -410,7 +467,7 @@ async function getBills(req, res) {
 
 async function getBillById(req, res) {
   try {
-    const { billId } = req.params;
+    const billId = req.bill.bill_id;
     const bill = await Bill.findById(billId);
 
     if (!bill) {
@@ -420,7 +477,12 @@ async function getBillById(req, res) {
     const items = await BillItem.findByBillId(billId);
     const payments = await Payment.findByBillId(billId);
 
-    res.json({ success: true, data: { ...bill, items, payments, ...paymentSummary(bill, payments) } });
+    const owner = bill.billing_system_id ? await BillingSystem.findById(bill.billing_system_id) : null;
+
+    res.json({
+      success: true,
+      data: { ...bill, billing_system_code: owner ? owner.code : null, items, payments, ...paymentSummary(bill, payments) }
+    });
   } catch (error) {
     console.error('Get bill error:', error);
     res.status(500).json({ success: false, message: error.message });
@@ -429,7 +491,7 @@ async function getBillById(req, res) {
 
 async function getBillStatus(req, res) {
   try {
-    const { billId } = req.params;
+    const billId = req.bill.bill_id;
     const bill = await Bill.findById(billId);
 
     if (!bill) {
@@ -484,7 +546,8 @@ async function handleBillResponseWebhook(req, res) {
       await Bill.applySubmissionResponse(billDtl.BillId, {
         paymentControlNumber: billDtl.BillCntrNum,
         transactionStatus: billResp.BillHdr.ResSts,
-        transactionStatusCode: billDtl.BillStsCode
+        transactionStatusCode: billDtl.BillStsCode,
+        statusDescription: billDtl.BillStsDesc
       });
     }
 
@@ -515,14 +578,14 @@ async function handleBillResponseWebhook(req, res) {
 
 module.exports = {
   createBill,
-  submitBill,
+  submitBill: withBill(submitBill),
   createAndSubmit,
-  cancelBill,
+  cancelBill: withBill(cancelBill),
   reuseBill,
-  changeBillExpiry,
+  changeBillExpiry: withBill(changeBillExpiry),
   bulkCreateAndSubmit,
   getBills,
-  getBillById,
-  getBillStatus,
+  getBillById: withBill(getBillById),
+  getBillStatus: withBill(getBillStatus),
   handleBillResponseWebhook
 };

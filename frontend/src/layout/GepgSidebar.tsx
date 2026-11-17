@@ -50,6 +50,16 @@ const Icon = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
+  Systems: () => (
+    <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+    </svg>
+  ),
+  Outbox: () => (
+    <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6M4 21h16" />
+    </svg>
+  ),
   Tag: () => (
     <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M3 7.8V5a2 2 0 012-2h2.8a2 2 0 011.415.586l9.2 9.2a2 2 0 010 2.828l-4.8 4.8a2 2 0 01-2.828 0l-9.2-9.2A2 2 0 013 8.8V7.8z" />
@@ -70,6 +80,8 @@ const ADMIN_NAV: NavItem[] = [
   { name: 'Users', icon: <Icon.Users />, path: '/users' },
   { name: 'API Keys', icon: <Icon.ApiKey />, path: '/api-keys' },
   { name: 'GFS Codes', icon: <Icon.Tag />, path: '/gfs-codes' },
+  { name: 'Billing Systems', icon: <Icon.Systems />, path: '/billing-systems' },
+  { name: 'Outbox', icon: <Icon.Outbox />, path: '/outbox' },
   { name: 'Settings', icon: <Icon.Settings />, path: '/settings' },
 ];
 

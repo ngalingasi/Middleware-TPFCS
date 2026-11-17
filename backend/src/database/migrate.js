@@ -329,6 +329,68 @@ ALTER TABLE payments MODIFY COLUMN payer_cell_num VARCHAR(15);
 -- requires the name of the person who issued it).
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS generated_by VARCHAR(30) AFTER payer_email;
 
+-- billing systems that use this bridge, and the events sent back to them
+CREATE TABLE IF NOT EXISTS billing_systems (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(12) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  description VARCHAR(255),
+  contact VARCHAR(150),
+  status ENUM('ACTIVE', 'DISABLED') NOT NULL DEFAULT 'ACTIVE',
+  callback_url VARCHAR(500),
+  webhook_secret TEXT,
+  retry_window_hours INT NOT NULL DEFAULT 72,
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS billing_system_id INT NULL AFTER name;
+ALTER TABLE api_keys ADD INDEX IF NOT EXISTS idx_api_keys_system (billing_system_id);
+
+-- billing_system_id is the owner; external_ref is the owner's own reference (bill_id is code + '-' + ref)
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS billing_system_id INT NULL AFTER generated_by;
+ALTER TABLE bills ADD COLUMN IF NOT EXISTS external_ref VARCHAR(100) NULL AFTER billing_system_id;
+ALTER TABLE bills ADD INDEX IF NOT EXISTS idx_bills_system (billing_system_id);
+ALTER TABLE bills ADD UNIQUE INDEX IF NOT EXISTS uq_bills_system_ref (billing_system_id, external_ref);
+
+CREATE TABLE IF NOT EXISTS outbound_events (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  billing_system_id INT NOT NULL,
+  type VARCHAR(40) NOT NULL,
+  bill_id VARCHAR(100) NULL,
+  payload MEDIUMTEXT NOT NULL,
+  delivery_status ENUM('PENDING', 'DELIVERED', 'DEAD', 'PULL_ONLY') NOT NULL,
+  attempts INT NOT NULL DEFAULT 0,
+  next_attempt_at DATETIME NULL,
+  deadline_at DATETIME NULL,
+  last_attempt_at DATETIME NULL,
+  last_http_status INT NULL,
+  last_error VARCHAR(500) NULL,
+  delivered_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_events_due (delivery_status, next_attempt_at),
+  INDEX idx_events_system (billing_system_id, id),
+  INDEX idx_events_bill (bill_id),
+  FOREIGN KEY (billing_system_id) REFERENCES billing_systems(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS event_deliveries (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  event_id BIGINT NOT NULL,
+  attempt INT NOT NULL,
+  url VARCHAR(500),
+  http_status INT NULL,
+  ok TINYINT(1) NOT NULL DEFAULT 0,
+  error VARCHAR(500) NULL,
+  response_snippet VARCHAR(500) NULL,
+  duration_ms INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_deliveries_event (event_id),
+  FOREIGN KEY (event_id) REFERENCES outbound_events(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- the first payment used to mark a bill PAID even when it was only partial; undo that
 UPDATE bills b SET b.status = 'APPROVED'
 WHERE b.status = 'PAID'

@@ -13,8 +13,9 @@ import Label from '../../components/form/Label';
 import Input from '../../components/form/input/InputField';
 import Switch from '../../components/form/switch/Switch';
 import { apiKeysApi } from '../../api/apiKeys';
-import type { ApiKeyRecord } from '../../types/gepg';
+import type { ApiKeyRecord, BillingSystem } from '../../types/gepg';
 import { toast } from '../../components/tpfcs/Toast';
+import { billingSystemsApi } from '../../api/billingSystems';
 
 export default function ApiKeysPage() {
   const createModal = useModal();
@@ -22,6 +23,8 @@ export default function ApiKeysPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
+  const [systems, setSystems] = useState<BillingSystem[]>([]);
+  const [systemId, setSystemId] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   // Holds the plaintext key right after creation - shown once, never again.
@@ -36,17 +39,25 @@ export default function ApiKeysPage() {
   };
 
   useEffect(load, []);
+  useEffect(() => {
+    billingSystemsApi.list().then((res) => setSystems(res.data.data.systems)).catch(() => setSystems([]));
+  }, []);
 
   const handleCreate = async () => {
     if (!name.trim()) {
       toast.error('Key name is required');
       return;
     }
+    if (!systemId) {
+      toast.error('Choose the billing system this key is for');
+      return;
+    }
     setSubmitting(true);
     try {
-      const { data } = await apiKeysApi.create(name.trim());
+      const { data } = await apiKeysApi.create(name.trim(), Number(systemId));
       setRevealedKey({ name: data.data.name, key: data.data.key });
       setName('');
+      setSystemId('');
       createModal.closeModal();
       load();
     } catch (err: any) {
@@ -104,6 +115,7 @@ export default function ApiKeysPage() {
             <thead>
               <tr className="bg-gray-100 dark:bg-white/[0.05]">
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Name</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Billing system</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Key</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Status</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Created</th>
@@ -115,14 +127,14 @@ export default function ApiKeysPage() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-4 text-center text-sm text-gray-400">
                     Loading…
                   </td>
                 </tr>
               )}
               {!loading && keys.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-4 text-center text-sm text-gray-400">
                     No API keys yet
                   </td>
                 </tr>
@@ -130,6 +142,33 @@ export default function ApiKeysPage() {
               {keys.map((key) => (
                 <tr key={key.id} className="odd:bg-white even:bg-gray-50 dark:odd:bg-transparent dark:even:bg-white/[0.03]">
                   <td className="px-3 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">{key.name}</td>
+                  <td className="px-3 py-2 text-sm whitespace-nowrap">
+                    {key.billing_system_code ? (
+                      <span className="font-medium text-gray-800 dark:text-white/90">{key.billing_system_code}</span>
+                    ) : (
+                      <select
+                        className="rounded-lg border border-warning-300 bg-warning-50 px-2 py-1 text-xs text-warning-700"
+                        value=""
+                        title="This key is not linked to a billing system, so it cannot call the API yet"
+                        onChange={async (e) => {
+                          try {
+                            await apiKeysApi.assignSystem(key.id, Number(e.target.value));
+                            toast.success('Key linked', 'It can call the API now');
+                            load();
+                          } catch {
+                            toast.error('Could not link the key');
+                          }
+                        }}
+                      >
+                        <option value="">Not linked: choose…</option>
+                        {systems.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.code} - {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <code className="text-sm text-gray-500 dark:text-gray-400">{key.key_prefix}</code>
                   </td>
@@ -178,9 +217,29 @@ export default function ApiKeysPage() {
         <p className="mb-7 text-sm leading-6 text-gray-500 dark:text-gray-400">
           Name your key so you can recognize it later. The key value is only shown once, immediately after creation.
         </p>
-        <div>
-          <Label>Key name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Backoffice billing system" />
+        <div className="space-y-4">
+          <div>
+            <Label>Key name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Production server" />
+          </div>
+          <div>
+            <Label>Billing system</Label>
+            <select
+              className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              value={systemId}
+              onChange={(e) => setSystemId(e.target.value)}
+            >
+              <option value="">Choose…</option>
+              {systems.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.code} - {s.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              A key only works for one billing system and only sees that system's bills. Add systems under Billing Systems first.
+            </p>
+          </div>
         </div>
         <div className="mt-8 flex w-full flex-col items-center justify-between gap-3 sm:flex-row">
           <Button type="button" variant="outline" className="w-full" onClick={createModal.closeModal}>

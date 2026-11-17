@@ -20,20 +20,22 @@ class ApiKey {
     return crypto.createHash('sha256').update(plaintextKey).digest('hex');
   }
 
-  async create({ name, keyHash, keyPrefix, createdBy }) {
+  async create({ name, keyHash, keyPrefix, createdBy, billingSystemId }) {
     const [result] = await db.query(
-      `INSERT INTO api_keys (name, key_prefix, key_hash, created_by, status)
-       VALUES (?, ?, ?, ?, 'ACTIVE')`,
-      [name, keyPrefix, keyHash, createdBy]
+      `INSERT INTO api_keys (name, key_prefix, key_hash, created_by, billing_system_id, status)
+       VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
+      [name, keyPrefix, keyHash, createdBy, billingSystemId]
     );
     return result.insertId;
   }
 
   async findAll() {
     const [rows] = await db.query(
-      `SELECT k.id, k.name, k.key_prefix, k.status, k.last_used_at, k.created_at, u.username as created_by_username
+      `SELECT k.id, k.name, k.key_prefix, k.status, k.last_used_at, k.created_at, k.billing_system_id,
+              s.code AS billing_system_code, s.name AS billing_system_name, u.username as created_by_username
        FROM api_keys k
        LEFT JOIN users u ON k.created_by = u.id
+       LEFT JOIN billing_systems s ON s.id = k.billing_system_id
        ORDER BY k.created_at DESC`
     );
     return rows;
@@ -50,6 +52,10 @@ class ApiKey {
       [keyHash]
     );
     return rows.length > 0 ? rows[0] : null;
+  }
+
+  async setBillingSystem(id, billingSystemId) {
+    await db.query('UPDATE api_keys SET billing_system_id = ? WHERE id = ?', [billingSystemId, id]);
   }
 
   async setStatus(id, status) {

@@ -4,6 +4,8 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const printService = require('../services/printService');
+const Payment = require('../models/Payment');
+const caller = require('../utils/caller');
 
 // Printed-by / issued-by: the dashboard user, or the child system's API key name.
 function actorName(req) {
@@ -23,7 +25,12 @@ function sendError(res, error, label) {
 
 async function getBillPrintData(req, res) {
   try {
-    const data = await printService.buildBillDocument(req.params.billId, {
+    const bill = await caller.resolveBill(req, req.params.billId);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found' });
+    }
+
+    const data = await printService.buildBillDocument(bill.bill_id, {
       type: req.query.type || 'bill',
       printedBy: actorName(req)
     });
@@ -35,6 +42,14 @@ async function getBillPrintData(req, res) {
 
 async function getReceiptData(req, res) {
   try {
+    const system = caller.systemOf(req);
+    if (system) {
+      const payment = await Payment.findById(req.params.paymentId);
+      if (!payment || payment.billing_system_id !== system.id) {
+        return res.status(404).json({ success: false, message: 'Payment not found' });
+      }
+    }
+
     const data = await printService.buildReceiptDocument(req.params.paymentId, { issuedBy: actorName(req) });
     res.json({ success: true, data });
   } catch (error) {

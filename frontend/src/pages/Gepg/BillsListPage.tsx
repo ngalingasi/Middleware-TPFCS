@@ -73,6 +73,7 @@ export default function BillsListPage() {
             <thead>
               <tr className="bg-gray-100 dark:bg-white/[0.05]">
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Bill ID</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">System</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Payer</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Amount</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Control No.</th>
@@ -83,14 +84,14 @@ export default function BillsListPage() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
                     Loading…
                   </td>
                 </tr>
               )}
               {!loading && bills.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
                     No bills found
                   </td>
                 </tr>
@@ -102,6 +103,7 @@ export default function BillsListPage() {
                       {bill.bill_id}
                     </Link>
                   </td>
+                  <td className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{bill.billing_system_code ?? '—'}</td>
                   <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{bill.payer_name}</td>
                   <td className="px-3 py-2 text-sm font-medium text-gray-800 dark:text-white/90">
                     {bill.currency} {Number(bill.bill_amount).toLocaleString()}

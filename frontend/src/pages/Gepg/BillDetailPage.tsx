@@ -186,6 +186,12 @@ export default function BillDetailPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Badge color={STATUS_COLOR[bill.status]}>{bill.status}</Badge>
+        {bill.billing_system_code && (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            System <span className="font-medium text-gray-800 dark:text-white/90">{bill.billing_system_code}</span>
+            {bill.external_ref ? ` (their ref ${bill.external_ref})` : ''}
+          </span>
+        )}
         {bill.payment_control_number && (
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Control No. <span className="font-medium text-gray-800 dark:text-white/90">{bill.payment_control_number}</span>

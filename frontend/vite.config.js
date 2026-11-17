@@ -7,8 +7,9 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
+      // '^/api/' so the page /api-keys is not mistaken for an API call
+      '^/api/': {
+        target: 'http://localhost:5001',
         changeOrigin: true
       }
     }

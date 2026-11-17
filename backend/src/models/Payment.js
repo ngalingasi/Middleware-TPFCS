@@ -4,6 +4,7 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const db = require('../config/database');
+const events = require('../services/eventService');
 
 class Payment {
   async create(paymentData) {
@@ -13,7 +14,8 @@ class Payment {
       await connection.beginTransaction();
 
       // lock the bill so concurrent payments for it are summed one at a time
-      await connection.query('SELECT bill_id FROM bills WHERE bill_id = ? FOR UPDATE', [paymentData.billId]);
+      const [lockedBill] = await connection.query('SELECT * FROM bills WHERE bill_id = ? FOR UPDATE', [paymentData.billId]);
+      const statusBefore = lockedBill[0] && lockedBill[0].status;
 
       const [existing] = await connection.query(
         'SELECT id FROM payments WHERE transaction_id = ? LIMIT 1',
@@ -64,6 +66,20 @@ class Payment {
         [paymentData.billId]
       );
 
+      // tell the owning billing system: the payment, and the bill too when this payment settled it
+      const [afterRows] = await connection.query('SELECT * FROM bills WHERE bill_id = ?', [paymentData.billId]);
+      const bill = afterRows[0];
+      const [paymentRows] = await connection.query('SELECT * FROM payments WHERE id = ?', [result.insertId]);
+      const totals = await events.totalsFor(connection, bill);
+      await events.emit(connection, bill, 'payment.received', {
+        payment: events.paymentBlock(paymentRows[0]),
+        totals,
+        source: paymentData.source || 'gepg'
+      });
+      if (statusBefore !== 'PAID' && bill.status === 'PAID') {
+        await events.emit(connection, bill, 'bill.paid', { totals });
+      }
+
       await connection.commit();
       return { success: true, paymentId: result.insertId };
     } catch (error) {
@@ -96,6 +112,10 @@ class Payment {
       whereClause.push('p.payment_type = ?');
       params.push(filters.paymentType);
     }
+    if (filters.billingSystemId) {
+      whereClause.push('b.billing_system_id = ?');
+      params.push(filters.billingSystemId);
+    }
     if (filters.billId) {
       whereClause.push('p.bill_id = ?');
       params.push(filters.billId);
@@ -107,7 +127,10 @@ class Payment {
 
     const where = whereClause.length > 0 ? `WHERE ${whereClause.join(' AND ')}` : '';
 
-    const [countResult] = await db.query(`SELECT COUNT(*) as total FROM payments p ${where}`, params);
+    const [countResult] = await db.query(
+      `SELECT COUNT(*) as total FROM payments p LEFT JOIN bills b ON p.bill_id = b.bill_id ${where}`,
+      params
+    );
     const [payments] = await db.query(
       `SELECT
         p.*,
@@ -147,7 +170,8 @@ class Payment {
         p.*,
         b.payer_name as bill_payer_name,
         b.bill_description,
-        b.bill_amount
+        b.bill_amount,
+        b.billing_system_id
       FROM payments p
       LEFT JOIN bills b ON p.bill_id = b.bill_id
       WHERE p.id = ?`,
@@ -156,17 +180,19 @@ class Payment {
     return payments.length > 0 ? payments[0] : null;
   }
 
-  async getStatistics(startDate, endDate) {
+  async getStatistics(startDate, endDate, billingSystemId) {
     const [stats] = await db.query(
       `SELECT
         COUNT(*) as total_payments,
-        SUM(paid_amount) as total_amount,
-        COUNT(CASE WHEN payment_type = 'ONLINE' THEN 1 END) as online_payments,
-        COUNT(CASE WHEN payment_type = 'OFFLINE' THEN 1 END) as offline_payments,
-        COUNT(CASE WHEN status = 'ACKNOWLEDGED' THEN 1 END) as acknowledged_payments
-      FROM payments
-      WHERE DATE(transaction_datetime) BETWEEN ? AND ?`,
-      [startDate, endDate]
+        SUM(p.paid_amount) as total_amount,
+        COUNT(CASE WHEN p.payment_type = 'ONLINE' THEN 1 END) as online_payments,
+        COUNT(CASE WHEN p.payment_type = 'OFFLINE' THEN 1 END) as offline_payments,
+        COUNT(CASE WHEN p.status = 'ACKNOWLEDGED' THEN 1 END) as acknowledged_payments
+      FROM payments p
+      LEFT JOIN bills b ON p.bill_id = b.bill_id
+      WHERE DATE(p.transaction_datetime) BETWEEN ? AND ?
+        ${billingSystemId ? 'AND b.billing_system_id = ?' : ''}`,
+      billingSystemId ? [startDate, endDate, billingSystemId] : [startDate, endDate]
     );
     return stats[0];
   }

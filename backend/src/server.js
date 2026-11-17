@@ -20,7 +20,12 @@ const apiKeyRoutes = require('./routes/apiKeyRoutes');
 const gfsCodeRoutes = require('./routes/gfsCodeRoutes');
 const gepgCodeRoutes = require('./routes/gepgCodeRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const billingSystemRoutes = require('./routes/billingSystemRoutes');
+const outboxRoutes = require('./routes/outboxRoutes');
+const v1Routes = require('./routes/v1Routes');
 const settings = require('./services/settingsService');
+const eventService = require('./services/eventService');
+const { startExpiryJob } = require('./services/expiryService');
 const activityLogger = require('./middleware/activityLogger');
 
 const app = express();
@@ -53,6 +58,9 @@ app.use('/api/api-keys', apiKeyRoutes);
 app.use('/api/gfs-codes', gfsCodeRoutes);
 app.use('/api/gepg-codes', gepgCodeRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/billing-systems', billingSystemRoutes);
+app.use('/api/outbox', outboxRoutes);
+app.use('/api/v1', v1Routes);
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -110,6 +118,8 @@ settings.load()
   .catch((error) => console.error('Could not load saved settings, using .env values:', error.message))
   .then(() => {
     settings.startAutoRefresh();
+    eventService.startWorker();
+    startExpiryJob();
     app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
