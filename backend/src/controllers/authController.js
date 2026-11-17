@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Auth controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');

@@ -10,11 +10,6 @@ import { billsApi } from '../../api/bills';
 import type { PrintBillDocument } from '../../types/gepg';
 import { gepgErrorMessage } from '../../utils/gepgError';
 
-/**
- * Standalone print view - rendered outside the app shell (no sidebar/header)
- * so the browser's Print produces just the document. Toolbar and warnings are
- * .no-print and never reach the paper.
- */
 export default function BillPrintPage() {
   const { billId } = useParams<{ billId: string }>();
   const [searchParams] = useSearchParams();

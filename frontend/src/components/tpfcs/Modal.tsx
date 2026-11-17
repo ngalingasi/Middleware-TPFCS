@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Modal component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 

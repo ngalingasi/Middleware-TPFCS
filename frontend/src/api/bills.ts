@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Bills API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import gepgClient from './gepgClient';
 import type { Bill, CreateBillPayload, GepgApiResponse, GepgPaginatedResponse, PrintBillDocument } from '../types/gepg';
 
@@ -26,19 +31,19 @@ export const billsApi = {
   submit: (billId: string) =>
     gepgClient.post<GepgApiResponse<unknown>>(`/bills/submit/${billId}`),
 
-  /** Data for the printable bill, or the TISS/SWIFT transfer bill. */
+  // Data for the printable bill, or the TISS/SWIFT transfer bill
   printData: (billId: string, type: 'bill' | 'transfer' = 'bill') =>
     gepgClient.get<GepgApiResponse<PrintBillDocument>>(`/bills/${billId}/print`, { params: { type } }),
 
-  /** Extend an approved bill's expiry date; the control number is unchanged. */
+  // Extend an approved bill's expiry date; the control number is unchanged
   changeExpiry: (billId: string, billExpiryDate: string, reason: string) =>
     gepgClient.post<GepgApiResponse<unknown>>(`/bills/change/${billId}`, { billExpiryDate, reason }),
 
-  /** Reuse a control number GePG issued earlier for new bill details. */
+  // Reuse a control number GePG issued earlier for new bill details
   reuse: (data: CreateBillPayload & { paymentControlNumber: string; reuseReason: string }) =>
     gepgClient.post<GepgApiResponse<unknown>>('/bills/reuse', data),
 
-  /** Create and submit many bills at once; returns a result per bill. */
+  // Create and submit many bills at once; returns a result per bill
   bulk: (bills: CreateBillPayload[]) =>
     gepgClient.post<{
       success: boolean;

@@ -1,16 +1,7 @@
-/**
- * ManifestActionsDropdown.tsx
- *
- * Reusable actions dropdown for the Manifest module.
- * Used in: ManifestsPage (list row), ManifestDetail (header).
- *
- * POSITIONING: Uses position:fixed calculated from getBoundingClientRect()
- * so the panel escapes ALL overflow clipping contexts (overflow-x-auto,
- * overflow-hidden, etc). The panel is rendered via a React Portal into
- * document.body so it is never clipped by any table wrapper.
- *
- * Permissions: mirrors existing role checks throughout the app.
- */
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Manifest actions dropdown component
+// └──────────────────────────────────────────────────────────────────────────┘
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';

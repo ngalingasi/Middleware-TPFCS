@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GePG protected route component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { Navigate, Outlet } from 'react-router';
 import { useGepgAuth } from '../../store/gepgAuthStore';
 

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ API client
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Checked in order: runtime config.js (editable on the server, no rebuild
@@ -13,7 +18,7 @@ const client = axios.create({
   timeout: 30000,
 });
 
-// ── Request interceptor — attach access token ─────────────────────────────────
+// Request interceptor — attach access token
 client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('access_token');
   if (token && config.headers) {
@@ -22,7 +27,7 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ── Response interceptor — handle 401 / token refresh ────────────────────────
+// Response interceptor — handle 401 / token refresh
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: string) => void; reject: (e: unknown) => void }> = [];
 

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Reconciliation API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import gepgClient from './gepgClient';
 import type {
   GepgApiResponse,

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Auth API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import client from './client';
 import type { AuthResponse, OtpChannel, AuthTokens } from '../types';
 

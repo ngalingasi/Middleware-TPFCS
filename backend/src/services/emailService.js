@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Email service
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const nodemailer = require('nodemailer');
 
 const transport = nodemailer.createTransport({
@@ -21,9 +26,6 @@ async function sendEmail(to, subject, html) {
   await transport.sendMail({ from, to, subject, html });
 }
 
-/**
- * Send OTP via email for the 3-step OTP login flow.
- */
 async function sendOtpEmail(to, otpCode, expiryMinutes) {
   const subject = 'Your One-Time Password (OTP) - Middleware';
   const html = `

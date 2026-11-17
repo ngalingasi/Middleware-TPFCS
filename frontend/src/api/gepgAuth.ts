@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GePG auth API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import gepgClient from './gepgClient';
 import type {
   GepgApiResponse,
@@ -22,7 +27,7 @@ export const gepgAuthApi = {
   register: (data: { username: string; email: string; password: string; fullName: string; role: string }) =>
     gepgClient.post<GepgApiResponse<GepgUser>>('/auth/register', data),
 
-  // ── OTP login flow (3 steps) ────────────────────────────────────────────
+  // OTP login flow (3 steps)
   validateCredentials: (login: string, password: string) =>
     gepgClient.post<GepgApiResponse<ValidateCredentialsData> & { mustChangePassword?: boolean }>(
       '/auth/validate-credentials',

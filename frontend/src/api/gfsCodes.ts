@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GFS codes API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import gepgClient from './gepgClient';
 import type { GepgApiResponse, GepgPaginatedResponse, GfsCodeRecord, GfsCodeStatus } from '../types/gepg';
 

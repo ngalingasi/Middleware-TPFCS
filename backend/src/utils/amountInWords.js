@@ -3,15 +3,7 @@
 // │ Amount in words utility
 // └──────────────────────────────────────────────────────────────────────────┘
 
-/**
- * Amount in words for printed bills and receipts.
- *
- * The GePG bill/receipt guide (MWONGOZO) requires "Billed Amount in Words" /
- * "Paid Amount in Words" on every document, in the style of its samples:
- * "Sixty-Five Thousand Tanzanian Shilling Only."
- *
- * English only. Currency names are singular, matching the samples.
- */
+// Amount in words for printed bills and receipts
 
 const ONES = [
   'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
@@ -77,13 +69,6 @@ function integerToWords(n) {
   return parts.join(' ');
 }
 
-/**
- * amountInWords(65000, 'TZS') -> "Sixty-Five Thousand Tanzanian Shilling Only."
- * amountInWords(12.5, 'USD')  -> "Twelve US Dollar and Fifty Cents Only."
- *
- * Returns '' for a non-finite or negative amount rather than printing
- * nonsense on an official document.
- */
 function amountInWords(amount, currency = 'TZS') {
   const value = Number(amount);
   if (!Number.isFinite(value) || value < 0) return '';

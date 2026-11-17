@@ -6,8 +6,7 @@
 import { useEffect, useState } from 'react';
 import { gepgCodesApi } from '../api/gepgCodes';
 
-// The code catalogue is static reference data, so fetch it once per page
-// load and share it between every component that shows a code.
+// static list, fetched once and shared
 let cache: Record<string, string> | null = null;
 let inflight: Promise<Record<string, string>> | null = null;
 
@@ -21,8 +20,7 @@ function loadCodes(): Promise<Record<string, string>> {
         return cache;
       })
       .catch(() => {
-        // Don't cache a failure - a later mount may succeed. Codes still
-        // render (just without a description).
+        // don't cache a failure, a later mount can retry
         inflight = null;
         return {} as Record<string, string>;
       });
@@ -30,12 +28,6 @@ function loadCodes(): Promise<Record<string, string>> {
   return inflight;
 }
 
-/**
- * Returns describe(code): the human-readable GePG description for a code
- * (or several, separated by ';'), or '' until the catalogue has loaded /
- * when the code is unknown. SIT requires every GePG code shown to the user
- * to be accompanied by its meaning.
- */
 export function useGepgCodes() {
   const [codes, setCodes] = useState<Record<string, string>>(cache ?? {});
 

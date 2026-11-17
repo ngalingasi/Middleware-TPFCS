@@ -19,8 +19,7 @@ function Row({ label, children, strong }: { label: string; children: ReactNode; 
 }
 
 function Logo({ src, className }: { src: string; className?: string }) {
-  // Logo files are supplied by the institution (public/images/gepg/); hide
-  // the slot cleanly if one is missing instead of showing a broken image.
+  // logos are supplied in public/images/gepg/; hide the slot if the file is missing
   return <img src={src} alt="" className={className} onError={(e) => ((e.currentTarget.style.visibility = 'hidden'))} />;
 }
 
@@ -53,8 +52,7 @@ function Qr({ doc }: { doc: PrintBillDocument }) {
           <div>{doc.qr.caption}</div>
         </>
       ) : (
-        // No image (qrcode package missing on the server): show the message so
-        // nothing is lost, on screen only - an official print should not carry it.
+        // no image (qrcode not installed): show the message on screen only
         <div className="gepg-doc-qr-missing no-print">QR message: {JSON.stringify(doc.qr.payload)}</div>
       )}
     </div>
@@ -158,7 +156,7 @@ function Closing({ doc }: { doc: PrintBillDocument }) {
   );
 }
 
-/** Appendix 3: government bill, payable by bank deposit or mobile money. */
+// Appendix 3: government bill, payable by bank deposit or mobile money
 function StandardBill({ doc }: { doc: PrintBillDocument }) {
   const { bill } = doc;
   return (
@@ -202,7 +200,7 @@ function StandardBill({ doc }: { doc: PrintBillDocument }) {
   );
 }
 
-/** Appendix 2: order form for an electronic funds transfer (TISS/SWIFT). */
+// Appendix 2: order form for an electronic funds transfer (TISS/SWIFT)
 function TransferBill({ doc }: { doc: PrintBillDocument }) {
   const { bill } = doc;
   const t = doc.transfer;

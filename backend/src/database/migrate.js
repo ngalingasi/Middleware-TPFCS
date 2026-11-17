@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Database migration
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
@@ -10,21 +15,10 @@ USE ${process.env.DB_NAME};
 -- Bills table
 CREATE TABLE IF NOT EXISTS bills (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  -- The child system's own unique bill/transaction reference, supplied as
-  -- billId when it calls POST /api/bills/create - this bridge never
-  -- generates it. It's the correlation key end-to-end: it becomes GePG's
-  -- BillId/GrpBillId in the v5 XML (Normal flow: GrpBillId == BillId, see
-  -- xmlBuilder.buildBillSubmissionRequest), the foreign key bill_items and
-  -- payments join on, and what GET /api/bills/{billId}(/status) is keyed by.
-  -- Must stay unique per child-system submission.
+  -- the child system's own reference; becomes BillId/GrpBillId for GePG, must stay unique
   bill_id VARCHAR(100) UNIQUE NOT NULL,
   sub_sp_code VARCHAR(10),
-  -- Leftover v4-era "Service Provider System ID" per bill. Under API v5
-  -- the SysCode sent to GePG is sourced from env config (GEPG_SYS_CODE,
-  -- see gepgClient.sysCode) and applied at submission time, not supplied
-  -- per bill - Bill.create still writes it from billData.spSysId, but no
-  -- current API caller (frontend or otherwise) ever sends spSysId, so
-  -- this column is effectively always NULL today.
+  -- v4 leftover, effectively always NULL (SysCode comes from env now)
   sp_sys_id VARCHAR(10),
   bill_amount DECIMAL(15, 2) NOT NULL,
   misc_amount DECIMAL(15, 2) DEFAULT 0,
@@ -143,10 +137,7 @@ CREATE TABLE IF NOT EXISTS reconciliation_transactions (
   INDEX idx_control_number (bill_control_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- GePG API v5.0 upgrade path: additive columns for fields introduced in
--- v5 that v4 had no equivalent for. Nullable/optional since existing rows
--- predate v5 and the bill-create form doesn't collect all of them yet.
--- Requires MySQL 8.0.29+ or MariaDB 10.0.2+ for "ADD COLUMN IF NOT EXISTS".
+-- v5 columns (nullable, older rows predate them). Needs MySQL 8.0.29+ / MariaDB 10.0.2+ for IF NOT EXISTS
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS cust_tin VARCHAR(20) AFTER payer_id;
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS cust_id_typ VARCHAR(5) AFTER cust_tin;
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS cust_accnt VARCHAR(50) AFTER cust_id_typ;
@@ -212,10 +203,7 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Idempotent upgrade path: CREATE TABLE IF NOT EXISTS above is a no-op if
--- the users table already exists from an earlier migration run, so these
--- ALTER statements make sure mobile/must_change_password land either way.
--- Requires MySQL 8.0.29+ or MariaDB 10.0.2+ for "ADD COLUMN IF NOT EXISTS".
+-- CREATE TABLE IF NOT EXISTS skips an existing users table, so add these columns separately
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile VARCHAR(20) AFTER full_name;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 0 AFTER status;
 
@@ -268,11 +256,7 @@ INSERT INTO users (username, email, password, full_name, role, status) VALUES
 ON DUPLICATE KEY UPDATE password=VALUES(password);
 
 -- Insert default configurations
--- NOTE: these paths are the last known-good v4 endpoints, kept only as
--- fallback defaults in gepgClient.js. GePG API v5.0 section 1.6 states
--- endpoints are "communicated during integration" rather than published
--- as fixed paths - confirm/replace via the GEPG_ENDPOINT_* env vars once
--- GePG's v5 integration pack provides the real values.
+-- v4 endpoint paths, only fallback defaults: GePG v5 gives the real ones at integration (set GEPG_ENDPOINT_* in .env)
 INSERT INTO system_config (config_key, config_value, description) VALUES
 ('gepg_endpoint_bill_submission', 'http://<gepgIP>:<port>/api/bill/sigqrequest', 'GePG Bill Submission Endpoint (v4 fallback - confirm v5 value with GePG)'),
 ('gepg_endpoint_bill_reuse', 'http://<gepgIP>:<port>/api/bill/sigqrequest_reuse', 'GePG Bill Control Number Reuse Endpoint (v4 fallback - confirm v5 value with GePG)'),
@@ -311,13 +295,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
   INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- GFS (Government Financial Statistics) codes master list — admin-managed
--- reference data. Bill items are validated against the ACTIVE codes here
--- at creation time (see billRoutes.js) instead of accepting any string.
--- No FK from bill_items.gfs_code to this table on purpose: historical bill
--- rows may predate this master list, and disabling a code (status update)
--- rather than deleting it is the intended way to retire one without
--- breaking anything that already used it.
+-- GFS codes master list, bill items are checked against the ACTIVE ones.
+-- No FK from bill_items on purpose: old bills may predate this list, and codes are disabled rather than deleted
 CREATE TABLE IF NOT EXISTS gfs_codes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   code VARCHAR(20) UNIQUE NOT NULL,
@@ -331,22 +310,11 @@ CREATE TABLE IF NOT EXISTS gfs_codes (
   INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- bill_items.gfs_code was VARCHAR(10), but GePG API v5.0's own field table
--- (section 4.6) declares GfsCode as String(20) - a legitimate 20-char code
--- would have silently truncated. Widening is safe (never loses data).
+-- spec 4.6 says GfsCode is String(20), VARCHAR(10) would truncate
 ALTER TABLE bill_items MODIFY COLUMN gfs_code VARCHAR(20) NOT NULL;
 
--- Column widening to match GePG API v5.0 field definitions. Several columns
--- were sized for v4-era values and silently truncate (or reject in strict
--- mode) real v5 data:
---   * ReqId is String(100) - our generated ReqId is SpCode + 13-digit
---     timestamp (~20 chars), which does not fit VARCHAR(15).
---   * SpCode examples are 7 chars ("SP99128"), SysCode up to 10+.
---   * Control numbers are Numeric(20) (combined/customer control numbers
---     are 15 digits), not 12.
--- Widening is safe (never loses data). reconciliation_request_id is
--- referenced by a foreign key, so both sides are changed together with FK
--- checks off, then re-enabled.
+-- widen columns that were too small for v5 values (ReqId ~20 chars, SpCode 7, control numbers up to 20 digits).
+-- reconciliation_request_id is in a foreign key, so both sides change with FK checks off
 SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE reconciliation_requests MODIFY COLUMN reconciliation_request_id VARCHAR(100) NOT NULL;
 ALTER TABLE reconciliation_transactions MODIFY COLUMN reconciliation_request_id VARCHAR(100);
@@ -404,5 +372,4 @@ async function runMigrations() {
   }
 }
 
-// Run migrations
 runMigrations();

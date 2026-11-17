@@ -1,23 +1,17 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Payment model
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const db = require('../config/database');
 
 class Payment {
-  /**
-   * Persist a payment from GePG's pmtSpNtfReq (spec section 6.2). v5 has a
-   * single payment posting flow - paymentData.paymentType is a local
-   * ONLINE/OFFLINE approximation derived from the payment channel, not a
-   * GePG concept, kept only so existing dashboard stats keep working.
-   */
   async create(paymentData) {
     const connection = await db.getConnection();
 
     try {
       await connection.beginTransaction();
 
-      // Idempotency (SIT PP001_02): GePG re-sends payments it already
-      // delivered, and reconciliation can replay ones we already hold.
-      // transaction_id is UNIQUE, so inserting again would throw and make
-      // the webhook nack - GePG would then retry for 24h. Treat a repeat as
-      // already-processed instead.
       const [existing] = await connection.query(
         'SELECT id FROM payments WHERE transaction_id = ? LIMIT 1',
         [paymentData.transactionId]
@@ -128,11 +122,7 @@ class Payment {
     };
   }
 
-  /**
-   * All payments recorded against a bill, oldest first. A bill with
-   * BillPayOpt=PARTIAL/LIMITED can receive more than one payment, so this
-   * returns an array rather than assuming a single payment per bill.
-   */
+  // All payments recorded against a bill, oldest first
   async findByBillId(billId) {
     const [payments] = await db.query(
       'SELECT * FROM payments WHERE bill_id = ? ORDER BY transaction_datetime ASC',

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Payment detail page
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';

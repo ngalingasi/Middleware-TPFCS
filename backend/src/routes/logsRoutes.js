@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Logs routes
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');

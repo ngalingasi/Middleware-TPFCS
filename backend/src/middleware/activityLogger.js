@@ -1,8 +1,10 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Activity logger middleware
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const db = require('../config/database');
 
-/**
- * Log user activity
- */
 const logActivity = async (req, res, next) => {
   // Store original functions
   const originalJson = res.json;
@@ -31,15 +33,11 @@ const logActivity = async (req, res, next) => {
   // Log after response is sent
   res.on('finish', async () => {
     try {
-      // Skip logging for certain routes
       const skipRoutes = ['/health', '/api/logs'];
       if (skipRoutes.some(route => req.path.includes(route))) {
         return;
       }
 
-      // Prepare log data. API-key calls have no req.user (and api_keys.id
-      // isn't a valid users.id for the user_id FK), so user_id stays null
-      // for them - generateDescription still records which key was used.
       const logData = {
         user_id: req.user?.id || null,
         action: `${req.method} ${req.path}`,
@@ -85,9 +83,6 @@ const logActivity = async (req, res, next) => {
   next();
 };
 
-/**
- * Extract entity type from path
- */
 function extractEntityType(path) {
   if (path.includes('/bills')) return 'BILL';
   if (path.includes('/payments')) return 'PAYMENT';
@@ -97,9 +92,6 @@ function extractEntityType(path) {
   return 'SYSTEM';
 }
 
-/**
- * Extract entity ID from path or body
- */
 function extractEntityId(path, body) {
   // Try to extract from path
   const pathMatch = path.match(/\/([^\/]+)$/);
@@ -115,9 +107,6 @@ function extractEntityId(path, body) {
   return null;
 }
 
-/**
- * Generate human-readable description
- */
 function generateDescription(req) {
   const method = req.method;
   const path = req.path;
@@ -134,9 +123,6 @@ function generateDescription(req) {
   return `${user} performed ${method} on ${path}`;
 }
 
-/**
- * Sanitize sensitive data
- */
 function sanitizeData(data, isResponse = false) {
   if (!data) return null;
 
@@ -153,7 +139,6 @@ function sanitizeData(data, isResponse = false) {
   // Create a copy
   const sanitized = JSON.parse(JSON.stringify(obj));
 
-  // Remove sensitive fields
   const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'authorization'];
   
   function removeSensitive(obj) {

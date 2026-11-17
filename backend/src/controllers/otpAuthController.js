@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ OTP auth controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
@@ -23,11 +28,6 @@ function maskPhone(phone) {
   return clean.slice(0, 3) + '*'.repeat(clean.length - 6) + clean.slice(-3);
 }
 
-/**
- * POST /api/auth/validate-credentials
- * Step 1 of 3 - checks username/password, returns available OTP channels
- * (masked email/phone) without sending anything yet.
- */
 async function validateCredentials(req, res) {
   try {
     const errors = validationResult(req);
@@ -77,10 +77,7 @@ async function validateCredentials(req, res) {
   }
 }
 
-/**
- * POST /api/auth/send-otp
- * Step 2 of 3 - generates and delivers the OTP over the chosen channel.
- */
+// step 2 of 3: generate the OTP and send it over the chosen channel
 async function sendOtp(req, res) {
   try {
     const errors = validationResult(req);
@@ -136,13 +133,6 @@ async function sendOtp(req, res) {
   }
 }
 
-/**
- * POST /api/auth/verify-otp
- * Step 3 of 3 - verifies the OTP and issues the same JWT + session the
- * plain /auth/login endpoint issues (single long-lived token, no refresh
- * token - this app doesn't have a refresh-token endpoint at all, so
- * issuing one here would be a dead end for the frontend).
- */
 async function verifyOtp(req, res) {
   try {
     const errors = validationResult(req);

@@ -1,9 +1,12 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Reconciliation transaction model
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const db = require('../config/database');
 
 class ReconciliationTransaction {
-  /**
-   * Bulk-insert the PmtTrxDtl entries carried in a sucSpPmtRes.
-   */
+  // Bulk-insert the PmtTrxDtl entries carried in a sucSpPmtRes
   async createMany(reconciliationRequestId, transactions = []) {
     if (transactions.length === 0) return { inserted: 0 };
 

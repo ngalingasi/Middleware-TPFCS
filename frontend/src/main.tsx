@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ App entry point
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";

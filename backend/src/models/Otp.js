@@ -1,14 +1,11 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ OTP model
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const db = require('../config/database');
 
-/**
- * Backs the 3-step OTP login flow: validate-credentials -> send-otp -> verify-otp.
- *
- * Note on expires_at: rather than computing the expiry timestamp in JS
- * (which is fragile across Node/MySQL timezone mismatches - the source
- * this was adapted from had a hand-rolled "+3 hours EAT offset" hack to
- * compensate for exactly that), this lets MySQL compute both NOW() and
- * the expiry in the same session timezone via DATE_ADD(NOW(), ...).
- */
+// Backs the 3-step OTP login flow: validate-credentials -> send-otp -> verify-otp
 class Otp {
   async saveOtp({ email, otpCode, expiryMinutes }) {
     // Invalidate any previous unused OTP for this email first

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Bill controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const { validationResult } = require('express-validator');
 const Bill = require('../models/Bill');
 const BillItem = require('../models/BillItem');
@@ -8,14 +13,8 @@ const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErro
 const GfsCode = require('../models/GfsCode');
 const { describeCode, describeCodes } = require('../utils/gepgCodes');
 
-/**
- * POST /api/bills/create
- */
 async function createBill(req, res) {
   try {
-    // billRoutes.js's billValidation (including the GFS-code check) was
-    // previously never enforced here - express-validator's body() rules
-    // only populate req, they don't reject on their own without this.
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
@@ -29,10 +28,7 @@ async function createBill(req, res) {
   }
 }
 
-/**
- * Shared helper: load a bill + its items and shape them into the payload
- * gepgClient/xmlBuilder expect.
- */
+// Shared helper: load a bill + its items and shape them into the payload gepgClient/xmlBuilder expect
 async function loadBillDataForSubmission(billId, actor) {
   const bill = await Bill.findById(billId);
   if (!bill) {
@@ -52,16 +48,13 @@ async function loadBillDataForSubmission(billId, actor) {
     payerEmail: bill.payer_email,
     billDescription: bill.bill_description,
     billGeneratedDate: formatDateTime(bill.created_at),
-    // BillGenBy / BillApprBy are String(30) in the spec. Record who actually
-    // raised the bill (dashboard user or child-system API key name) instead
-    // of a hardcoded 'SYSTEM'.
+    // BillGenBy / BillApprBy are String(30) in the spec
     billGeneratedBy: actor || 'SYSTEM',
     billApprovedBy: actor || 'SYSTEM',
     currency: bill.currency,
     billEquivAmount: bill.bill_equiv_amount,
     billPayOption: bill.bill_pay_option,
-    // v5-only fields the current bill-create form doesn't collect yet -
-    // sourced from the DB when present, otherwise xmlBuilder defaults apply.
+    // v5 fields the create form doesn't collect yet; xmlBuilder defaults apply when null
     custTin: bill.cust_tin,
     custIdTyp: bill.cust_id_typ,
     custAccnt: bill.cust_accnt,
@@ -85,25 +78,12 @@ async function loadBillDataForSubmission(billId, actor) {
   };
 }
 
-/**
- * Who is making this request, for GePG's BillGenBy / BillApprBy /
- * CanclGenBy / CanclApprBy fields (String(30)).
- */
 function actorName(req) {
   const name = (req.user && req.user.username) || (req.apiKey && req.apiKey.name) || 'SYSTEM';
   return String(name).slice(0, 30);
 }
 
-/**
- * Interpret GePG's immediate acknowledgement (billSubReqAck) and record it.
- *
- * The ack only means "received" (spec 4.1) - but a code other than 7101
- * means GePG refused the request outright (e.g. 7242 invalid data) and
- * resubmitting as-is is pointless (spec 4.1 note 2). Previously the API
- * answered "submitted successfully" regardless, hiding the code from users.
- * 7226 (duplicate bill) is left PENDING because GePG answers a duplicate with
- * the previously issued control number in the final response.
- */
+// Interpret GePG's immediate acknowledgement (billSubReqAck) and record it
 async function recordSubmissionAck(billId, response) {
   const ack = response && response.billSubReqAck;
   if (!ack) {
@@ -143,13 +123,6 @@ function formatDateTime(date) {
   return d.toISOString().replace(/\.\d{3}Z$/, '');
 }
 
-/**
- * POST /api/bills/submit/:billId
- *
- * Sends the bill to GePG. The response here is only GePG's immediate
- * billSubReqAck - the real approval/rejection arrives later via the
- * billSubRes webhook (see handleBillResponseWebhook below).
- */
 async function submitBill(req, res) {
   const { billId } = req.params;
 
@@ -170,9 +143,6 @@ async function submitBill(req, res) {
   }
 }
 
-/**
- * POST /api/bills/create-and-submit
- */
 async function createAndSubmit(req, res) {
   try {
     const errors = validationResult(req);
@@ -187,8 +157,7 @@ async function createAndSubmit(req, res) {
 
     const ack = await recordSubmissionAck(req.body.billId, response);
     if (!ack.ok) {
-      // The bill itself was created and is kept (as REJECTED) so it can be
-      // corrected and resubmitted - say so rather than implying nothing happened.
+      // the bill is kept (as REJECTED) so it can be fixed and resubmitted
       return res.status(422).json({
         ...ackFailureBody(ack, response),
         message: `Bill created but GePG rejected it: ${ack.description || ack.code}`
@@ -202,9 +171,6 @@ async function createAndSubmit(req, res) {
   }
 }
 
-/**
- * POST /api/bills/cancel/:billId
- */
 async function cancelBill(req, res) {
   try {
     const { billId } = req.params;
@@ -215,8 +181,7 @@ async function cancelBill(req, res) {
       return res.status(400).json({ success: false, message: 'Bill not found or cannot be cancelled' });
     }
 
-    // Bill cancellation is synchronous in v5 - the HTTP response IS the
-    // billCanclRes, there is no separate ack/webhook step.
+    // cancellation is synchronous: the response is the billCanclRes
     const response = await gepgClient.cancelBill(billId, reason, actorName(req));
     const canclRes = response.billCanclRes;
 
@@ -238,17 +203,6 @@ async function cancelBill(req, res) {
   }
 }
 
-/**
- * POST /api/bills/reuse
- *
- * Bill Control Number Reuse (spec 4.3, SIT BP001_12): submit NEW bill
- * details under a control number GePG issued earlier - typically because
- * the earlier bill was paid, expired or cancelled. Because bills.bill_id is
- * unique, the reuse is a new local bill (new billId) that carries the old
- * control number in paymentControlNumber plus a reason.
- *
- * Body: the usual bill payload + paymentControlNumber + reuseReason.
- */
 async function reuseBill(req, res) {
   try {
     const errors = validationResult(req);
@@ -291,13 +245,6 @@ async function reuseBill(req, res) {
   }
 }
 
-/**
- * POST /api/bills/change/:billId
- *
- * Bill Change / expiry extension (spec 4.4, SIT BP001_13): push a later
- * expiry date for an existing, still-valid bill. The control number stays
- * the same. Body: { billExpiryDate, reason }.
- */
 async function changeBillExpiry(req, res) {
   try {
     const { billId } = req.params;
@@ -317,8 +264,7 @@ async function changeBillExpiry(req, res) {
       return res.status(404).json({ success: false, code: '7204', message: describeCode('7204') });
     }
 
-    // Only a bill that already holds a control number can be extended;
-    // paid/cancelled bills are final (use reuse for those instead).
+    // paid or cancelled bills are final, use reuse for those
     if (bill.status !== 'APPROVED' || !bill.payment_control_number) {
       return res.status(400).json({
         success: false,
@@ -353,8 +299,7 @@ async function changeBillExpiry(req, res) {
       });
     }
 
-    // GePG accepted it - keep the local copy in step so the dashboard
-    // shows the new date (SIT: "Date on GePG and SP Billing should be updated").
+    // keep the local expiry in step with GePG
     await Bill.updateExpiry(billId, billExpiryDate);
 
     res.json({ success: true, message: 'Bill expiry change submitted to GePG', ack, data: response });
@@ -364,12 +309,6 @@ async function changeBillExpiry(req, res) {
   }
 }
 
-/**
- * Validate one bill from a bulk request. Mirrors billRoutes' billValidation
- * (which express-validator can't apply per array element cleanly) so a bulk
- * bill is held to exactly the same rules as a single one.
- * Returns { code, message } on the first problem, otherwise null.
- */
 async function validateBulkBill(bill) {
   const invalid = (message) => ({ code: '7242', message });
 
@@ -396,15 +335,6 @@ async function validateBulkBill(bill) {
 
 const BULK_MAX_BILLS = 100;
 
-/**
- * POST /api/bills/bulk
- *
- * Bulk bill generation (SIT BP001_06): create and submit many bills in one
- * call. Each bill is its own GePG request, so one bad bill never blocks the
- * rest, and every bill gets its own result (and GePG code) back. The control
- * numbers arrive asynchronously per bill via the billSubRes webhook, exactly
- * as for single bills. Body: { bills: [...] }.
- */
 async function bulkCreateAndSubmit(req, res) {
   const { bills } = req.body || {};
 
@@ -459,9 +389,6 @@ async function bulkCreateAndSubmit(req, res) {
   });
 }
 
-/**
- * GET /api/bills
- */
 async function getBills(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -481,12 +408,6 @@ async function getBills(req, res) {
   }
 }
 
-/**
- * GET /api/bills/:billId
- *
- * Includes the bill's payment history so a calling system doesn't need a
- * second round-trip to find out how much has actually been paid.
- */
 async function getBillById(req, res) {
   try {
     const { billId } = req.params;
@@ -506,13 +427,6 @@ async function getBillById(req, res) {
   }
 }
 
-/**
- * GET /api/bills/:billId/status
- *
- * Lightweight endpoint for the calling system to poll "has this bill been
- * paid yet" using the billId it originally submitted, without pulling the
- * full bill + items payload every time.
- */
 async function getBillStatus(req, res) {
   try {
     const { billId } = req.params;
@@ -541,19 +455,8 @@ async function getBillStatus(req, res) {
   }
 }
 
-/**
- * Shared paid/unpaid summary for a bill given its recorded payments.
- *
- * isPaid mirrors the bills.status column (set to PAID by Payment.create
- * whenever any payment is recorded against the bill - see that model for
- * the caveat below). totalPaid/remainingAmount are computed independently
- * from the actual payment rows, which matters for BillPayOpt
- * PARTIAL/LIMITED bills: today Payment.create marks a bill PAID on its
- * *first* instalment regardless of amount, so bill.status alone can say
- * "PAID" while remainingAmount is still greater than zero. Callers that
- * need to know the bill is *fully* settled should check remainingAmount,
- * not just isPaid/status.
- */
+// Payment.create marks a bill PAID on its first payment, so for partial bills
+// isPaid can be true while remainingAmount is still above zero
 function paymentSummary(bill, payments) {
   const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.paid_amount || 0), 0);
   const billAmount = parseFloat(bill.bill_amount || 0);
@@ -565,16 +468,6 @@ function paymentSummary(bill, payments) {
   };
 }
 
-/**
- * POST /api/bills/webhook/response
- *
- * Receives the asynchronous billSubRes message GePG sends once the
- * bill has actually been processed (spec section 4.1, steps III-IV).
- *
- * Every inbound GePG message is signed - we verify it before trusting
- * anything in the body, and always ack with billSubResAck so GePG stops
- * retrying.
- */
 async function handleBillResponseWebhook(req, res) {
   const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
   let billResp;

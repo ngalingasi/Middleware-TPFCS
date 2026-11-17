@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Reconciliation detail page
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';

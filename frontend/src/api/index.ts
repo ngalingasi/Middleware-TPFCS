@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ API exports
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import client from './client';
 import type {
   Vessel, Manifest, Vehicle, Driver, Operation, Delivery, Icdv,
@@ -6,14 +11,14 @@ import type {
 
 export { authApi } from './auth';
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+// Dashboard
 export const dashboardApi = {
   get:             ()                   => client.get<DashboardData>('/dashboard'),
   vehicleStatus:   ()                   => client.get('/dashboard/vehicle-status'),
   manifest:        (manifestId: number) => client.get(`/dashboard/manifest/${manifestId}`),
 };
 
-// ── ICDVs — Super Admin only ──────────────────────────────────────────────────
+// ICDVs — Super Admin only
 export const icdvsApi = {
   list:        (params?: any)              => client.get<PaginatedResponse<Icdv>>('/icdvs', { params }),
   get:         (id: number)                => client.get<Icdv>(`/icdvs/${id}`),
@@ -27,7 +32,7 @@ export const icdvsApi = {
   getBatchCapacity: () => client.get<{ batch_capacity: number }>('/icdvs/me/batch-capacity'),
 };
 
-// ── Vessels ───────────────────────────────────────────────────────────────────
+// Vessels
 export const vesselsApi = {
   list:         (params?: any)                   => client.get<PaginatedResponse<Vessel>>('/vessels', { params }),
   get:          (id: number)                     => client.get<Vessel>(`/vessels/${id}`),
@@ -37,7 +42,7 @@ export const vesselsApi = {
   delete:       (id: number)                     => client.delete(`/vessels/${id}`),
 };
 
-// ── Manifests ─────────────────────────────────────────────────────────────────
+// Manifests
 export const manifestsApi = {
   list:           (params?: any)                      => client.get<PaginatedResponse<Manifest>>('/manifests', { params }),
   get:            (id: number)                        => client.get<Manifest>(`/manifests/${id}`),
@@ -51,7 +56,7 @@ export const manifestsApi = {
   combinedDeliverySheet: (id: number) => client.get(`/manifests/${id}/delivery-sheet/combined`),
 };
 
-// ── Vehicles ──────────────────────────────────────────────────────────────────
+// Vehicles
 export const vehiclesApi = {
   list:             (params?: any)                      => client.get<PaginatedResponse<Vehicle>>('/vehicles', { params }),
   get:              (id: number)                        => client.get<Vehicle>(`/vehicles/${id}`),
@@ -62,7 +67,7 @@ export const vehiclesApi = {
   getOperations:    (id: number)                        => client.get<Operation[]>(`/vehicles/${id}/operations`),
 };
 
-// ── Drivers ───────────────────────────────────────────────────────────────────
+// Drivers
 export const driversApi = {
   list:    (params?: any)  => client.get<PaginatedResponse<Driver>>('/drivers', { params }),
   get:     (id: number)    => client.get<Driver>(`/drivers/${id}`),
@@ -76,7 +81,7 @@ export const driversApi = {
   delete:  (id: number)    => client.delete(`/drivers/${id}`),
 };
 
-// ── Operations ────────────────────────────────────────────────────────────────
+// Operations
 export const operationsApi = {
   list:         (params?: any)                        => client.get<PaginatedResponse<Operation>>('/operations', { params }),
   get:          (id: number)                          => client.get<Operation>(`/operations/${id}`),
@@ -87,7 +92,7 @@ export const operationsApi = {
   delete:       (id: number)                          => client.delete(`/operations/${id}`),
 };
 
-// ── Deliveries ────────────────────────────────────────────────────────────────
+// Deliveries
 export const deliveriesApi = {
   list:         (params?: any)                        => client.get<PaginatedResponse<Delivery>>('/deliveries', { params }),
   get:          (id: number)                          => client.get<Delivery>(`/deliveries/${id}`),
@@ -98,7 +103,7 @@ export const deliveriesApi = {
   delete:       (id: number)                          => client.delete(`/deliveries/${id}`),
 };
 
-// ── Users ─────────────────────────────────────────────────────────────────────
+// Users
 export const usersApi = {
   list:         (params?: any)                                        => client.get<PaginatedResponse<UserRecord>>('/users', { params }),
   get:          (id: number)                                          => client.get<UserRecord>(`/users/${id}`),
@@ -109,9 +114,9 @@ export const usersApi = {
   updateSkills: (userId: number, skillIds: number[])                  => client.put(`/users/${userId}/skills`, { skillIds }),
 };
 
-// ── Lookups — see extended export below ───────────────────────────────────────
+// Lookups — see extended export below
 
-// ── Workflow — 5-step operational flow ───────────────────────────────────────
+// Workflow — 5-step operational flow
 export const workflowApi = {
   // 1. Discharge
   dischargeLookup:  (chassis: string) =>
@@ -193,7 +198,7 @@ export const workflowApi = {
     client.delete(`/workflow/transit-config/${configId}`),
 };
 
-// ── Lookups (extended) ────────────────────────────────────────────────────────
+// Lookups (extended)
 export const lookupsApi = {
   sectors:           ()                                    => client.get('/lookups/sectors'),
   regions:           ()                                    => client.get('/lookups/regions'),
@@ -209,7 +214,7 @@ export const lookupsApi = {
   deleteImplementer: (id: number)                          => client.delete(`/lookups/implementers/${id}`),
 };
 
-// ── Projects ──────────────────────────────────────────────────────────────────
+// Projects
 export const projectsApi = {
   list:   (params?: any)                   => client.get('/projects', { params }),
   get:    (id: number)                     => client.get(`/projects/${id}`),
@@ -265,7 +270,7 @@ export const documentsApi = {
   },
 };
 
-// ── Inspection ────────────────────────────────────────────────────────────────
+// Inspection
 export const inspectionApi = {
   listRequests:     (params?: any)                  => client.get('/inspection/requests', { params }),
   getRequest:       (id: number)                    => client.get(`/inspection/requests/${id}`),
@@ -290,7 +295,7 @@ export const inspectionApi = {
   getStockTransactions: (params?: any)              => client.get('/inventory/stock-transactions', { params }),
 };
 
-// ── Stores ────────────────────────────────────────────────────────────────────
+// Stores
 export const storesApi = {
   list:   (params?: any)          => client.get('/inventory/stores', { params }),
   create: (data: any)             => client.post('/inventory/stores', data),
@@ -298,7 +303,7 @@ export const storesApi = {
   delete: (id: number)            => client.delete(`/inventory/stores/${id}`),
 };
 
-// ── Suppliers ─────────────────────────────────────────────────────────────────
+// Suppliers
 export const suppliersApi = {
   list:   (params?: any)          => client.get('/inventory/suppliers', { params }),
   create: (data: any)             => client.post('/inventory/suppliers', data),
@@ -306,7 +311,7 @@ export const suppliersApi = {
   delete: (id: number)            => client.delete(`/inventory/suppliers/${id}`),
 };
 
-// ── Products ──────────────────────────────────────────────────────────────────
+// Products
 export const productsApi = {
   list:         (params?: any)          => client.get('/inventory/products', { params }),
   create:       (data: any)             => client.post('/inventory/products', data),
@@ -315,7 +320,7 @@ export const productsApi = {
   getCategories:()                      => client.get('/inventory/product-categories'),
 };
 
-// ── Purchase Orders ───────────────────────────────────────────────────────────
+// Purchase Orders
 export const purchaseOrdersApi = {
   list:   (params?: any)          => client.get('/inventory/purchase-orders', { params }),
   get:    (id: number)            => client.get(`/inventory/purchase-orders/${id}`),
@@ -324,7 +329,7 @@ export const purchaseOrdersApi = {
   cancel: (id: number, data?: any)=> client.patch(`/inventory/purchase-orders/${id}/cancel`, data),
 };
 
-// ── Transfers (Inventory) ─────────────────────────────────────────────────────
+// Transfers (Inventory)
 export const transfersApi = {
   list:          (params?: any)          => client.get('/inventory/transfers', { params }),
   get:           (id: number)            => client.get(`/inventory/transfers/${id}`),
@@ -337,7 +342,7 @@ export const transfersApi = {
   getStoreStock: (storeId: number)       => client.get(`/inventory/stores/${storeId}/stock`),
 };
 
-// ── Logistics ─────────────────────────────────────────────────────────────────
+// Logistics
 export const logisticsApi = {
   listCompanies:    (params?: any)          => client.get('/logistics/companies', { params }),
   createCompany:    (data: any)             => client.post('/logistics/companies', data),
@@ -357,7 +362,7 @@ export const logisticsApi = {
   addNote:          (id: number, noteOrData: any, location?: string) => client.post(`/logistics/transactions/${id}/notes`, typeof noteOrData === 'string' ? { note: noteOrData, location } : noteOrData),
 };
 
-// ── Financial ─────────────────────────────────────────────────────────────────
+// Financial
 export const financialApi = {
   summary:         (params?: any) => client.get('/financial/summary', { params }),
   list:            (params?: any) => client.get('/financial', { params }),
@@ -367,7 +372,7 @@ export const financialApi = {
   delete:          (id: number)   => client.delete(`/financial/${id}`),
 };
 
-// ── Fuel ──────────────────────────────────────────────────────────────────────
+// Fuel
 export const fuelApi = {
   // Manifest fuel orders
   listOrders:    (manifestId: number, params?: any) => client.get(`/manifests/${manifestId}/fuel/orders`, { params }),
@@ -386,13 +391,13 @@ export const fuelApi = {
                    client.post('/fuel/dispense', data),
 };
 
-// ── Transfer Rate ─────────────────────────────────────────────────────────────
+// Transfer Rate
 export const transferRateApi = {
   get:    ()              => client.get('/lookups/transfer-rate'),
   update: (rate: number)  => client.patch('/lookups/transfer-rate', { rate }),
 };
 
-// ── Incidents ─────────────────────────────────────────────────────────────────
+// Incidents
 export const incidentApi = {
   types:        ()                        => client.get('/incidents/types'),
   createType:   (data: any)               => client.post('/incidents/types', data),
@@ -406,7 +411,7 @@ export const incidentApi = {
   forVehicle:   (vehicleId: number)       => client.get(`/incidents/vehicle/${vehicleId}`),
 };
 
-// ── Invoices ───────────────────────────────────────────────────────────────────
+// Invoices
 export const invoicesApi = {
   // Operator config
   getOperatorConfig:  ()          => client.get('/invoices/operator-config'),
@@ -443,7 +448,7 @@ export const invoicesApi = {
     }),
 };
 
-// ── Expenses (super_admin only — no approval workflow) ─────────────────────
+// Expenses (super_admin only — no approval workflow)
 export const expensesApi = {
   // Expense items catalog
   listItems:  (params?: any)      => client.get('/expenses/items', { params }),
@@ -459,9 +464,6 @@ export const expensesApi = {
   delete:  (id: number)           => client.delete(`/expenses/${id}`),
 };
 
-// ── Insights (BI dashboards — super_admin only) ─────────────────────────────
-// "Profit & Loss" is the first dashboard under this umbrella; more can be
-// added later (each gets its own endpoint, no renaming needed).
 export const insightsApi = {
   profitSummary:      (params?: any) => client.get('/insights/profit-summary', { params }),
   profitByIcdv:        (params?: any) => client.get('/insights/profit-by-icdv', { params }),
@@ -496,6 +498,5 @@ export const vesselsInsightsApi = {
   trend:   (params?: any) => client.get('/insights/vessels/trend', { params }),
 };
 
-// ── Manifest close operation ────────────────────────────────────────────────────
 export const closeManifestOperation = (manifestId: number) =>
   client.post(`/invoices/manifests/${manifestId}/close`);

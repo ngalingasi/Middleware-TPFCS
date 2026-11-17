@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Logs controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const ActivityLog = require('../models/ActivityLog');
 const ApiLog = require('../models/ApiLog');
 

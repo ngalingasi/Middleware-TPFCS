@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GePG sidebar component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { Link, useLocation } from 'react-router';
 import { useSidebar } from '../context/SidebarContext';
 import { useGepgAuth } from '../store/gepgAuthStore';

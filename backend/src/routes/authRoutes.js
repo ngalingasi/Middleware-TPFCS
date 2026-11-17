@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Auth routes
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
@@ -5,10 +10,6 @@ const { authenticate } = require('../middleware/auth');
 const authController = require('../controllers/authController');
 const otpAuthController = require('../controllers/otpAuthController');
 
-/**
- * @route   POST /api/auth/login
- * @access  Public
- */
 router.post(
   '/login',
   [
@@ -18,23 +19,10 @@ router.post(
   authController.login
 );
 
-/**
- * @route   POST /api/auth/logout
- * @access  Private
- */
 router.post('/logout', authenticate, authController.logout);
 
-/**
- * OTP 2FA login (3-step flow) - alternative to plain /login above.
- * Step 1: validate username/password, get back available OTP channels.
- * Step 2: user picks a channel, OTP is generated and delivered.
- * Step 3: user submits the OTP, receives the same JWT + session /login issues.
- */
+// OTP 2FA login (3-step flow) - alternative to plain /login above
 
-/**
- * @route   POST /api/auth/validate-credentials
- * @access  Public
- */
 router.post(
   '/validate-credentials',
   [
@@ -44,10 +32,6 @@ router.post(
   otpAuthController.validateCredentials
 );
 
-/**
- * @route   POST /api/auth/send-otp
- * @access  Public
- */
 router.post(
   '/send-otp',
   [
@@ -57,10 +41,6 @@ router.post(
   otpAuthController.sendOtp
 );
 
-/**
- * @route   POST /api/auth/verify-otp
- * @access  Public
- */
 router.post(
   '/verify-otp',
   [
@@ -70,16 +50,8 @@ router.post(
   otpAuthController.verifyOtp
 );
 
-/**
- * @route   GET /api/auth/me
- * @access  Private
- */
 router.get('/me', authenticate, authController.getCurrentUser);
 
-/**
- * @route   POST /api/auth/change-password
- * @access  Private
- */
 router.post(
   '/change-password',
   authenticate,
@@ -90,10 +62,6 @@ router.post(
   authController.changePassword
 );
 
-/**
- * @route   POST /api/auth/register
- * @access  Private (Admin)
- */
 router.post(
   '/register',
   authenticate,

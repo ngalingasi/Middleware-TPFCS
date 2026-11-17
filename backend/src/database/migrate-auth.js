@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Auth database migration
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 

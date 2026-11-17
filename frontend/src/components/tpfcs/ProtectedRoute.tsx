@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Protected route component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { Navigate, Outlet } from 'react-router';
 import { useAuth } from '../../store/authStore';
 

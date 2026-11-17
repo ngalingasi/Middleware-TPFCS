@@ -1,4 +1,9 @@
-// ── Auth ──────────────────────────────────────────────────────────────────────
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GePG types
+// └──────────────────────────────────────────────────────────────────────────┘
+
+// Auth
 export type GepgRole = 'ADMIN' | 'USER' | 'VIEWER';
 
 export interface GepgUser {
@@ -17,7 +22,7 @@ export interface GepgLoginResponse {
   user: GepgUser;
 }
 
-// ── OTP login flow (validate-credentials -> send-otp -> verify-otp) ──────────
+// OTP login flow (validate-credentials -> send-otp -> verify-otp)
 export type OtpChannelType = 'email' | 'sms';
 
 export interface OtpChannel {
@@ -35,7 +40,7 @@ export interface SendOtpData {
   maskedContact: string;
 }
 
-// ── Pagination — matches backend's { data, pagination } shape exactly ────────
+// Pagination — matches backend's { data, pagination } shape exactly
 export interface GepgPagination {
   page: number;
   limit: number;
@@ -55,7 +60,7 @@ export interface GepgApiResponse<T> {
   message?: string;
 }
 
-// ── Bills ──────────────────────────────────────────────────────────────────────
+// Bills
 export type BillStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID' | 'CANCELLED' | 'EXPIRED';
 
 export interface BillItem {
@@ -126,7 +131,7 @@ export interface CreateBillPayload {
   }>;
 }
 
-// ── Payments ───────────────────────────────────────────────────────────────────
+// Payments
 export type PaymentType = 'OFFLINE' | 'ONLINE';
 export type PaymentStatus = 'PENDING' | 'ACKNOWLEDGED' | 'PROCESSED';
 
@@ -164,7 +169,7 @@ export interface PaymentStatistics {
   acknowledged_payments: number;
 }
 
-// ── Reconciliation ─────────────────────────────────────────────────────────────
+// Reconciliation
 export type ReconciliationStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
 export interface ReconciliationRequest {
@@ -203,7 +208,7 @@ export interface ReconciliationRequestDetail extends ReconciliationRequest {
   transactions: ReconciliationTransaction[];
 }
 
-// ── API Keys ────────────────────────────────────────────────────────────────────
+// API Keys
 export type ApiKeyStatus = 'ACTIVE' | 'DISABLED';
 
 export interface ApiKeyRecord {
@@ -224,7 +229,7 @@ export interface CreatedApiKey {
   status: ApiKeyStatus;
 }
 
-// ── GFS Codes ───────────────────────────────────────────────────────────────────
+// GFS Codes
 export type GfsCodeStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface GfsCodeRecord {
@@ -237,7 +242,7 @@ export interface GfsCodeRecord {
   created_by_username?: string | null;
 }
 
-// ── Dashboard ───────────────────────────────────────────────────────────────────
+// Dashboard
 export interface DashboardBillStats {
   total_bills: number;
   pending_bills: number;
@@ -264,7 +269,7 @@ export interface DashboardData {
   monthlyTrend: Array<{ month: string; payment_count: number; total_amount: number }>;
 }
 
-// ── Printable documents (GET /bills/:id/print, GET /payments/:id/receipt) ─────
+// Printable documents (GET /bills/:id/print, GET /payments/:id/receipt)
 
 export interface PrintInstitution {
   name: string;

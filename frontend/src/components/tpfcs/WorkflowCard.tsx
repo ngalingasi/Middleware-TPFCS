@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Workflow card component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import StatusBadge from './StatusBadge';
@@ -8,7 +13,6 @@ const API_BASE = RAW_API.replace(/\/api(\/v\d+)?$/, '');
 const buildPhotoUrl = (photo?: string | null): string | null =>
   photo ? `${API_BASE}${photo}` : null;
 
-// ── Vehicle info card ─────────────────────────────────────────────────────────
 export function VehicleCard({ v }: { v: any }) {
   const details = [v.brand, v.model, v.year, v.color].filter(Boolean).join(' - ');
   return (
@@ -54,7 +58,6 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ── Driver info card ──────────────────────────────────────────────────────────
 export function DriverCard({ d }: { d: any }) {
   const photoUrl = buildPhotoUrl(d.photo);
   const [zoomed, setZoomed] = useState(false);
@@ -154,11 +157,6 @@ const STEP_MAP: Record<string, number> = {
 
 export function WorkflowProgress({ status, completed = false }: { status: string; completed?: boolean }) {
   const current = STEP_MAP[status] ?? -1;
-  // `vehicle.workflow_status` always represents the LAST COMPLETED step
-  // (e.g. a vehicle looked up for batching has workflow_status='discharged',
-  // meaning Discharge is done and Batch is the upcoming action).
-  // `completed` lets a caller force-mark the current step done even when
-  // it's the final step in the chain (Received has no "next" step).
   const isCurrentDone = completed || current === STEPS.length - 1;
   // The step right after the current one is the "next action" — shown
   // with the outlined active style so the user sees what's coming up.
@@ -171,9 +169,6 @@ export function WorkflowProgress({ status, completed = false }: { status: string
           // A step is "done" (filled checkmark) when:
           //   - it is before or at the current completed step
           const isDone   = i < current || (i === current && isCurrentDone);
-          // The "active" (outlined, highlighted) step is the next one in
-          // line after whatever was last completed — not the completed
-          // step itself.
           const isActive = i === nextStepIndex && !isDone;
 
           return (
@@ -216,7 +211,6 @@ export function WorkflowProgress({ status, completed = false }: { status: string
   );
 }
 
-// ── Chassis search input — button never clips ─────────────────────────────────
 export function ChassisInput({
   value, onChange, onSearch, loading,
   placeholder = 'Enter last 4 chassis digits...',
@@ -255,7 +249,7 @@ export function ChassisInput({
   );
 }
 
-// ── Notes textarea ────────────────────────────────────────────────────────────
+// Notes textarea
 export function NotesInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div>
@@ -273,7 +267,7 @@ export function NotesInput({ value, onChange }: { value: string; onChange: (v: s
   );
 }
 
-// ── Section card wrapper ──────────────────────────────────────────────────────
+// Section card wrapper
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:p-5 space-y-4">
@@ -285,7 +279,6 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-// ── Confirm button — spinner while loading ────────────────────────────────────
 export function ConfirmButton({
   label, onClick, loading, disabled = false, variant = 'primary',
 }: {
@@ -316,7 +309,6 @@ export function ConfirmButton({
   );
 }
 
-// ── Error alert ───────────────────────────────────────────────────────────────
 export function ErrorAlert({ message }: { message: string }) {
   return (
     <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-3 py-2.5 text-sm text-red-700 dark:text-red-400 flex items-start gap-2">
@@ -328,7 +320,6 @@ export function ErrorAlert({ message }: { message: string }) {
   );
 }
 
-// ── Success banner ────────────────────────────────────────────────────────────
 export function SuccessBanner({ message, onReset }: { message: string; onReset: () => void }) {
   return (
     <div className="rounded-xl bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 p-5 sm:p-6 text-center space-y-3">

@@ -3,19 +3,7 @@
 // │ GePG codes utility
 // └──────────────────────────────────────────────────────────────────────────┘
 
-/**
- * GePG response/status code catalogue.
- *
- * Sources: GePG API v5.0 section 14.2 (Response Codes), the separate
- * "Gepg error codes" list GePG shared, and codes that only appear in the
- * spec's sample payloads (7102, 7283). The SIT sheet requires every GePG
- * error code to be visible in the user interface, so anything that surfaces
- * a code should resolve it through describeCode() rather than showing a bare
- * number.
- *
- * The code list "may be added to" by GePG with prior notice (spec 14.2), so
- * unknown codes degrade to a generic description instead of throwing.
- */
+// GePG response/status code catalogue
 
 const GEPG_CODES = {
   // Generic
@@ -56,8 +44,7 @@ const GEPG_CODES = {
   '7231': 'Wrong bill expiry date',
   '7232': 'Consumer already started by another process',
   '7233': 'Consumer already stopped by another process',
-  // Present in GePG's list with its code label missing; 7234 is the only
-  // gap between 7233 and 7235 and the description is the payment option rule.
+  // code missing in GePG's list; 7234 is the gap between 7233 and 7235
   '7234': 'Wrong bill payment option',
   '7235': 'Bill creation completed successfully',
   '7236': 'Bill creation completed with errors',
@@ -104,20 +91,13 @@ const GEPG_CODES = {
 
 const UNKNOWN_DESCRIPTION = 'Unrecognised GePG response code';
 
-/**
- * Describe one code. Unknown codes return a generic description rather than
- * undefined so callers can always render something.
- */
 function describeCode(code) {
   const key = String(code === undefined || code === null ? '' : code).trim();
   if (!key) return '';
   return GEPG_CODES[key] || UNKNOWN_DESCRIPTION;
 }
 
-/**
- * GePG may return several codes in one field, separated by ';' (spec 4.6,
- * AckStsCode). Returns [{ code, description }] for each.
- */
+// GePG may return several codes in one field, separated by ';' (spec 4.6, AckStsCode)
 function describeCodes(codes) {
   return String(codes === undefined || codes === null ? '' : codes)
     .split(';')

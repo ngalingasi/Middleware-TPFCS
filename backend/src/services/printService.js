@@ -9,30 +9,10 @@ const BillItem = require('../models/BillItem');
 const Payment = require('../models/Payment');
 const { amountInWords } = require('../utils/amountInWords');
 
-/**
- * Printable GePG bill / transfer bill / receipt documents.
- *
- * Content follows GePG's "MWONGOZO wa namna ya kuandaa ankara, kufanya malipo
- * na risiti za GePG" (bill must show control number, payment reference, SP
- * code, payer name and phone, description, service type, amount in figures
- * and words, printed date, expiry, issued-by, printed-by, signature; receipt
- * must show receipt number, payer, paid amount in figures and words, SP name,
- * bill reference, control number, payment date, issued-by, date issued,
- * signature), its Appendix 1-3 samples, and the GePG QR Code Specification
- * v1.2 for the QR payload.
- *
- * This service only assembles data; the layout is rendered by the frontend.
- * compose*() are pure (no I/O) so they can be tested and used to generate
- * samples; build*() load from the database and call them.
- */
+// Printable GePG bill / transfer bill / receipt documents
 
-// ── Configuration ────────────────────────────────────────────────────────────
+// Configuration
 
-/**
- * Institution details come from env: none of this is stored per bill, and
- * the guide requires institution-specific content (name, which banks the
- * institution actually holds collection accounts with).
- */
 function readConfig(env = process.env) {
   const list = (v) => (v || '').split(',').map(s => s.trim()).filter(Boolean);
 
@@ -41,15 +21,11 @@ function readConfig(env = process.env) {
     // Optional second heading line, e.g. the parent ministry.
     institutionSubtitle: env.GEPG_SP_SUBTITLE || '',
     collectionCentre: env.GEPG_COLLECTION_CENTRE_NAME || '',
-    // GePG paybill number used in the QR "shortCode" (QR spec section 2).
-    // Deliberately no default: a wrong paybill number in a QR would send
-    // payers' money to the wrong place.
+    // no default on purpose: a wrong paybill number would send payments to the wrong place
     qrShortCode: env.GEPG_QR_SHORT_CODE || '',
-    // The guide says to list only banks the institution has collection
-    // accounts with.
+    // only banks the institution holds collection accounts with
     banks: list(env.PRINT_BANKS),
-    // Mobile money payment only works for TZS bills of institutions whose
-    // collection account is with NMB (guide, section C(ii)).
+    // mobile money only works for TZS bills collected through NMB (guide, section C)
     mobileMoney: String(env.PRINT_MOBILE_MONEY || 'true').toLowerCase() !== 'false',
     transfer: {
       beneficiaryName: env.GEPG_TRANSFER_BENEFICIARY_NAME || env.GEPG_SP_NAME || '',
@@ -65,11 +41,10 @@ function readConfig(env = process.env) {
   };
 }
 
-// ── Formatting helpers ───────────────────────────────────────────────────────
+// Formatting helpers
 
 const TZ = 'Africa/Dar_es_Salaam';
 
-/** 05-Apr-2019, the format used by every date in the GePG samples. */
 function formatDate(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -79,7 +54,7 @@ function formatDate(value) {
     .replace(/ /g, '-');
 }
 
-/** YYYY-MM-DD in Tanzania time, for the QR billExprDt field. */
+// YYYY-MM-DD in Tanzania time, for the QR billExprDt field
 function formatIsoDate(value) {
   if (!value) return '';
   const d = new Date(value);
@@ -97,14 +72,9 @@ function itemDescription(item, gfsDescriptions) {
   return item.bill_item_ref ? `${gfsText} - ${item.bill_item_ref}` : gfsText;
 }
 
-// ── QR (GePG QR Code Specification v1.2) ─────────────────────────────────────
+// QR (GePG QR Code Specification v1.2)
 
-/**
- * Builds the GePG QR message. Mandatory: opType, shortCode, billReference,
- * amount. billPayOpt is only defined for 1-3 in the QR spec, so it is left
- * out for INFINITY/LIMITED (4/5) bills rather than sending an invalid value.
- * Returns null when the paybill short code is not configured.
- */
+// Builds the GePG QR message
 function buildQrPayload(bill, cfg) {
   if (!cfg.qrShortCode || !bill.payment_control_number) return null;
 
@@ -126,12 +96,7 @@ function buildQrPayload(bill, cfg) {
   return payload;
 }
 
-/**
- * Renders the payload as a QR image (PNG data URL). Uses the optional
- * "qrcode" package; when it is not installed this returns null and the
- * document is still produced (the frontend shows the payload instead of an
- * image) rather than failing the whole print.
- */
+// Renders the payload as a QR image (PNG data URL)
 async function qrToDataUrl(payload) {
   if (!payload) return null;
 
@@ -146,7 +111,7 @@ async function qrToDataUrl(payload) {
   return QRCode.toDataURL(JSON.stringify(payload), { errorCorrectionLevel: 'M', margin: 1, width: 280 });
 }
 
-// ── Document composition (pure) ──────────────────────────────────────────────
+// Document composition (pure)
 
 function paymentInstructions(bill, cfg) {
   const control = String(bill.payment_control_number);
@@ -159,10 +124,7 @@ function paymentInstructions(bill, cfg) {
   };
 }
 
-/**
- * Bill (Appendix 3) or transfer bill (Appendix 2) document.
- * type: 'bill' | 'transfer'
- */
+// type is 'bill' (Appendix 3) or 'transfer' (Appendix 2)
 function composeBillDocument({ bill, items, gfsDescriptions = {}, cfg, printedBy, now = new Date(), type = 'bill', qrPayload = null, qrImage = null }) {
   const warnings = [];
   if (!cfg.institutionName) warnings.push('GEPG_SP_NAME is not set - the institution name is missing from the heading.');
@@ -217,9 +179,6 @@ function composeBillDocument({ bill, items, gfsDescriptions = {}, cfg, printedBy
       bankName: t.bankName,
       accountNumber: t.accountNumber,
       swiftCode: t.swiftCode,
-      // MT103 fields exactly as the guide specifies (items 2 and 3 of the
-      // TISS/SWIFT instructions): field 59 = beneficiary account, field 70 =
-      // "/ROC/" + control number.
       field59: `/${t.accountNumber}`,
       field70: `/ROC/${bill.payment_control_number}`,
       beingPaymentFor: bill.bill_description || ''
@@ -229,7 +188,7 @@ function composeBillDocument({ bill, items, gfsDescriptions = {}, cfg, printedBy
   return document;
 }
 
-/** GePG receipt (Appendix 1). */
+// GePG receipt (Appendix 1)
 function composeReceiptDocument({ payment, bill, items, allPayments, gfsDescriptions = {}, cfg, issuedBy, now = new Date() }) {
   const warnings = [];
   if (!cfg.institutionName) warnings.push('GEPG_SP_NAME is not set - the institution name is missing from the heading.');
@@ -270,7 +229,7 @@ function composeReceiptDocument({ payment, bill, items, allPayments, gfsDescript
   };
 }
 
-// ── Loading (I/O) ────────────────────────────────────────────────────────────
+// Loading (I/O)
 
 function httpError(status, message) {
   const error = new Error(message);

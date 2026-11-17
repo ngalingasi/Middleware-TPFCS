@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Sign in
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import GridShape from '../../components/common/GridShape';
@@ -64,7 +69,7 @@ export default function GepgSignIn() {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // ── Step 1: credentials ──────────────────────────────────────────────────
+  // Step 1: credentials
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -87,7 +92,6 @@ export default function GepgSignIn() {
     }
   };
 
-  // ── Step 2 -> 3: request the OTP on a chosen channel ─────────────────────
   const requestOtp = async (channel: OtpChannel) => {
     setError('');
     setLoading(true);
@@ -112,7 +116,7 @@ export default function GepgSignIn() {
     requestOtp(selectedChannel);
   };
 
-  // ── OTP digit boxes: type-to-advance, backspace/arrow navigation, paste ──
+  // OTP digit boxes: type-to-advance, backspace/arrow navigation, paste
   const handleOtpDigitChange = (value: string, index: number) => {
     const digit = value.replace(/\D/g, '').slice(-1);
     setOtpDigits((prev) => prev.map((d, i) => (i === index ? digit : d)));
@@ -142,7 +146,7 @@ export default function GepgSignIn() {
     otpInputsRef.current[Math.min(pasted.length, OTP_LENGTH) - 1]?.focus();
   };
 
-  // ── Step 3: verify OTP ───────────────────────────────────────────────────
+  // Step 3: verify OTP
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.length !== OTP_LENGTH) return;
@@ -168,9 +172,6 @@ export default function GepgSignIn() {
     setOtpDigits(Array(OTP_LENGTH).fill(''));
   };
 
-  // "Change method" from the OTP step - back to picking email/SMS, not all
-  // the way to re-entering the username/password (channels are already
-  // loaded from step 1, no need to re-validate credentials).
   const backToChannelSelection = () => {
     setError('');
     setSelectedChannel(null);
@@ -184,7 +185,7 @@ export default function GepgSignIn() {
         <div className="flex w-full flex-1 flex-col lg:w-1/2">
           <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
             <div>
-              {/* ── Step 1: username + password ──────────────────────────── */}
+              {/* Step 1: username + password */}
               {step === 'credentials' && (
                 <>
                   <div className="mb-6">
@@ -240,7 +241,7 @@ export default function GepgSignIn() {
                 </>
               )}
 
-              {/* ── Must change password (no OTP was sent) ───────────────── */}
+              {/* Must change password (no OTP was sent) */}
               {step === 'must-change-password' && (
                 <>
                   <div className="mb-6">
@@ -256,7 +257,7 @@ export default function GepgSignIn() {
                 </>
               )}
 
-              {/* ── Step 2: choose OTP delivery channel ───────────────────── */}
+              {/* Step 2: choose OTP delivery channel */}
               {step === 'channel' && (
                 <>
                   <div className="mb-6">
@@ -304,7 +305,7 @@ export default function GepgSignIn() {
                 </>
               )}
 
-              {/* ── Step 3: enter OTP ──────────────────────────────────────── */}
+              {/* Step 3: enter OTP */}
               {step === 'otp' && (
                 <>
                   <div className="mb-6">

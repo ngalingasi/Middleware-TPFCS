@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Projects API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import client from './client';
 import type { Project, PaginatedResponse } from '../types';
 

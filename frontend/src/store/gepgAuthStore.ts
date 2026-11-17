@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GePG auth store store
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { createContext, useContext } from 'react';
 import type { GepgUser } from '../types/gepg';
 

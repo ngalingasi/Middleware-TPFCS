@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Bill create page
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
@@ -16,9 +21,6 @@ import { gepgErrorMessage } from '../../utils/gepgError';
 
 interface ItemRow {
   uid: number; // stable identity for React's key - array index isn't
-  // enough here: Select (below) is uncontrolled (defaultValue only, no
-  // re-sync after mount), so removing a middle row would otherwise leave
-  // a stale dropdown value showing at the shifted position.
   billItemRef: string;
   billItemAmount: string;
   gfsCode: string;
@@ -75,9 +77,7 @@ export default function BillCreatePage() {
       return;
     }
 
-    // GePG rejects zero/negative amounts as invalid request data (7242,
-    // SIT BP001_10). Catch it here so the user gets an immediate message
-    // naming the offending item; the server enforces the same rule.
+    // GePG rejects zero/negative amounts as invalid request data (7242, SIT BP001_10)
     const badItem = items.findIndex((it) => {
       const amount = Number(it.billItemAmount);
       return !Number.isFinite(amount) || amount <= 0;

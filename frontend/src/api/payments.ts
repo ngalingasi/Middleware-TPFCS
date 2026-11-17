@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Payments API
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import gepgClient from './gepgClient';
 import type { GepgApiResponse, GepgPaginatedResponse, Payment, PaymentStatistics, PrintReceiptDocument } from '../types/gepg';
 

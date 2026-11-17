@@ -1,11 +1,11 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GFS code controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const { validationResult } = require('express-validator');
 const GfsCode = require('../models/GfsCode');
 
-/**
- * GET /api/gfs-codes
- * ACTIVE codes only - what the bill-create dropdown and any child system
- * use to discover which GFS codes this bridge currently accepts.
- */
 async function getActiveGfsCodes(req, res) {
   try {
     const codes = await GfsCode.findAllActive();
@@ -16,10 +16,6 @@ async function getActiveGfsCodes(req, res) {
   }
 }
 
-/**
- * GET /api/gfs-codes/admin
- * Full paginated list, all statuses, for the admin management page.
- */
 async function getGfsCodesAdmin(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -33,9 +29,6 @@ async function getGfsCodesAdmin(req, res) {
   }
 }
 
-/**
- * POST /api/gfs-codes
- */
 async function createGfsCode(req, res) {
   try {
     const errors = validationResult(req);
@@ -60,11 +53,6 @@ async function createGfsCode(req, res) {
   }
 }
 
-/**
- * PATCH /api/gfs-codes/:id
- * Body: { description?, status? } - the code itself is not editable, only
- * its description/status; delete and recreate if the code was wrong.
- */
 async function updateGfsCode(req, res) {
   try {
     const errors = validationResult(req);
@@ -86,9 +74,6 @@ async function updateGfsCode(req, res) {
   }
 }
 
-/**
- * DELETE /api/gfs-codes/:id
- */
 async function deleteGfsCode(req, res) {
   try {
     const { id } = req.params;

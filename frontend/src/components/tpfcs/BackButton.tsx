@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Back button component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useNavigate } from 'react-router';
 
 interface Props {

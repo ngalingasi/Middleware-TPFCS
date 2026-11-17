@@ -1,9 +1,11 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ API key controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const ApiKey = require('../models/ApiKey');
 
-/**
- * GET /api/api-keys
- * List keys (never exposes the plaintext key or hash - just the masked prefix).
- */
+// list keys: only the masked prefix is returned, never the key or its hash
 async function getApiKeys(req, res) {
   try {
     const keys = await ApiKey.findAll();
@@ -14,11 +16,7 @@ async function getApiKeys(req, res) {
   }
 }
 
-/**
- * POST /api/api-keys
- * Creates a new key. The plaintext value is returned ONLY in this response -
- * it is not recoverable afterwards (matches standard API-key UX).
- */
+// the plaintext key is returned once, at creation
 async function createApiKey(req, res) {
   try {
     const { name } = req.body;
@@ -46,10 +44,6 @@ async function createApiKey(req, res) {
   }
 }
 
-/**
- * PATCH /api/api-keys/:id/status
- * Body: { status: 'ACTIVE' | 'DISABLED' }
- */
 async function setApiKeyStatus(req, res) {
   try {
     const { id } = req.params;
@@ -72,9 +66,6 @@ async function setApiKeyStatus(req, res) {
   }
 }
 
-/**
- * DELETE /api/api-keys/:id
- */
 async function deleteApiKey(req, res) {
   try {
     const { id } = req.params;

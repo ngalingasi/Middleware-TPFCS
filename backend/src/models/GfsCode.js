@@ -1,10 +1,11 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GFS code model
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const db = require('../config/database');
 
-/**
- * GFS (Government Financial Statistics) codes master list.
- * Admin-managed reference data used to validate bill items at creation
- * time (see billRoutes.js) instead of accepting any free-text string.
- */
+// GFS (Government Financial Statistics) codes master list
 class GfsCode {
   async create({ code, description, createdBy }) {
     const [result] = await db.query(
@@ -15,11 +16,7 @@ class GfsCode {
     return result.insertId;
   }
 
-  /**
-   * Flat, unpaginated list of ACTIVE codes - GFS lists are small (dozens,
-   * not thousands). Used by the bill-create dropdown and by the
-   * child-system-facing GET /api/gfs-codes endpoint.
-   */
+  // Flat, unpaginated list of ACTIVE codes - GFS lists are small (dozens, not thousands)
   async findAllActive() {
     const [rows] = await db.query(
       `SELECT id, code, description, status, created_at
@@ -90,12 +87,6 @@ class GfsCode {
     await db.query('DELETE FROM gfs_codes WHERE id = ?', [id]);
   }
 
-  /**
-   * Given a list of submitted codes, returns the subset that are known
-   * and ACTIVE - a single query regardless of how many bill items were
-   * submitted. Callers diff this against what was submitted to find the
-   * invalid ones.
-   */
   async findActiveCodesIn(codes) {
     if (!codes || codes.length === 0) return [];
     const [rows] = await db.query(

@@ -1,21 +1,7 @@
-/**
- * ManifestSelector.tsx
- *
- * Reusable manifest picker dropdown with search.
- * Shared between:
- *   - IcdvDashboard
- *   - LiveTransferMonitoringPage
- *   - TransferPerformancePage
- *   - BatchListPage
- *
- * Props:
- *   value        — currently selected Manifest or null (= all)
- *   onChange     — called when selection changes
- *   icdvId       — optional scope: only list manifests for this ICDV
- *   statusFilter — optional: 'active' | 'completed' | 'pending' — omit to show all
- *   placeholder  — override the trigger label when nothing selected
- *   allLabel     — label for the "clear / show all" option inside the dropdown
- */
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Manifest selector component
+// └──────────────────────────────────────────────────────────────────────────┘
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { manifestsApi } from '../../api';

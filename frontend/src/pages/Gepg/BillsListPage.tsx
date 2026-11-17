@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Bills list page
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Change password page
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { EyeIcon, EyeCloseIcon } from '../../icons/EyeIcons';
@@ -6,7 +11,7 @@ import Input from '../../components/form/input/InputField';
 import Button from '../../components/ui/button/Button';
 import { gepgAuthApi } from '../../api/gepgAuth';
 
-// ── Defined OUTSIDE the page component to prevent remount on every keystroke ──
+// Defined OUTSIDE the page component to prevent remount on every keystroke
 interface PasswordInputProps {
   label: string;
   value: string;
@@ -41,7 +46,6 @@ function PasswordInput({ label, value, onChange, show, onToggle, placeholder }: 
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();

@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Server entry point
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -23,10 +28,6 @@ app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
 
-// XML body parser for GePG webhooks - GePG posts raw XML, not JSON, to
-// every one of these callback URLs. Previously only /api/payments/webhook
-// was covered, so the bill-response and reconciliation-response webhooks
-// (added below) would have had their bodies mangled by express.json().
 app.use('/api/bills/webhook', express.text({ type: '*/xml' }));
 app.use('/api/payments/webhook', express.text({ type: '*/xml' }));
 app.use('/api/reconciliation/webhook', express.text({ type: '*/xml' }));

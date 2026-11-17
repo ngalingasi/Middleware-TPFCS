@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Budget bar component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 interface Props {
   value: number | null | undefined;   // 0–100 progress/spend percentage
   label?: string;
@@ -8,10 +13,6 @@ interface Props {
 export default function BudgetBar({ value, label, status, color = 'auto' }: Props) {
   const pct = Math.min(Math.max(value ?? 0, 0), 100);
 
-  // Color logic:
-  // completed → always green
-  // cancelled → gray
-  // auto (progress bar): low = green, mid = yellow, high = red
   let barColor = 'bg-green-500';
   if (status === 'completed') {
     barColor = 'bg-green-500';

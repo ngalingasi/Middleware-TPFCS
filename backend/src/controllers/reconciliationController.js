@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Reconciliation controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const ReconciliationRequest = require('../models/ReconciliationRequest');
 const ReconciliationTransaction = require('../models/ReconciliationTransaction');
 const gepgClient = require('../services/gepgClient');
@@ -10,11 +15,7 @@ const { validationResult } = require('express-validator');
 // Same local ONLINE/OFFLINE approximation paymentController uses.
 const ONLINE_CHANNELS = new Set(['MC', 'VC', 'OT', 'AMEX', 'UPI']);
 
-// GePG keeps reconciliation data for 7 days from receipt (spec section 7,
-// note 4) and only reconciles *previous* days: today and future dates are
-// out of range (SIT RP001_02: 10 days old / today / beyond today must fail
-// with an out-of-range error). Tanzania is UTC+3 with no DST, so "today" is
-// computed there rather than in the server's timezone.
+// GePG keeps reconciliation data for 7 days and only serves previous days
 const RECONCILIATION_MAX_DAYS_BACK = 7;
 
 function tanzaniaToday() {
@@ -22,10 +23,6 @@ function tanzaniaToday() {
   return new Date(Date.UTC(tzNow.getUTCFullYear(), tzNow.getUTCMonth(), tzNow.getUTCDate()));
 }
 
-/**
- * Returns null when the date is acceptable, otherwise { code, message }
- * using GePG's own codes (7318 invalid date, 7319 out of allowable range).
- */
 function validateReconciliationDate(transactionDate) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) {
     return { code: '7318', message: 'Invalid reconciliation request date (expected YYYY-MM-DD)' };
@@ -49,13 +46,6 @@ function validateReconciliationDate(transactionDate) {
   return null;
 }
 
-/**
- * POST /api/reconciliation/request
- *
- * Submits a sucSpPmtReq to GePG (spec section 7.2). v5 dropped the v4
- * success/exception-report choice (ReconcOpt) - only successful-payments
- * reconciliation exists now, so it is no longer sent to GePG.
- */
 async function submitReconciliationRequest(req, res) {
   try {
     const errors = validationResult(req);
@@ -101,12 +91,6 @@ async function submitReconciliationRequest(req, res) {
   }
 }
 
-/**
- * POST /api/reconciliation/webhook/response
- *
- * Receives the asynchronous sucSpPmtRes GePG sends after processing a
- * reconciliation request (spec section 7.1, steps III-IV).
- */
 async function handleReconciliationResponseWebhook(req, res) {
   const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
   let reconcResp;
@@ -147,10 +131,6 @@ async function handleReconciliationResponseWebhook(req, res) {
 
     await ReconciliationTransaction.createMany(reconciliationRequestId, transactions);
 
-    // SIT RP001_03: a payment GePG settled but whose pmtSpNtfReq never
-    // reached us must be recovered from reconciliation, otherwise the bill
-    // stays unpaid here. Payment.create is idempotent on transaction id, so
-    // entries we already hold are skipped.
     if (String(batchHdr.PayStsCode) === '7101') {
       for (const t of rawTransactions) {
         const bill = await Bill.findById(t.BillId);
@@ -213,9 +193,6 @@ async function handleReconciliationResponseWebhook(req, res) {
   }
 }
 
-/**
- * GET /api/reconciliation
- */
 async function getReconciliationRequests(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -234,9 +211,6 @@ async function getReconciliationRequests(req, res) {
   }
 }
 
-/**
- * GET /api/reconciliation/:requestId
- */
 async function getReconciliationRequestById(req, res) {
   try {
     const { requestId } = req.params;

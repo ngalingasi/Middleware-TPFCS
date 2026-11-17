@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Profile page
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { Link } from 'react-router';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';

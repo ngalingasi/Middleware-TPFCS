@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ User controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const bcrypt = require('bcrypt');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');

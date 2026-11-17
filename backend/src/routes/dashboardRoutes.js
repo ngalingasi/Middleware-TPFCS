@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Dashboard routes
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboardController');

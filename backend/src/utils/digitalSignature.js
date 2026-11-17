@@ -1,15 +1,13 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Digital signature utility
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const crypto = require('crypto');
 const fs = require('fs');
 const forge = require('node-forge');
 const { ACK, gepgError } = require('./gepgErrors');
 
-/**
- * Implements GePG's digital signature requirements (API v5.0, section 13):
- *  - Messages are signed with the participant's PKCS#12 (.p12/.pfx) private key
- *  - Algorithm: SHA256withRSA
- *  - Signature is BASE64 encoded
- *  - Signed envelope shape: <Gepg><message/><signature/></Gepg>
- */
 class DigitalSignature {
   constructor() {
     this.algorithm = 'RSA-SHA256'; // Node's name for SHA256withRSA
@@ -17,10 +15,6 @@ class DigitalSignature {
     this._privateKeyPemCache = new Map();
   }
 
-  /**
-   * Extracts the PEM private key from a PKCS#12 file, once per path/password
-   * combination (parsing PKCS#12 is not cheap).
-   */
   _loadPrivateKeyFromPkcs12(p12Path, password) {
     const cacheKey = p12Path;
     if (this._privateKeyPemCache.has(cacheKey)) {
@@ -65,9 +59,6 @@ class DigitalSignature {
     return this._loadPrivateKeyFromPkcs12(certPath, password);
   }
 
-  /**
-   * Sign a message per GePG's rules: SHA256withRSA, base64 encoded.
-   */
   signMessage(message, certPath, password) {
     try {
       const privateKeyPem = this._resolvePrivateKeyPem(certPath, password);
@@ -82,15 +73,10 @@ class DigitalSignature {
     }
   }
 
-  /**
-   * Verify a signature against a public key/certificate (PEM). GePG shares
-   * their public certificate out-of-band during integration.
-   */
   verifySignature(message, signature, publicKeyPath) {
     try {
       if (!fs.existsSync(publicKeyPath)) {
-        // Our copy of GePG's certificate is missing: a configuration fault
-        // (7304), not evidence the message is forged.
+        // our certificate config is broken, not proof the message is forged
         throw gepgError(`Public key/certificate file not found: ${publicKeyPath}`, ACK.SIGNATURE_CONFIG);
       }
 
@@ -103,15 +89,12 @@ class DigitalSignature {
 
       return verify.verify(publicKeyPem, cleanSignature, this.encoding);
     } catch (error) {
-      // A signature that cannot even be decoded/verified is an invalid
-      // signature (7303) unless a more specific code was already set.
+      // an undecodable signature counts as invalid (7303)
       throw gepgError(`Verification failed: ${error.message}`, error.gepgCode || ACK.INVALID_SIGNATURE, error);
     }
   }
 
-  /**
-   * Wrap an already-built GePG message XML in the signed <Gepg> envelope.
-   */
+  // Wrap an already-built GePG message XML in the signed <Gepg> envelope
   createSignedEnvelope(message, certPath, password) {
     try {
       const signature = this.signMessage(message, certPath, password);
@@ -121,11 +104,6 @@ class DigitalSignature {
     }
   }
 
-  /**
-   * Extract the message + signature from a <Gepg> envelope and verify it
-   * against GePG's public certificate. Used for every inbound message
-   * (bill responses, payment notifications, reconciliation responses).
-   */
   extractAndVerifyEnvelope(envelopeXML, publicKeyPath) {
     try {
       const messageMatch = envelopeXML.match(/<Gepg>\s*([\s\S]*?)\s*<signature>/);

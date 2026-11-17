@@ -1,14 +1,14 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ API key model
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const crypto = require('crypto');
 const db = require('../config/database');
 
 const KEY_PREFIX = 'gpg_live_';
 
 class ApiKey {
-  /**
-   * Generates a new key, returning both the plaintext (shown to the user
-   * exactly once) and the hash that gets persisted. We never store the
-   * plaintext key anywhere.
-   */
   generateKey() {
     const secret = crypto.randomBytes(32).toString('hex');
     const plaintextKey = `${KEY_PREFIX}${secret}`;
@@ -44,10 +44,6 @@ class ApiKey {
     return rows.length > 0 ? rows[0] : null;
   }
 
-  /**
-   * Used by the (optional) apiKeyAuth middleware to validate an incoming
-   * X-Api-Key header against stored hashes.
-   */
   async findActiveByHash(keyHash) {
     const [rows] = await db.query(
       `SELECT * FROM api_keys WHERE key_hash = ? AND status = 'ACTIVE'`,

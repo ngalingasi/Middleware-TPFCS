@@ -1,9 +1,12 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Auth middleware
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 
-/**
- * Verify JWT token and authenticate user
- */
+// Verify JWT token and authenticate user
 const authenticate = async (req, res, next) => {
   try {
     // Get token from header
@@ -80,9 +83,7 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-/**
- * Check if user has required role
- */
+// Check if user has required role
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -103,9 +104,7 @@ const authorize = (...roles) => {
   };
 };
 
-/**
- * Optional authentication - doesn't fail if no token
- */
+// Optional authentication - doesn't fail if no token
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;

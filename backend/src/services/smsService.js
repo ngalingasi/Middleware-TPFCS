@@ -1,8 +1,11 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ SMS service
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const axios = require('axios');
 
-/**
- * Format phone numbers to 255XXXXXXXXX (BrandBox international format)
- */
+// Format phone numbers to 255XXXXXXXXX (BrandBox international format)
 const formatNumber = (num) => {
   let f = String(num).replace(/\s+/g, '').replace(/^\+/, '');
   if (f.startsWith('255')) return f; // already correct
@@ -13,19 +16,6 @@ const formatNumber = (num) => {
 
 const isValidNumber = (num) => /^255\d{9}$/.test(num);
 
-/**
- * Send SMS via BrandBox Bulk API (single recipient per call)
- * POST https://smsbulkapi.brandbox.co.tz/api/sms/v1/text/single
- *
- * Credentials come from env (BRANDBOX_API_KEY / BRANDBOX_API_SECRET /
- * BRANDBOX_SENDER_NAME) rather than being passed in by the caller, since
- * this project has no central "config" module - everything else in this
- * codebase reads process.env directly (see gepgClient.js).
- *
- * @param {string}   message      - SMS text body
- * @param {string[]} phoneNumbers - Array of phone numbers (any local/intl format)
- * @param {number}   maxRetries   - Max retry attempts on transient failures (default 3)
- */
 const sendSmsBrandBox = async (message, phoneNumbers, maxRetries = 3) => {
   const settings = {
     apiKey: process.env.BRANDBOX_API_KEY,

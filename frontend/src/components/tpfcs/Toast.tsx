@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Toast component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 

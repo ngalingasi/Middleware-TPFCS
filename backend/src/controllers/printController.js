@@ -21,10 +21,6 @@ function sendError(res, error, label) {
   return res.status(500).json({ success: false, message: error.message });
 }
 
-/**
- * GET /api/bills/:billId/print?type=bill|transfer
- * Data for the printable bill (Appendix 3) or TISS/SWIFT transfer bill (Appendix 2).
- */
 async function getBillPrintData(req, res) {
   try {
     const data = await printService.buildBillDocument(req.params.billId, {
@@ -37,10 +33,6 @@ async function getBillPrintData(req, res) {
   }
 }
 
-/**
- * GET /api/payments/:paymentId/receipt
- * Data for the printable GePG receipt (Appendix 1).
- */
 async function getReceiptData(req, res) {
   try {
     const data = await printService.buildReceiptDocument(req.params.paymentId, { issuedBy: actorName(req) });

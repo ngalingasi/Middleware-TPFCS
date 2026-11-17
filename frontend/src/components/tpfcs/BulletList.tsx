@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Bullet list component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 // Uses the same icon/style as the template's "List With Icon" component
 const CheckIcon = () => (
   <svg className="fill-current flex-shrink-0" width="16" height="16" viewBox="0 0 16 16" fill="none">

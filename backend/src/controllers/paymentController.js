@@ -1,18 +1,16 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Payment controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const Payment = require('../models/Payment');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
 const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErrors');
 
-// v5 has no online/offline distinction at the protocol level (both were
-// merged into pmtSpNtfReq) - this is a local approximation only, so the
-// dashboard's existing online/offline split keeps working.
 const ONLINE_CHANNELS = new Set(['MC', 'VC', 'OT', 'AMEX', 'UPI']);
 
-/**
- * POST /api/payments/webhook/notification
- * Receives pmtSpNtfReq (spec section 6.2). A single notification may carry
- * multiple payment entries (PmtHdr.EntryCnt), one PmtTrxDtl each.
- */
+// pmtSpNtfReq webhook (spec 6.2); one notification can carry several payments
 async function handlePaymentNotification(req, res) {
   const envelopeXML = typeof req.body === 'string' ? req.body : req.body.toString();
   let pmtReq;
@@ -45,9 +43,7 @@ async function handlePaymentNotification(req, res) {
         payerCellNumber: trxDtl.PyrCellNum,
         payerName: trxDtl.PyrName,
         payerEmail: trxDtl.PyrEmail,
-        // v5 has no direct PSP receipt tag - TrdPtyTrxId is the closest
-        // analogue ("third party receipt ... Issuing Bank authorization,
-        // MNO Receipt, Aggregator Receipt etc.").
+        // v5 has no direct PSP receipt tag - TrdPtyTrxId is the closest analogue ("third party receipt
         pspReceiptNumber: trxDtl.TrdPtyTrxId,
         pspName: trxDtl.PspName,
         pspCode: trxDtl.PspCode,
@@ -83,9 +79,6 @@ async function handlePaymentNotification(req, res) {
   }
 }
 
-/**
- * GET /api/payments
- */
 async function getPayments(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -106,9 +99,6 @@ async function getPayments(req, res) {
   }
 }
 
-/**
- * GET /api/payments/:paymentId
- */
 async function getPaymentById(req, res) {
   try {
     const payment = await Payment.findById(req.params.paymentId);
@@ -124,9 +114,6 @@ async function getPaymentById(req, res) {
   }
 }
 
-/**
- * GET /api/payments/statistics/summary
- */
 async function getPaymentStatistics(req, res) {
   try {
     const startDate = req.query.startDate || new Date().toISOString().split('T')[0];

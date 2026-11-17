@@ -20,7 +20,7 @@ function Logo({ src }: { src: string }) {
   return <img src={src} alt="" onError={(e) => ((e.currentTarget.style.visibility = 'hidden'))} />;
 }
 
-/** Appendix 1: GePG exchequer receipt. */
+// Appendix 1: GePG exchequer receipt
 export default function ReceiptDocument({ doc }: { doc: PrintReceiptDocument }) {
   const { receipt } = doc;
 

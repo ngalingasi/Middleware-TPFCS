@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ GePG header component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useSidebar } from '../context/SidebarContext';

@@ -10,7 +10,7 @@ import { paymentsApi } from '../../api/payments';
 import type { PrintReceiptDocument } from '../../types/gepg';
 import { gepgErrorMessage } from '../../utils/gepgError';
 
-/** Standalone print view for a GePG receipt - see BillPrintPage for why it sits outside the app shell. */
+// Standalone print view for a GePG receipt - see BillPrintPage for why it sits outside the app shell
 export default function ReceiptPrintPage() {
   const { paymentId } = useParams<{ paymentId: string }>();
   const navigate = useNavigate();

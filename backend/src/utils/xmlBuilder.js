@@ -1,22 +1,13 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ XML builder utility
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const xml2js = require('xml2js');
 const { ACK, gepgError } = require('./gepgErrors');
 
-/**
- * Builds/parses GePG API v5.0 XML payloads.
- *
- * Scope: Normal Bill Control Number flow only (BillTyp=1, GrpBillId ==
- * BillId) - Combined/customer control numbers (BillTyp=2, spanning several
- * institutions) are not implemented, there being no current use case for
- * them.
- *
- * NOTE on RtrRespFlg/RemFlag: the v5 spec's field table (section 4.6)
- * still lists both as "Mandatory", but neither appears in any of the
- * document's four full bill submission/reuse/change sample payloads -
- * likely a stale carry-over from v4's documentation that wasn't fully
- * pruned. Omitted here to match the samples; verify with GePG's
- * integration team before going live in case the table is right and the
- * samples are merely incomplete.
- */
+// Normal bills only (BillTyp 1). RtrRespFlg and RemFlag are left out to match the spec samples;
+// confirm with GePG before go-live
 class XMLBuilder {
   constructor() {
     this.builder = new xml2js.Builder({
@@ -26,15 +17,7 @@ class XMLBuilder {
     this.parser = new xml2js.Parser({ explicitArray: false });
   }
 
-  /**
-   * Build a v5 BillDtl block shared by submission and reuse requests.
-   */
   _buildBillDtl(billData) {
-    // xml2js repeats the parent key itself for each array element, so an
-    // array of {BillItem:{...}} objects here would render as
-    // <BillItems>...</BillItems><BillItems>...</BillItems> (one wrapper per
-    // item) instead of one <BillItems> wrapping multiple <BillItem>
-    // children - the array must live at the BillItem key, one level down.
     const billItems = billData.items.map(item => ({
       RefBillId: item.refBillId || billData.billId,
       SubSpCode: item.subSpCode || billData.subSpCode,
@@ -86,11 +69,6 @@ class XMLBuilder {
     return billDtl;
   }
 
-  /**
-   * Build GePG Bill Submission Request XML (Normal Bill Control Number).
-   * Also used for control number reuse when billData.paymentControlNumber
-   * is present.
-   */
   buildBillSubmissionRequest(billData) {
     const xmlObject = {
       billSubReq: {
@@ -111,9 +89,6 @@ class XMLBuilder {
     return this.builder.buildObject(xmlObject);
   }
 
-  /**
-   * Build Bill Change/Update (expiry extension) Request XML.
-   */
   buildBillChangeRequest(data) {
     const billDtl = {
       BillId: data.billId,
@@ -143,10 +118,6 @@ class XMLBuilder {
     return this.builder.buildObject(xmlObject);
   }
 
-  /**
-   * Build Bill Cancellation Request XML. Synchronous API - the HTTP
-   * response to this call is the billCanclRes itself, no separate ack.
-   */
   buildBillCancellationRequest(data) {
     const xmlObject = {
       billCanclReq: {
@@ -164,11 +135,6 @@ class XMLBuilder {
     return this.builder.buildObject(xmlObject);
   }
 
-  /**
-   * Build Reconciliation Request XML. v5 dropped the success/exception
-   * report choice (v4's ReconcOpt) - only successful-payments
-   * reconciliation exists now.
-   */
   buildReconciliationRequest(data) {
     const xmlObject = {
       sucSpPmtReq: {
@@ -185,10 +151,6 @@ class XMLBuilder {
     return this.builder.buildObject(xmlObject);
   }
 
-  /**
-   * Build Acknowledgement XML for the three webhook messages this bridge
-   * must acknowledge: billSubRes, pmtSpNtfReq, sucSpPmtRes.
-   */
   buildAcknowledgement({ ackId, referenceId, statusCode, type }) {
     let xmlObject;
 
@@ -227,9 +189,6 @@ class XMLBuilder {
     return this.builder.buildObject(xmlObject);
   }
 
-  /**
-   * Parse XML string to JavaScript object
-   */
   async parseXML(xmlString) {
     try {
       return await this.parser.parseStringPromise(xmlString);
@@ -238,12 +197,6 @@ class XMLBuilder {
     }
   }
 
-  /**
-   * xml2js (with explicitArray:false) returns a single object when a
-   * repeatable tag appears once, and an array when it appears multiple
-   * times. Repeatable tags like BillDtl, PmtTrxDtl need consistent array
-   * handling regardless of count.
-   */
   toArray(value) {
     if (value === undefined || value === null) return [];
     return Array.isArray(value) ? value : [value];

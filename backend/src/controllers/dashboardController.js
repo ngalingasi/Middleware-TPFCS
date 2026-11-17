@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Dashboard controller
+// └──────────────────────────────────────────────────────────────────────────┘
+
 const Dashboard = require('../models/Dashboard');
 
 async function getStatistics(req, res) {

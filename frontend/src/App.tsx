@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ App routes
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router';
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { GepgAuthProvider } from './context/GepgAuthContext';
@@ -5,35 +10,35 @@ import GepgProtectedRoute from './components/tpfcs/GepgProtectedRoute';
 import GepgAppLayout from './layout/GepgAppLayout';
 import { ToastContainer } from './components/tpfcs/Toast';
 
-// ── Auth ────────────────────────────────────────────────────────────────────
+// Auth
 import GepgSignIn from './pages/Gepg/SignIn';
 import ChangePasswordPage from './pages/Gepg/ChangePasswordPage';
 
-// ── Dashboard ───────────────────────────────────────────────────────────────
+// Dashboard
 import GepgDashboard from './pages/Gepg/Dashboard';
 
-// ── Bills ───────────────────────────────────────────────────────────────────
+// Bills
 import BillsListPage from './pages/Gepg/BillsListPage';
 import BillDetailPage from './pages/Gepg/BillDetailPage';
 import BillCreatePage from './pages/Gepg/BillCreatePage';
 import BillPrintPage from './pages/Gepg/BillPrintPage';
 import ReceiptPrintPage from './pages/Gepg/ReceiptPrintPage';
 
-// ── Payments ────────────────────────────────────────────────────────────────
+// Payments
 import PaymentsListPage from './pages/Gepg/PaymentsListPage';
 import PaymentDetailPage from './pages/Gepg/PaymentDetailPage';
 
-// ── Reconciliation ──────────────────────────────────────────────────────────
+// Reconciliation
 import ReconciliationListPage from './pages/Gepg/ReconciliationListPage';
 import ReconciliationDetailPage from './pages/Gepg/ReconciliationDetailPage';
 
-// ── Admin ───────────────────────────────────────────────────────────────────
+// Admin
 import GepgUsersPage from './pages/Gepg/UsersPage';
 import ApiKeysPage from './pages/Gepg/ApiKeysPage';
 import GfsCodesPage from './pages/Gepg/GfsCodesPage';
 import ProfilePage from './pages/Gepg/ProfilePage';
 
-// ── Fallback ────────────────────────────────────────────────────────────────
+// Fallback
 import NotFound from './pages/OtherPage/NotFound';
 
 export default function App() {
@@ -43,10 +48,10 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* ── Public ──────────────────────────────────────────────────── */}
+          {/* Public */}
           <Route path="/signin" element={<GepgSignIn />} />
 
-          {/* ── All authenticated users ────────────────────────────────── */}
+          {/* All authenticated users */}
           <Route element={<GepgProtectedRoute />}>
             <Route path="/change-password" element={<ChangePasswordPage />} />
 
@@ -71,7 +76,7 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* ── Admin only ──────────────────────────────────────────────── */}
+          {/* Admin only */}
           <Route element={<GepgProtectedRoute adminOnly />}>
             <Route element={<GepgAppLayout />}>
               <Route path="/users" element={<GepgUsersPage />} />
@@ -80,7 +85,7 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* ── Fallback ────────────────────────────────────────────────── */}
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>

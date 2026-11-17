@@ -1,3 +1,8 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Form field component
+// └──────────────────────────────────────────────────────────────────────────┘
+
 import type { ReactNode } from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -64,7 +69,7 @@ export function FormTextArea({ label, error, required, ...props }: TextAreaProps
   );
 }
 
-// ── Date input using flatpickr (template's date picker) ───────────────────────
+// Date input using flatpickr (template's date picker)
 import DatePickerBase from '../form/date-picker';
 
 interface DateInputProps {
