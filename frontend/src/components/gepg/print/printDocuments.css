@@ -141,6 +141,7 @@
 .gepg-doc-howto ul {
   margin: 1mm 0 1mm 4mm;
   padding: 0;
+  list-style: disc;
 }
 
 .gepg-doc-note {
@@ -150,6 +151,7 @@
 .gepg-doc-note ol {
   margin: 1mm 0 0 5mm;
   padding: 0;
+  list-style: decimal;
 }
 
 .gepg-doc-dots {

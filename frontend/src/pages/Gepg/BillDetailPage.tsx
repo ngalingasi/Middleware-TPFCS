@@ -315,6 +315,22 @@ export default function BillDetailPage() {
                   {Number(bill.misc_amount ?? 0).toLocaleString()}
                 </span>
               </div>
+              {(bill.totalPaid ?? 0) > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Paid</span>
+                    <span className="font-medium text-gray-800 dark:text-white/90">
+                      {bill.currency} {Number(bill.totalPaid).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Remaining</span>
+                    <span className="font-medium text-gray-800 dark:text-white/90">
+                      {bill.currency} {Number(bill.remainingAmount ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between border-t border-gray-100 pt-3 dark:border-gray-800">
                 <span className="text-gray-500 dark:text-gray-400">Expiry Date</span>
                 <span className="font-medium text-gray-800 dark:text-white/90">

@@ -103,6 +103,8 @@ export interface Bill {
   transaction_status_code?: string | null;
   item_count?: number;
   items?: BillItem[];
+  totalPaid?: number;
+  remainingAmount?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -300,7 +302,7 @@ export interface PrintBillDocument {
     printedOn: string;
   };
   qr: { image: string | null; payload: Record<string, string>; caption: string } | null;
-  payment: { controlNumber: string; banks: string[]; mobileMoney: boolean };
+  payment: { controlNumber: string; mobileMoney: boolean };
   transfer?: {
     beneficiaryName: string;
     bankName: string;
@@ -337,4 +339,54 @@ export interface PrintReceiptDocument {
     dateIssued: string;
   };
   warnings: string[];
+}
+
+// Settings page (GET /settings)
+export type SettingSource = 'database' | 'env' | 'default' | 'unset';
+
+export interface SettingField {
+  key: string;
+  label: string;
+  abbr: string;
+  meaning: string;
+  example: string;
+  providedBy: string;
+  input: 'text' | 'select';
+  options?: Array<{ value: string; label: string }>;
+  max?: number;
+  hint?: string;
+  critical: boolean;
+  affects?: string;
+  value: string;
+  source: SettingSource;
+  savedValue: string;
+  envValue: string;
+}
+
+export interface SettingGroup {
+  id: string;
+  title: string;
+  description: string;
+  critical: boolean;
+  fields: SettingField[];
+}
+
+export interface SettingsData {
+  groups: SettingGroup[];
+  envOnly: Array<{ name: string; meaning: string }>;
+}
+
+export interface SettingChange {
+  key: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
+export interface CertificateStatus {
+  label: string;
+  file: string;
+  status: 'ok' | 'expiring' | 'expired' | 'missing' | 'unreadable';
+  message: string;
+  subject?: string;
 }

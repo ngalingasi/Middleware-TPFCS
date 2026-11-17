@@ -255,15 +255,8 @@ INSERT INTO users (username, email, password, full_name, role, status) VALUES
 ('viewer', 'viewer@gepg-bridge.local', '$2b$10$1UYQtg.JL0Rodt0xfPCLfe3CkwuM0G9eMowrZrPJft039mGU0mcwW', 'Jane Viewer', 'VIEWER', 'ACTIVE')
 ON DUPLICATE KEY UPDATE password=VALUES(password);
 
--- Insert default configurations
--- v4 endpoint paths, only fallback defaults: GePG v5 gives the real ones at integration (set GEPG_ENDPOINT_* in .env)
-INSERT INTO system_config (config_key, config_value, description) VALUES
-('gepg_endpoint_bill_submission', 'http://<gepgIP>:<port>/api/bill/sigqrequest', 'GePG Bill Submission Endpoint (v4 fallback - confirm v5 value with GePG)'),
-('gepg_endpoint_bill_reuse', 'http://<gepgIP>:<port>/api/bill/sigqrequest_reuse', 'GePG Bill Control Number Reuse Endpoint (v4 fallback - confirm v5 value with GePG)'),
-('gepg_endpoint_bill_update', 'http://<gepgIP>:<port>/api/bill/sigqrequest_change', 'GePG Bill Update Endpoint (v4 fallback - confirm v5 value with GePG)'),
-('gepg_endpoint_bill_cancellation', 'http://<gepgIP>:<port>/api/bill/sigcancel_request', 'GePG Bill Cancellation Endpoint (v4 fallback - confirm v5 value with GePG)'),
-('gepg_endpoint_reconciliation', 'http://<gepgIP>:<port>/api/reconciliations/sig_sp_qrequest', 'GePG Reconciliation Endpoint (v4 fallback - confirm v5 value with GePG)')
-ON DUPLICATE KEY UPDATE config_value=VALUES(config_value);
+-- settings are saved from the Settings page; old seeded endpoint rows held placeholders and would override .env
+DELETE FROM system_config WHERE config_value LIKE '%<gepgIP>%';
 
 -- OTP verifications table - backs the 3-step OTP login flow
 -- (validate-credentials -> send-otp -> verify-otp)
@@ -335,6 +328,12 @@ ALTER TABLE payments MODIFY COLUMN payer_cell_num VARCHAR(15);
 -- Who raised the bill; printed as "Prepared By" on the bill (GePG bill guide
 -- requires the name of the person who issued it).
 ALTER TABLE bills ADD COLUMN IF NOT EXISTS generated_by VARCHAR(30) AFTER payer_email;
+
+-- the first payment used to mark a bill PAID even when it was only partial; undo that
+UPDATE bills b SET b.status = 'APPROVED'
+WHERE b.status = 'PAID'
+  AND EXISTS (SELECT 1 FROM payments p WHERE p.bill_id = b.bill_id)
+  AND (SELECT SUM(p.paid_amount) FROM payments p WHERE p.bill_id = b.bill_id) < b.bill_amount;
 `;
 
 async function runMigrations() {

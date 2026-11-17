@@ -8,35 +8,31 @@ const Bill = require('../models/Bill');
 const BillItem = require('../models/BillItem');
 const Payment = require('../models/Payment');
 const { amountInWords } = require('../utils/amountInWords');
+const settings = require('./settingsService');
 
 // Printable GePG bill / transfer bill / receipt documents
 
 // Configuration
 
-function readConfig(env = process.env) {
-  const list = (v) => (v || '').split(',').map(s => s.trim()).filter(Boolean);
-
+// `get` looks a setting up by key (saved value, then .env); tests pass their own
+function readConfig(get = settings.get) {
   return {
-    institutionName: env.GEPG_SP_NAME || '',
-    // Optional second heading line, e.g. the parent ministry.
-    institutionSubtitle: env.GEPG_SP_SUBTITLE || '',
-    collectionCentre: env.GEPG_COLLECTION_CENTRE_NAME || '',
+    institutionName: get('gepg_sp_name'),
+    institutionSubtitle: get('gepg_sp_subtitle'),
+    collectionCentre: get('gepg_collection_centre_name'),
     // no default on purpose: a wrong paybill number would send payments to the wrong place
-    qrShortCode: env.GEPG_QR_SHORT_CODE || '',
-    // only banks the institution holds collection accounts with
-    banks: list(env.PRINT_BANKS),
-    // mobile money only works for TZS bills collected through NMB (guide, section C)
-    mobileMoney: String(env.PRINT_MOBILE_MONEY || 'true').toLowerCase() !== 'false',
+    qrShortCode: get('gepg_qr_short_code'),
+    mobileMoney: String(get('print_mobile_money')).toLowerCase() !== 'false',
     transfer: {
-      beneficiaryName: env.GEPG_TRANSFER_BENEFICIARY_NAME || env.GEPG_SP_NAME || '',
-      bankName: env.GEPG_TRANSFER_BANK_NAME || '',
-      accountNumber: env.GEPG_TRANSFER_ACCOUNT_NUMBER || '',
-      swiftCode: env.GEPG_TRANSFER_SWIFT_CODE || ''
+      beneficiaryName: get('gepg_transfer_beneficiary_name') || get('gepg_sp_name'),
+      bankName: get('gepg_transfer_bank_name'),
+      accountNumber: get('gepg_transfer_account_number'),
+      swiftCode: get('gepg_transfer_swift_code')
     },
-    // Logos are served by the frontend; paths are overridable.
+    // logo files are served by the frontend
     logos: {
-      coatOfArms: env.PRINT_LOGO_COAT_OF_ARMS || '/images/gepg/coat-of-arms.png',
-      gepg: env.PRINT_LOGO_GEPG || '/images/gepg/gepg-logo.png'
+      coatOfArms: process.env.PRINT_LOGO_COAT_OF_ARMS || '/images/gepg/coat-of-arms.png',
+      gepg: process.env.PRINT_LOGO_GEPG || '/images/gepg/gepg-logo.png'
     }
   };
 }
@@ -119,7 +115,6 @@ function paymentInstructions(bill, cfg) {
 
   return {
     controlNumber: control,
-    banks: cfg.banks,
     mobileMoney: mobileAvailable
   };
 }
@@ -130,7 +125,6 @@ function composeBillDocument({ bill, items, gfsDescriptions = {}, cfg, printedBy
   if (!cfg.institutionName) warnings.push('GEPG_SP_NAME is not set - the institution name is missing from the heading.');
   if (!cfg.qrShortCode) warnings.push('GEPG_QR_SHORT_CODE is not set - no QR code can be generated.');
   else if (qrPayload && !qrImage) warnings.push('The "qrcode" package is not installed on the server - showing the QR message instead of an image.');
-  if (type === 'bill' && cfg.banks.length === 0) warnings.push('PRINT_BANKS is not set - the bank payment instructions are generic.');
 
   const rows = items.map((item, i) => ({
     no: i + 1,
@@ -153,7 +147,7 @@ function composeBillDocument({ bill, items, gfsDescriptions = {}, cfg, printedBy
       controlNumber: String(bill.payment_control_number),
       paymentReference: bill.bill_description || bill.bill_id,
       billReference: bill.bill_id,
-      serviceProviderCode: process.env.GEPG_SP_CODE || '',
+      serviceProviderCode: settings.get('gepg_sp_code'),
       payerName: bill.payer_name,
       payerPhone: bill.payer_cell_num || '',
       description: bill.bill_description || '',

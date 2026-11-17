@@ -7,27 +7,50 @@ const axios = require('axios');
 const xmlBuilder = require('../utils/xmlBuilder');
 const digitalSignature = require('../utils/digitalSignature');
 const { ACK, gepgError } = require('../utils/gepgErrors');
+const settings = require('./settingsService');
 require('dotenv').config();
 
 class GePGClient {
+  // certificates and the password stay in .env
   constructor() {
-    this.baseURL = `http://${process.env.GEPG_IP}:${process.env.GEPG_PORT}`;
-    this.spCode = process.env.GEPG_SP_CODE;
-    this.subSpCode = process.env.GEPG_SUB_SP_CODE;
-    this.sysCode = process.env.GEPG_SYS_CODE || process.env.GEPG_SP_SYS_ID;
-    // For the Normal Bill Control Number flow SpGrpCode == SpCode.
-    this.spGrpCode = process.env.GEPG_SP_GRP_CODE || this.spCode;
-    this.alg = process.env.GEPG_ALG;
     this.certPath = process.env.CERT_PATH;
     this.certPassword = process.env.CERT_PASSWORD;
     this.gepgPublicCertPath = process.env.GEPG_PUBLIC_CERT_PATH;
+  }
 
-    this.endpoints = {
-      billSubmission: process.env.GEPG_ENDPOINT_BILL_SUBMISSION || '/api/bill/sigqrequest',
-      billReuse: process.env.GEPG_ENDPOINT_BILL_REUSE || '/api/bill/sigqrequest_reuse',
-      billUpdate: process.env.GEPG_ENDPOINT_BILL_UPDATE || '/api/bill/sigqrequest_change',
-      billCancellation: process.env.GEPG_ENDPOINT_BILL_CANCELLATION || '/api/bill/sigcancel_request',
-      reconciliation: process.env.GEPG_ENDPOINT_RECONCILIATION || '/api/reconciliations/sig_sp_qrequest'
+  // everything below can be changed on the Settings page, so it is read on use
+  get baseURL() {
+    return `http://${settings.get('gepg_ip')}:${settings.get('gepg_port')}`;
+  }
+
+  get spCode() {
+    return settings.get('gepg_sp_code');
+  }
+
+  get subSpCode() {
+    return settings.get('gepg_sub_sp_code');
+  }
+
+  get sysCode() {
+    return settings.get('gepg_sys_code');
+  }
+
+  // for normal bills SpGrpCode is the SpCode
+  get spGrpCode() {
+    return settings.get('gepg_sp_grp_code') || this.spCode;
+  }
+
+  get alg() {
+    return settings.get('gepg_alg');
+  }
+
+  get endpoints() {
+    return {
+      billSubmission: settings.get('gepg_endpoint_bill_submission'),
+      billReuse: settings.get('gepg_endpoint_bill_reuse'),
+      billUpdate: settings.get('gepg_endpoint_bill_update'),
+      billCancellation: settings.get('gepg_endpoint_bill_cancellation'),
+      reconciliation: settings.get('gepg_endpoint_reconciliation')
     };
   }
 
@@ -51,7 +74,7 @@ class GePGClient {
 
       const headers = {
         'Content-Type': 'application/xml',
-        'Gepg-Com': process.env.GEPG_COM,
+        'Gepg-Com': settings.get('gepg_com'),
         'Gepg-Code': this.spCode,
         'Gepg-Alg': this.alg
       };

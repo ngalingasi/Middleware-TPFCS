@@ -4,6 +4,7 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const db = require('../config/database');
+const settings = require('../services/settingsService');
 
 // all database access for the bills table
 class Bill {
@@ -43,7 +44,7 @@ class Bill {
           billData.custTin || null,
           billData.custIdTyp || null,
           billData.custAccnt || null,
-          billData.collCentCode || null,
+          billData.collCentCode || settings.get('gepg_coll_cent_code') || null,
           billData.minPayAmt != null ? billData.minPayAmt : null,
           billData.exchRate != null ? billData.exchRate : null,
           billData.payPlan || null,

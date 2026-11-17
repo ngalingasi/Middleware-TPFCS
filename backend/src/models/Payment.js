@@ -12,6 +12,9 @@ class Payment {
     try {
       await connection.beginTransaction();
 
+      // lock the bill so concurrent payments for it are summed one at a time
+      await connection.query('SELECT bill_id FROM bills WHERE bill_id = ? FOR UPDATE', [paymentData.billId]);
+
       const [existing] = await connection.query(
         'SELECT id FROM payments WHERE transaction_id = ? LIMIT 1',
         [paymentData.transactionId]
@@ -52,7 +55,14 @@ class Payment {
         ]
       );
 
-      await connection.query('UPDATE bills SET status = ? WHERE bill_id = ?', ['PAID', paymentData.billId]);
+      // PAID only once payments cover the billed amount; a partial payment leaves the status alone.
+      // Same transaction, so the sum includes the row inserted above.
+      await connection.query(
+        `UPDATE bills b SET b.status = 'PAID'
+         WHERE b.bill_id = ?
+           AND (SELECT COALESCE(SUM(p.paid_amount), 0) FROM payments p WHERE p.bill_id = b.bill_id) >= b.bill_amount`,
+        [paymentData.billId]
+      );
 
       await connection.commit();
       return { success: true, paymentId: result.insertId };

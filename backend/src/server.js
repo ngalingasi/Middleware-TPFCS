@@ -19,6 +19,8 @@ const logsRoutes = require('./routes/logsRoutes');
 const apiKeyRoutes = require('./routes/apiKeyRoutes');
 const gfsCodeRoutes = require('./routes/gfsCodeRoutes');
 const gepgCodeRoutes = require('./routes/gepgCodeRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
+const settings = require('./services/settingsService');
 const activityLogger = require('./middleware/activityLogger');
 
 const app = express();
@@ -50,6 +52,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/api-keys', apiKeyRoutes);
 app.use('/api/gfs-codes', gfsCodeRoutes);
 app.use('/api/gepg-codes', gepgCodeRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -102,7 +105,12 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+// load saved settings first so the first request already uses them
+settings.load()
+  .catch((error) => console.error('Could not load saved settings, using .env values:', error.message))
+  .then(() => {
+    settings.startAutoRefresh();
+    app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -119,6 +127,7 @@ app.listen(PORT, () => {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
-});
+    });
+  });
 
 module.exports = app;

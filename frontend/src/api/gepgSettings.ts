@@ -1,0 +1,19 @@
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ ALHAMDULLILAH - KASSAM MUSTAPHA - 12/11/2026
+// │ Settings API
+// └──────────────────────────────────────────────────────────────────────────┘
+
+import gepgClient from './gepgClient';
+import type { CertificateStatus, GepgApiResponse, SettingChange, SettingGroup, SettingsData } from '../types/gepg';
+
+export const gepgSettingsApi = {
+  get: () => gepgClient.get<GepgApiResponse<SettingsData>>('/settings'),
+
+  // a blank value clears the saved one, so the .env value is used again
+  update: (values: Record<string, string>) =>
+    gepgClient.put<GepgApiResponse<{ changes: SettingChange[]; groups: SettingGroup[] }>>('/settings', { values }),
+
+  status: () => gepgClient.get<GepgApiResponse<{ certificates: CertificateStatus[] }>>('/settings/status'),
+
+  environment: () => gepgClient.get<GepgApiResponse<{ environment: string }>>('/settings/environment'),
+};

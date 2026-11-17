@@ -455,8 +455,6 @@ async function getBillStatus(req, res) {
   }
 }
 
-// Payment.create marks a bill PAID on its first payment, so for partial bills
-// isPaid can be true while remainingAmount is still above zero
 function paymentSummary(bill, payments) {
   const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.paid_amount || 0), 0);
   const billAmount = parseFloat(bill.bill_amount || 0);

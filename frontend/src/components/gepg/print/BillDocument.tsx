@@ -90,14 +90,13 @@ function Footer() {
 function HowToPay({ doc }: { doc: PrintBillDocument }) {
   const { payment } = doc;
   const cn = payment.controlNumber;
-  const banks = payment.banks.length > 0 ? payment.banks.join(', ') : null;
 
   return (
     <div className="gepg-doc-howto">
       <div>
         <strong>Jinsi ya Kulipa</strong>
         <p>
-          1. Kupitia Benki: Fika tawi lolote au wakala wa benki {banks ? `ya ${banks}` : 'iliyounganishwa na GePG'}. Namba ya kumbukumbu:{' '}
+          1. Kupitia Benki: Fika tawi lolote au wakala wa benki yoyote iliyounganishwa na GePG. Namba ya kumbukumbu:{' '}
           <strong>{cn}</strong>.
         </p>
         {payment.mobileMoney && (
@@ -117,7 +116,7 @@ function HowToPay({ doc }: { doc: PrintBillDocument }) {
       <div>
         <strong>How to Pay</strong>
         <p>
-          1. Via Bank: Visit any branch or bank agent of {banks ?? 'a GePG-connected bank'}. Reference Number: <strong>{cn}</strong>.
+          1. Via Bank: Visit any branch or bank agent of a GePG-connected bank. Reference Number: <strong>{cn}</strong>.
         </p>
         {payment.mobileMoney && (
           <>
