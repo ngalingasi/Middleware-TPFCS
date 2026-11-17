@@ -1,0 +1,4535 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GePG Bridge: billing system API",
+    "version": "1.0.0",
+    "description": "Send bills to GePG through the bridge and get told when they are approved or paid. Events are described under webhooks."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5001"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key",
+        "description": "Send your API key in the X-Api-Key header on every call. Keys are issued per billing system."
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/ping": {
+      "get": {
+        "operationId": "ping",
+        "tags": [
+          "Connection check"
+        ],
+        "summary": "Check the connection",
+        "description": "Returns the billing system your API key belongs to. Use it as the first call when setting up.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Key is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "system": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "serverTime": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "system": "ICDV",
+                    "name": "ICDV Management",
+                    "serverTime": "2026-11-16T09:30:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills": {
+      "post": {
+        "operationId": "createBill",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Create a bill and send it to GePG",
+        "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created and received by GePG",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "ack": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "codes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billSubReqAck": {
+                          "type": "object",
+                          "properties": {
+                            "AckId": {
+                              "type": "string"
+                            },
+                            "ReqId": {
+                              "type": "string"
+                            },
+                            "AckStsCode": {
+                              "type": "string"
+                            },
+                            "AckStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "bill": {
+                      "type": "object",
+                      "properties": {
+                        "billId": {
+                          "type": "string"
+                        },
+                        "gepgBillId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Bill created and submitted successfully",
+                  "ack": {
+                    "ok": true,
+                    "code": "7101",
+                    "description": "Successful",
+                    "codes": [
+                      {
+                        "code": "7101",
+                        "description": "Successful"
+                      }
+                    ]
+                  },
+                  "data": {
+                    "billSubReqAck": {
+                      "AckId": "GW1763373731000",
+                      "ReqId": "SP0231763373731000",
+                      "AckStsCode": "7101",
+                      "AckStsDesc": "Successful"
+                    }
+                  },
+                  "bill": {
+                    "billId": "INV-1001",
+                    "gepgBillId": "ICDV-INV-1001"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A value is not valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "integer"
+                          },
+                          "msg": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "message": "Bill amount must be a number greater than zero",
+                  "errors": [
+                    {
+                      "type": "field",
+                      "value": 0,
+                      "msg": "Bill amount must be a number greater than zero",
+                      "path": "billAmount",
+                      "location": "body"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "You already used this billId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7226",
+                  "message": "A bill with this billId already exists"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "GePG refused the bill",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "codes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billSubReqAck": {
+                          "type": "object",
+                          "properties": {
+                            "AckStsCode": {
+                              "type": "string"
+                            },
+                            "AckStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "codes": [
+                    {
+                      "code": "7242",
+                      "description": "Invalid request data"
+                    }
+                  ],
+                  "message": "GePG rejected the bill: Invalid request data",
+                  "data": {
+                    "billSubReqAck": {
+                      "AckStsCode": "7242",
+                      "AckStsDesc": "Invalid request data"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billId": {
+                    "type": "string"
+                  },
+                  "billAmount": {
+                    "type": "integer"
+                  },
+                  "billEquivAmount": {
+                    "type": "integer"
+                  },
+                  "billExpiryDate": {
+                    "type": "string"
+                  },
+                  "payerId": {
+                    "type": "string"
+                  },
+                  "payerName": {
+                    "type": "string"
+                  },
+                  "payerCellNumber": {
+                    "type": "string"
+                  },
+                  "payerEmail": {
+                    "type": "string"
+                  },
+                  "billDescription": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "billPayOption": {
+                    "type": "integer"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "billItemRef": {
+                          "type": "string"
+                        },
+                        "billItemAmount": {
+                          "type": "integer"
+                        },
+                        "billItemEquivAmount": {
+                          "type": "integer"
+                        },
+                        "gfsCode": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "billId",
+                  "billAmount",
+                  "billEquivAmount",
+                  "billExpiryDate",
+                  "payerId",
+                  "payerName",
+                  "items"
+                ]
+              },
+              "example": {
+                "billId": "INV-1001",
+                "billAmount": 500000,
+                "billEquivAmount": 500000,
+                "billExpiryDate": "2027-12-17T12:00:00",
+                "payerId": "P1001",
+                "payerName": "Vidah Mwakyusa",
+                "payerCellNumber": "255786030028",
+                "payerEmail": "vidah@example.com",
+                "billDescription": "Sale of tender document",
+                "currency": "TZS",
+                "billPayOption": 2,
+                "items": [
+                  {
+                    "billItemRef": "TND-77",
+                    "billItemAmount": 500000,
+                    "billItemEquivAmount": 500000,
+                    "gfsCode": "140368"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listBills",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "List your bills",
+        "description": "Newest first, 20 per page by default. Only your own bills are returned. Amounts in bill rows are strings with two decimals.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number, starting at 1.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Bills per page.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "20"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "PENDING, APPROVED, REJECTED, PAID, CANCELLED or EXPIRED.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "APPROVED"
+          },
+          {
+            "name": "controlNumber",
+            "in": "query",
+            "required": false,
+            "description": "Only the bill with this control number.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "991330026625"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Created on or after (YYYY-MM-DD). Use with endDate.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-11-01"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Created on or before (YYYY-MM-DD).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-11-30"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of bills (trimmed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "bill_id": {
+                            "type": "string"
+                          },
+                          "external_ref": {
+                            "type": "string"
+                          },
+                          "billing_system_code": {
+                            "type": "string"
+                          },
+                          "payer_id": {
+                            "type": "string"
+                          },
+                          "payer_name": {
+                            "type": "string"
+                          },
+                          "payer_cell_num": {
+                            "type": "string"
+                          },
+                          "bill_description": {
+                            "type": "string"
+                          },
+                          "bill_amount": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "bill_pay_option": {
+                            "type": "integer"
+                          },
+                          "bill_expiry_date": {
+                            "type": "string"
+                          },
+                          "payment_control_number": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "transaction_status": {
+                            "type": "string"
+                          },
+                          "transaction_status_code": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "item_count": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "pages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 1,
+                      "bill_id": "ICDV-INV-1001",
+                      "external_ref": "INV-1001",
+                      "billing_system_code": "ICDV",
+                      "payer_id": "P1001",
+                      "payer_name": "Vidah Mwakyusa",
+                      "payer_cell_num": "255786030028",
+                      "bill_description": "Sale of tender document",
+                      "bill_amount": "500000.00",
+                      "currency": "TZS",
+                      "bill_pay_option": 2,
+                      "bill_expiry_date": "2027-12-17T09:00:00.000Z",
+                      "payment_control_number": "991330026625",
+                      "status": "APPROVED",
+                      "transaction_status": "GS",
+                      "transaction_status_code": "7101",
+                      "created_at": "2026-11-16T09:30:00.000Z",
+                      "item_count": 1
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "limit": 20,
+                    "total": 1,
+                    "pages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/bulk": {
+      "post": {
+        "operationId": "bulkBills",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Create many bills at once",
+        "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Processed (check each result)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer"
+                        },
+                        "succeeded": {
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "billId": {
+                            "type": "string"
+                          },
+                          "success": {
+                            "type": "boolean"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "2 of 2 bills submitted to GePG",
+                  "summary": {
+                    "total": 2,
+                    "succeeded": 2,
+                    "failed": 0
+                  },
+                  "results": [
+                    {
+                      "billId": "INV-1001",
+                      "success": true,
+                      "code": "7101",
+                      "message": "Submitted to GePG"
+                    },
+                    {
+                      "billId": "INV-1002",
+                      "success": true,
+                      "code": "7101",
+                      "message": "Submitted to GePG"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty list or more than 100",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "message": "bills must be a non-empty array"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON body with a list of bills, each shaped like a single bill.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bills": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "billId": {
+                          "type": "string"
+                        },
+                        "billAmount": {
+                          "type": "integer"
+                        },
+                        "billEquivAmount": {
+                          "type": "integer"
+                        },
+                        "billExpiryDate": {
+                          "type": "string"
+                        },
+                        "payerId": {
+                          "type": "string"
+                        },
+                        "payerName": {
+                          "type": "string"
+                        },
+                        "payerCellNumber": {
+                          "type": "string"
+                        },
+                        "payerEmail": {
+                          "type": "string"
+                        },
+                        "billDescription": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "billPayOption": {
+                          "type": "integer"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "billItemRef": {
+                                "type": "string"
+                              },
+                              "billItemAmount": {
+                                "type": "integer"
+                              },
+                              "billItemEquivAmount": {
+                                "type": "integer"
+                              },
+                              "gfsCode": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "bills"
+                ]
+              },
+              "example": {
+                "bills": [
+                  {
+                    "billId": "INV-1001",
+                    "billAmount": 500000,
+                    "billEquivAmount": 500000,
+                    "billExpiryDate": "2027-12-17T12:00:00",
+                    "payerId": "P1001",
+                    "payerName": "Vidah Mwakyusa",
+                    "payerCellNumber": "255786030028",
+                    "payerEmail": "vidah@example.com",
+                    "billDescription": "Sale of tender document",
+                    "currency": "TZS",
+                    "billPayOption": 2,
+                    "items": [
+                      {
+                        "billItemRef": "TND-77",
+                        "billItemAmount": 500000,
+                        "billItemEquivAmount": 500000,
+                        "gfsCode": "140368"
+                      }
+                    ]
+                  },
+                  {
+                    "billId": "INV-1002",
+                    "billAmount": 500000,
+                    "billEquivAmount": 500000,
+                    "billExpiryDate": "2027-12-17T12:00:00",
+                    "payerId": "P1001",
+                    "payerName": "Amani Juma",
+                    "payerCellNumber": "255786030028",
+                    "payerEmail": "vidah@example.com",
+                    "billDescription": "Sale of tender document",
+                    "currency": "TZS",
+                    "billPayOption": 2,
+                    "items": [
+                      {
+                        "billItemRef": "TND-77",
+                        "billItemAmount": 500000,
+                        "billItemEquivAmount": 500000,
+                        "gfsCode": "140368"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/reuse": {
+      "post": {
+        "operationId": "reuseBill",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Reuse a control number",
+        "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created and received by GePG",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "ack": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "codes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billSubReqAck": {
+                          "type": "object",
+                          "properties": {
+                            "AckId": {
+                              "type": "string"
+                            },
+                            "ReqId": {
+                              "type": "string"
+                            },
+                            "AckStsCode": {
+                              "type": "string"
+                            },
+                            "AckStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "bill": {
+                      "type": "object",
+                      "properties": {
+                        "billId": {
+                          "type": "string"
+                        },
+                        "gepgBillId": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Control number reuse submitted to GePG",
+                  "ack": {
+                    "ok": true,
+                    "code": "7101",
+                    "description": "Successful",
+                    "codes": [
+                      {
+                        "code": "7101",
+                        "description": "Successful"
+                      }
+                    ]
+                  },
+                  "data": {
+                    "billSubReqAck": {
+                      "AckId": "GW1763373731000",
+                      "ReqId": "SP0231763373731000",
+                      "AckStsCode": "7101",
+                      "AckStsDesc": "Successful"
+                    }
+                  },
+                  "bill": {
+                    "billId": "INV-1003",
+                    "gepgBillId": "ICDV-INV-1003"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A value is not valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "integer"
+                          },
+                          "msg": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "message": "Bill amount must be a number greater than zero",
+                  "errors": [
+                    {
+                      "type": "field",
+                      "value": 0,
+                      "msg": "Bill amount must be a number greater than zero",
+                      "path": "billAmount",
+                      "location": "body"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "That control number was not issued to your system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7335",
+                  "message": "Requested bill control number does not exist"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "GePG refused the reuse request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "codes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billSubReqAck": {
+                          "type": "object",
+                          "properties": {
+                            "AckStsCode": {
+                              "type": "string"
+                            },
+                            "AckStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "codes": [
+                    {
+                      "code": "7242",
+                      "description": "Invalid request data"
+                    }
+                  ],
+                  "message": "GePG rejected the reuse request: Invalid request data",
+                  "data": {
+                    "billSubReqAck": {
+                      "AckStsCode": "7242",
+                      "AckStsDesc": "Invalid request data"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "Same fields as creating a bill, plus:",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billId": {
+                    "type": "string"
+                  },
+                  "billAmount": {
+                    "type": "integer"
+                  },
+                  "billEquivAmount": {
+                    "type": "integer"
+                  },
+                  "billExpiryDate": {
+                    "type": "string"
+                  },
+                  "payerId": {
+                    "type": "string"
+                  },
+                  "payerName": {
+                    "type": "string"
+                  },
+                  "payerCellNumber": {
+                    "type": "string"
+                  },
+                  "payerEmail": {
+                    "type": "string"
+                  },
+                  "billDescription": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "billPayOption": {
+                    "type": "integer"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "billItemRef": {
+                          "type": "string"
+                        },
+                        "billItemAmount": {
+                          "type": "integer"
+                        },
+                        "billItemEquivAmount": {
+                          "type": "integer"
+                        },
+                        "gfsCode": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "paymentControlNumber": {
+                    "type": "string"
+                  },
+                  "reuseReason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "paymentControlNumber",
+                  "reuseReason"
+                ]
+              },
+              "example": {
+                "billId": "INV-1003",
+                "billAmount": 500000,
+                "billEquivAmount": 500000,
+                "billExpiryDate": "2027-12-17T12:00:00",
+                "payerId": "P1001",
+                "payerName": "Vidah Mwakyusa",
+                "payerCellNumber": "255786030028",
+                "payerEmail": "vidah@example.com",
+                "billDescription": "Sale of tender document",
+                "currency": "TZS",
+                "billPayOption": 2,
+                "items": [
+                  {
+                    "billItemRef": "TND-77",
+                    "billItemAmount": 500000,
+                    "billItemEquivAmount": 500000,
+                    "gfsCode": "140368"
+                  }
+                ],
+                "paymentControlNumber": "991330026625",
+                "reuseReason": "Billed amount adjustment"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/status": {
+      "post": {
+        "operationId": "billStatuses",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Check many bills at once",
+        "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Found and not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bills": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "billId": {
+                                "type": "string"
+                              },
+                              "gepgBillId": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "controlNumber": {
+                                "type": "string"
+                              },
+                              "billAmount": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "totalPaid": {
+                                "type": "integer"
+                              },
+                              "remaining": {
+                                "type": "integer"
+                              },
+                              "isPaid": {
+                                "type": "boolean"
+                              },
+                              "expiresAt": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "notFound": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "bills": [
+                      {
+                        "billId": "INV-1001",
+                        "gepgBillId": "ICDV-INV-1001",
+                        "status": "APPROVED",
+                        "controlNumber": "991330026625",
+                        "billAmount": 500000,
+                        "currency": "TZS",
+                        "totalPaid": 300000,
+                        "remaining": 200000,
+                        "isPaid": false,
+                        "expiresAt": "2027-12-17T09:00:00.000Z"
+                      }
+                    ],
+                    "notFound": [
+                      "INV-1002"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty list or more than 100",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "message": "billIds must be a list of 1 to 100 bill references"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "billIds"
+                ]
+              },
+              "example": {
+                "billIds": [
+                  "INV-1001",
+                  "INV-1002"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{billId}": {
+      "get": {
+        "operationId": "getBill",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Get one bill",
+        "description": "The bill with its items and payments, and how much is paid and still due.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "description": "Your own reference for the bill (the billId you sent when creating it).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "INV-1001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The bill (trimmed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "bill_id": {
+                          "type": "string"
+                        },
+                        "external_ref": {
+                          "type": "string"
+                        },
+                        "billing_system_code": {
+                          "type": "string"
+                        },
+                        "payer_id": {
+                          "type": "string"
+                        },
+                        "payer_name": {
+                          "type": "string"
+                        },
+                        "payer_cell_num": {
+                          "type": "string"
+                        },
+                        "bill_description": {
+                          "type": "string"
+                        },
+                        "bill_amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "bill_pay_option": {
+                          "type": "integer"
+                        },
+                        "bill_expiry_date": {
+                          "type": "string"
+                        },
+                        "payment_control_number": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "transaction_status": {
+                          "type": "string"
+                        },
+                        "transaction_status_code": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "bill_id": {
+                                "type": "string"
+                              },
+                              "bill_item_ref": {
+                                "type": "string"
+                              },
+                              "gfs_code": {
+                                "type": "string"
+                              },
+                              "bill_item_amount": {
+                                "type": "string"
+                              },
+                              "bill_item_equiv_amount": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "transaction_id": {
+                                "type": "string"
+                              },
+                              "pay_ref_id": {
+                                "type": "string"
+                              },
+                              "bill_id": {
+                                "type": "string"
+                              },
+                              "payment_control_number": {
+                                "type": "string"
+                              },
+                              "bill_amount": {
+                                "type": "string"
+                              },
+                              "paid_amount": {
+                                "type": "string"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "transaction_datetime": {
+                                "type": "string"
+                              },
+                              "used_payment_channel": {
+                                "type": "string"
+                              },
+                              "psp_name": {
+                                "type": "string"
+                              },
+                              "payment_type": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "isPaid": {
+                          "type": "boolean"
+                        },
+                        "totalPaid": {
+                          "type": "integer"
+                        },
+                        "remainingAmount": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 1,
+                    "bill_id": "ICDV-INV-1001",
+                    "external_ref": "INV-1001",
+                    "billing_system_code": "ICDV",
+                    "payer_id": "P1001",
+                    "payer_name": "Vidah Mwakyusa",
+                    "payer_cell_num": "255786030028",
+                    "bill_description": "Sale of tender document",
+                    "bill_amount": "500000.00",
+                    "currency": "TZS",
+                    "bill_pay_option": 2,
+                    "bill_expiry_date": "2027-12-17T09:00:00.000Z",
+                    "payment_control_number": "991330026625",
+                    "status": "APPROVED",
+                    "transaction_status": "GS",
+                    "transaction_status_code": "7101",
+                    "created_at": "2026-11-16T09:30:00.000Z",
+                    "items": [
+                      {
+                        "id": 1,
+                        "bill_id": "ICDV-INV-1001",
+                        "bill_item_ref": "TND-77",
+                        "gfs_code": "140368",
+                        "bill_item_amount": "500000.00",
+                        "bill_item_equiv_amount": "500000.00"
+                      }
+                    ],
+                    "payments": [
+                      {
+                        "id": 12,
+                        "transaction_id": "T1001",
+                        "pay_ref_id": "99015046706",
+                        "bill_id": "ICDV-INV-1001",
+                        "payment_control_number": "991330026625",
+                        "bill_amount": "500000.00",
+                        "paid_amount": "300000.00",
+                        "currency": "TZS",
+                        "transaction_datetime": "2026-11-16T09:35:00.000Z",
+                        "used_payment_channel": "MB",
+                        "psp_name": "Example Bank",
+                        "payment_type": "OFFLINE",
+                        "status": "PENDING"
+                      }
+                    ],
+                    "isPaid": false,
+                    "totalPaid": 300000,
+                    "remainingAmount": 200000
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such bill among your bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7204",
+                  "message": "Bill not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{billId}/status": {
+      "get": {
+        "operationId": "getBillStatus",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Is this bill paid?",
+        "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "description": "Your own reference for the bill (the billId you sent when creating it).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "INV-1001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billId": {
+                          "type": "string"
+                        },
+                        "gepgBillId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "paymentControlNumber": {
+                          "type": "string"
+                        },
+                        "transactionStatus": {
+                          "type": "string"
+                        },
+                        "transactionStatusCode": {
+                          "type": "string"
+                        },
+                        "isPaid": {
+                          "type": "boolean"
+                        },
+                        "totalPaid": {
+                          "type": "integer"
+                        },
+                        "remainingAmount": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "billId": "INV-1001",
+                    "gepgBillId": "ICDV-INV-1001",
+                    "status": "APPROVED",
+                    "paymentControlNumber": "991330026625",
+                    "transactionStatus": "GS",
+                    "transactionStatusCode": "7101",
+                    "isPaid": false,
+                    "totalPaid": 300000,
+                    "remainingAmount": 200000
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such bill among your bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7204",
+                  "message": "Bill not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{billId}/extend": {
+      "post": {
+        "operationId": "extendBill",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Extend the expiry date",
+        "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "description": "Your own reference for the bill (the billId you sent when creating it).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "INV-1001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Change received by GePG",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "ack": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "codes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billSubReqAck": {
+                          "type": "object",
+                          "properties": {
+                            "AckId": {
+                              "type": "string"
+                            },
+                            "ReqId": {
+                              "type": "string"
+                            },
+                            "AckStsCode": {
+                              "type": "string"
+                            },
+                            "AckStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Bill expiry change submitted to GePG",
+                  "ack": {
+                    "ok": true,
+                    "code": "7101",
+                    "description": "Successful",
+                    "codes": [
+                      {
+                        "code": "7101",
+                        "description": "Successful"
+                      }
+                    ]
+                  },
+                  "data": {
+                    "billSubReqAck": {
+                      "AckId": "GW1763373731000",
+                      "ReqId": "SP0231763373731000",
+                      "AckStsCode": "7101",
+                      "AckStsDesc": "Successful"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not an approved bill, or the date is not later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7231",
+                  "message": "New expiry date must be in the future and later than the current expiry date"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such bill among your bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7204",
+                  "message": "Bill not found"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "GePG refused the expiry change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "codes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billSubReqAck": {
+                          "type": "object",
+                          "properties": {
+                            "AckStsCode": {
+                              "type": "string"
+                            },
+                            "AckStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7242",
+                  "codes": [
+                    {
+                      "code": "7242",
+                      "description": "Invalid request data"
+                    }
+                  ],
+                  "message": "GePG rejected the expiry change: Invalid request data",
+                  "data": {
+                    "billSubReqAck": {
+                      "AckStsCode": "7242",
+                      "AckStsDesc": "Invalid request data"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "billExpiryDate": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "billExpiryDate",
+                  "reason"
+                ]
+              },
+              "example": {
+                "billExpiryDate": "2028-01-31T12:00:00",
+                "reason": "Customer asked for more time"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{billId}/cancel": {
+      "post": {
+        "operationId": "cancelBill",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Cancel a bill",
+        "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "description": "Your own reference for the bill (the billId you sent when creating it).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "INV-1001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billCanclRes": {
+                          "type": "object",
+                          "properties": {
+                            "ResId": {
+                              "type": "string"
+                            },
+                            "ReqId": {
+                              "type": "string"
+                            },
+                            "GrpBillId": {
+                              "type": "string"
+                            },
+                            "CanclSts": {
+                              "type": "string"
+                            },
+                            "CanclStsCode": {
+                              "type": "string"
+                            },
+                            "CanclStsDesc": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Bill cancelled successfully",
+                  "data": {
+                    "billCanclRes": {
+                      "ResId": "GW1763373731001",
+                      "ReqId": "SP0231763373731001",
+                      "GrpBillId": "ICDV-INV-1001",
+                      "CanclSts": "GS",
+                      "CanclStsCode": "7283",
+                      "CanclStsDesc": "Bill has been cancelled"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The bill cannot be cancelled in its current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Bill not found or cannot be cancelled"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such bill among your bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7204",
+                  "message": "Bill not found"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "GePG declined the cancellation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "billCanclRes": {
+                          "type": "object",
+                          "properties": {
+                            "CanclSts": {
+                              "type": "string"
+                            },
+                            "CanclStsCode": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7201",
+                  "message": "GePG declined the cancellation",
+                  "data": {
+                    "billCanclRes": {
+                      "CanclSts": "GF",
+                      "CanclStsCode": "7201"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "JSON body.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              },
+              "example": {
+                "reason": "Duplicate bill"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bills/{billId}/print": {
+      "get": {
+        "operationId": "printBill",
+        "tags": [
+          "Bills"
+        ],
+        "summary": "Data for a printable bill",
+        "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form.",
+        "parameters": [
+          {
+            "name": "billId",
+            "in": "path",
+            "required": true,
+            "description": "Your own reference for the bill (the billId you sent when creating it).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "INV-1001"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "bill (default) or transfer.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "bill"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Print data (trimmed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "bill": {
+                          "type": "object",
+                          "properties": {
+                            "controlNumber": {
+                              "type": "string"
+                            },
+                            "billReference": {
+                              "type": "string"
+                            },
+                            "payerName": {
+                              "type": "string"
+                            },
+                            "total": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "amountInWords": {
+                              "type": "string"
+                            },
+                            "expiresOn": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "qr": {
+                          "type": "object",
+                          "properties": {
+                            "payload": {
+                              "type": "object",
+                              "properties": {
+                                "opType": {
+                                  "type": "string"
+                                },
+                                "shortCode": {
+                                  "type": "string"
+                                },
+                                "billReference": {
+                                  "type": "string"
+                                },
+                                "amount": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {}
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "type": "bill",
+                    "title": "Government Bill",
+                    "bill": {
+                      "controlNumber": "991330026625",
+                      "billReference": "ICDV-INV-1001",
+                      "payerName": "Vidah Mwakyusa",
+                      "total": "500,000.00",
+                      "currency": "TZS",
+                      "amountInWords": "Five Hundred Thousand Tanzanian Shilling Only.",
+                      "expiresOn": "17-Dec-2027"
+                    },
+                    "qr": {
+                      "payload": {
+                        "opType": "2",
+                        "shortCode": "001001",
+                        "billReference": "991330026625",
+                        "amount": "500000.00"
+                      }
+                    },
+                    "warnings": []
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such bill among your bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "code": "7204",
+                  "message": "Bill not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not approved yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Bill has no control number yet (status PENDING). It can be printed once GePG approves it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "operationId": "listPayments",
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List payments",
+        "description": "Payments on your own bills, newest first.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number, starting at 1.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Payments per page.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "20"
+          },
+          {
+            "name": "billId",
+            "in": "query",
+            "required": false,
+            "description": "Only payments on this bill (your own reference).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "INV-1001"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": false,
+            "description": "Paid on or after (YYYY-MM-DD). Use with endDate.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-11-01"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": false,
+            "description": "Paid on or before (YYYY-MM-DD).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "2026-11-30"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of payments (trimmed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "transaction_id": {
+                            "type": "string"
+                          },
+                          "pay_ref_id": {
+                            "type": "string"
+                          },
+                          "bill_id": {
+                            "type": "string"
+                          },
+                          "payment_control_number": {
+                            "type": "string"
+                          },
+                          "bill_amount": {
+                            "type": "string"
+                          },
+                          "paid_amount": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "transaction_datetime": {
+                            "type": "string"
+                          },
+                          "used_payment_channel": {
+                            "type": "string"
+                          },
+                          "psp_name": {
+                            "type": "string"
+                          },
+                          "payment_type": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "pages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 12,
+                      "transaction_id": "T1001",
+                      "pay_ref_id": "99015046706",
+                      "bill_id": "ICDV-INV-1001",
+                      "payment_control_number": "991330026625",
+                      "bill_amount": "500000.00",
+                      "paid_amount": "300000.00",
+                      "currency": "TZS",
+                      "transaction_datetime": "2026-11-16T09:35:00.000Z",
+                      "used_payment_channel": "MB",
+                      "psp_name": "Example Bank",
+                      "payment_type": "OFFLINE",
+                      "status": "PENDING"
+                    }
+                  ],
+                  "pagination": {
+                    "page": 1,
+                    "limit": 20,
+                    "total": 1,
+                    "pages": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{paymentId}": {
+      "get": {
+        "operationId": "getPayment",
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Get one payment",
+        "description": "One payment on your bills.",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "description": "The payment id from the list or an event.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "12"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment (trimmed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "transaction_id": {
+                          "type": "string"
+                        },
+                        "pay_ref_id": {
+                          "type": "string"
+                        },
+                        "bill_id": {
+                          "type": "string"
+                        },
+                        "payment_control_number": {
+                          "type": "string"
+                        },
+                        "bill_amount": {
+                          "type": "string"
+                        },
+                        "paid_amount": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "transaction_datetime": {
+                          "type": "string"
+                        },
+                        "used_payment_channel": {
+                          "type": "string"
+                        },
+                        "psp_name": {
+                          "type": "string"
+                        },
+                        "payment_type": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": 12,
+                    "transaction_id": "T1001",
+                    "pay_ref_id": "99015046706",
+                    "bill_id": "ICDV-INV-1001",
+                    "payment_control_number": "991330026625",
+                    "bill_amount": "500000.00",
+                    "paid_amount": "300000.00",
+                    "currency": "TZS",
+                    "transaction_datetime": "2026-11-16T09:35:00.000Z",
+                    "used_payment_channel": "MB",
+                    "psp_name": "Example Bank",
+                    "payment_type": "OFFLINE",
+                    "status": "PENDING"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found among your payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Payment not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/{paymentId}/receipt": {
+      "get": {
+        "operationId": "paymentReceipt",
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Data for a printable receipt",
+        "description": "Everything needed to print the GePG receipt for a payment.",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "description": "The payment id.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "12"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receipt data (trimmed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "receipt": {
+                          "type": "object",
+                          "properties": {
+                            "receiptNumber": {
+                              "type": "string"
+                            },
+                            "receivedFrom": {
+                              "type": "string"
+                            },
+                            "amount": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "amountInWords": {
+                              "type": "string"
+                            },
+                            "outstandingBalance": {
+                              "type": "string"
+                            },
+                            "controlNumber": {
+                              "type": "string"
+                            },
+                            "paymentDate": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "type": "receipt",
+                    "title": "Exchequer Receipts",
+                    "receipt": {
+                      "receiptNumber": "99015046706",
+                      "receivedFrom": "Vidah Mwakyusa",
+                      "amount": "300,000.00",
+                      "currency": "TZS",
+                      "amountInWords": "Three Hundred Thousand Tanzanian Shilling Only.",
+                      "outstandingBalance": "200,000.00",
+                      "controlNumber": "991330026625",
+                      "paymentDate": "16-Nov-2026"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found among your payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Payment not found"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "getEvents",
+        "tags": [
+          "Events feed"
+        ],
+        "summary": "Collect your events",
+        "description": "Your events in order, oldest first. Keep the nextCursor of the last batch you processed and ask for what came after it. Use this to catch up after downtime, or as your whole integration if you have no callback URL.",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "description": "Cursor: only events after this one. Start with 0.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "0"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Events per call, 1 to 500. Defaults to 100.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "100"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events and the next cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "events": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "bill": {
+                                "type": "object",
+                                "properties": {
+                                  "billId": {
+                                    "type": "string"
+                                  },
+                                  "gepgBillId": {
+                                    "type": "string"
+                                  },
+                                  "controlNumber": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "nextCursor": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": {
+                    "events": [
+                      {
+                        "id": "183",
+                        "type": "bill.approved",
+                        "createdAt": "2026-11-16T09:35:12.000Z",
+                        "bill": {
+                          "billId": "INV-1001",
+                          "gepgBillId": "ICDV-INV-1001",
+                          "controlNumber": "991330026625",
+                          "status": "APPROVED"
+                        }
+                      },
+                      {
+                        "id": "184",
+                        "type": "payment.received",
+                        "createdAt": "2026-11-16T09:35:12.000Z",
+                        "bill": {
+                          "billId": "INV-1001",
+                          "gepgBillId": "ICDV-INV-1001",
+                          "controlNumber": "991330026625",
+                          "status": "APPROVED"
+                        },
+                        "payment": {
+                          "receiptNumber": "99015046706",
+                          "transactionId": "T1001",
+                          "paidAmount": 300000,
+                          "currency": "TZS",
+                          "channel": "MB",
+                          "psp": "Example Bank",
+                          "paidAt": "2026-11-16T09:35:00",
+                          "payerName": null,
+                          "payerPhone": null
+                        },
+                        "totals": {
+                          "billAmount": 500000,
+                          "totalPaid": 300000,
+                          "remaining": 200000,
+                          "isPaid": false
+                        },
+                        "source": "gepg"
+                      }
+                    ],
+                    "nextCursor": "184"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "bill.approved": {
+      "post": {
+        "summary": "bill.approved",
+        "description": "GePG accepted the bill. It now has a control number the payer can use.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "bill": {
+                    "type": "object",
+                    "properties": {
+                      "billId": {
+                        "type": "string"
+                      },
+                      "gepgBillId": {
+                        "type": "string"
+                      },
+                      "controlNumber": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "bill.approved",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "bill": {
+                  "billId": "INV-1001",
+                  "gepgBillId": "ICDV-INV-1001",
+                  "controlNumber": "991330026625",
+                  "status": "APPROVED"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    },
+    "bill.rejected": {
+      "post": {
+        "summary": "bill.rejected",
+        "description": "GePG refused the bill. reason.code and reason.description say why.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "bill": {
+                    "type": "object",
+                    "properties": {
+                      "billId": {
+                        "type": "string"
+                      },
+                      "gepgBillId": {
+                        "type": "string"
+                      },
+                      "controlNumber": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "reason": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "bill.rejected",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "bill": {
+                  "billId": "INV-1001",
+                  "gepgBillId": "ICDV-INV-1001",
+                  "controlNumber": null,
+                  "status": "REJECTED"
+                },
+                "reason": {
+                  "code": "7223",
+                  "description": "Invalid or inactive GFS code or service type"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    },
+    "payment.received": {
+      "post": {
+        "summary": "payment.received",
+        "description": "A payment arrived. It is also sent for a payment recovered by reconciliation (source is \"reconciliation\"). A bill paid in parts gives one of these per payment.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "bill": {
+                    "type": "object",
+                    "properties": {
+                      "billId": {
+                        "type": "string"
+                      },
+                      "gepgBillId": {
+                        "type": "string"
+                      },
+                      "controlNumber": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "payment": {
+                    "type": "object",
+                    "properties": {
+                      "receiptNumber": {
+                        "type": "string"
+                      },
+                      "transactionId": {
+                        "type": "string"
+                      },
+                      "paidAmount": {
+                        "type": "integer"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "channel": {
+                        "type": "string"
+                      },
+                      "psp": {
+                        "type": "string"
+                      },
+                      "paidAt": {
+                        "type": "string"
+                      },
+                      "payerName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "payerPhone": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  },
+                  "totals": {
+                    "type": "object",
+                    "properties": {
+                      "billAmount": {
+                        "type": "integer"
+                      },
+                      "totalPaid": {
+                        "type": "integer"
+                      },
+                      "remaining": {
+                        "type": "integer"
+                      },
+                      "isPaid": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "payment.received",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "bill": {
+                  "billId": "INV-1001",
+                  "gepgBillId": "ICDV-INV-1001",
+                  "controlNumber": "991330026625",
+                  "status": "APPROVED"
+                },
+                "payment": {
+                  "receiptNumber": "99015046706",
+                  "transactionId": "T1001",
+                  "paidAmount": 300000,
+                  "currency": "TZS",
+                  "channel": "MB",
+                  "psp": "Example Bank",
+                  "paidAt": "2026-11-16T09:35:00",
+                  "payerName": null,
+                  "payerPhone": null
+                },
+                "totals": {
+                  "billAmount": 500000,
+                  "totalPaid": 300000,
+                  "remaining": 200000,
+                  "isPaid": false
+                },
+                "source": "gepg"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    },
+    "bill.paid": {
+      "post": {
+        "summary": "bill.paid",
+        "description": "The payments now cover the billed amount. Sent once, right after the payment.received that settled it.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "bill": {
+                    "type": "object",
+                    "properties": {
+                      "billId": {
+                        "type": "string"
+                      },
+                      "gepgBillId": {
+                        "type": "string"
+                      },
+                      "controlNumber": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "totals": {
+                    "type": "object",
+                    "properties": {
+                      "billAmount": {
+                        "type": "integer"
+                      },
+                      "totalPaid": {
+                        "type": "integer"
+                      },
+                      "remaining": {
+                        "type": "integer"
+                      },
+                      "isPaid": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "bill.paid",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "bill": {
+                  "billId": "INV-1001",
+                  "gepgBillId": "ICDV-INV-1001",
+                  "controlNumber": "991330026625",
+                  "status": "PAID"
+                },
+                "totals": {
+                  "billAmount": 500000,
+                  "totalPaid": 500000,
+                  "remaining": 0,
+                  "isPaid": true
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    },
+    "bill.cancelled": {
+      "post": {
+        "summary": "bill.cancelled",
+        "description": "The bill was cancelled.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "bill": {
+                    "type": "object",
+                    "properties": {
+                      "billId": {
+                        "type": "string"
+                      },
+                      "gepgBillId": {
+                        "type": "string"
+                      },
+                      "controlNumber": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "bill.cancelled",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "bill": {
+                  "billId": "INV-1001",
+                  "gepgBillId": "ICDV-INV-1001",
+                  "controlNumber": "991330026625",
+                  "status": "CANCELLED"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    },
+    "bill.expired": {
+      "post": {
+        "summary": "bill.expired",
+        "description": "An approved bill passed its expiry date without being fully paid. totals shows what is still due.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "bill": {
+                    "type": "object",
+                    "properties": {
+                      "billId": {
+                        "type": "string"
+                      },
+                      "gepgBillId": {
+                        "type": "string"
+                      },
+                      "controlNumber": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "totals": {
+                    "type": "object",
+                    "properties": {
+                      "billAmount": {
+                        "type": "integer"
+                      },
+                      "totalPaid": {
+                        "type": "integer"
+                      },
+                      "remaining": {
+                        "type": "integer"
+                      },
+                      "isPaid": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "bill.expired",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "bill": {
+                  "billId": "INV-1001",
+                  "gepgBillId": "ICDV-INV-1001",
+                  "controlNumber": "991330026625",
+                  "status": "EXPIRED"
+                },
+                "totals": {
+                  "billAmount": 500000,
+                  "totalPaid": 300000,
+                  "remaining": 200000,
+                  "isPaid": false
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    },
+    "system.test": {
+      "post": {
+        "summary": "system.test",
+        "description": "Sent by the Test button on the Billing Systems page. Not part of the events feed.",
+        "parameters": [
+          {
+            "name": "X-Bridge-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "payment.received"
+          },
+          {
+            "name": "X-Bridge-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "The event number. The same event can arrive more than once, so remember the ids you have handled.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "184"
+          },
+          {
+            "name": "X-Bridge-Delivery-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, 2 for the first retry, and so on.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          },
+          {
+            "name": "X-Bridge-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "When this attempt was signed, in unix seconds.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1763373731"
+          },
+          {
+            "name": "X-Bridge-Signature",
+            "in": "header",
+            "required": true,
+            "description": "How to check the sender: t=<timestamp>,v1=<signature>. See \"Check the signature\".",
+            "schema": {
+              "type": "string"
+            },
+            "example": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "id": "184",
+                "type": "system.test",
+                "createdAt": "2026-11-16T09:35:12.000Z",
+                "message": "Test event from the GePG bridge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted. Any 2xx status confirms delivery; the body is ignored."
+          }
+        }
+      }
+    }
+  }
+}

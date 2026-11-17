@@ -1,229 +1,70 @@
-# GePG Bridge - API Testing Guide
+# GePG Bridge: testing the billing system API
 
-## Import Collections
+Everything a billing system needs to call the bridge and receive its events is in these files. They are **generated** from the bridge's own documentation list, so they match the API exactly. Do not edit them by hand: change the list in `backend/src/utils/apiDocs.js` and run `npm run docs:export`.
 
-`GePG_Bridge_Postman_Collection.json` and `GePG_Bridge_Insomnia.json` are
-scoped to **child-system integration**: Bills, Payments, Reconciliation,
-and Health Check only. They authenticate every request with an API key
-(`X-Api-Key` header), not the dashboard's JWT login - see "Two
-Authentication Methods" below. They deliberately exclude the dashboard's
-own Auth/Users/Logs/Dashboard-stats endpoints (those are for this bridge's
-internal admin UI, not something to hand to a child system) and GePG's
-inbound webhook endpoints (GePG calls those directly and authenticates via
-digital signature, not either scheme here).
+| File | Use it for |
+|---|---|
+| `BILLING_SYSTEM_INTEGRATION.md` | The full guide: every endpoint, the events, how deliveries are signed and retried, error codes |
+| `GePG_Bridge_Postman_Collection.json` | Postman: every call with saved sample responses, plus sample deliveries that sign themselves |
+| `GePG_Bridge_Insomnia.json` | Insomnia: the same calls |
+| `GePG_Bridge_OpenAPI.json` | Swagger, Redoc or code generators. Events are listed under `webhooks` |
+| `GePG_Bridge_Webhook_Test.json` | A fixed secret, body and signature to check your signature code against |
 
-### Postman
-1. Open Postman
-2. Click "Import" button
-3. Select `GePG_Bridge_Postman_Collection.json`
-4. Set the collection's `api_key` variable to a key issued by a bridge
-   admin (see below), and `base_url` to the bridge's actual address if not
-   testing locally.
+The Developer page of the dashboard offers the same files, written for one billing system (its code, its callback URL) and with the real server address filled in. That is the best copy to hand to a billing system's team.
 
-### Insomnia
-1. Open Insomnia
-2. Go to Application menu → Preferences → Data
-3. Click "Import Data" → "From File"
-4. Select `GePG_Bridge_Insomnia.json`
-5. Set the `api_key` and `base_url` environment variables as above.
+## Before you start (an admin does this)
 
-## Two Authentication Methods
+1. **Billing Systems** page: add the system, with its code and, if it will receive pushes, its callback URL.
+2. Copy the **signing secret** (shown once).
+3. Under **Keys** for that system, create an **API key** (shown once).
 
-Bills/Payments/Reconciliation endpoints accept either credential below
-(GePG's webhook endpoints accept neither - they're authenticated via
-digital signature instead):
+A key belongs to one system and only ever sees that system's bills and payments. A key that is not linked to a system is refused with 403.
 
-1. **API key** (`X-Api-Key: <key>`) - what the collections above use, and
-   what a child system should use. A bridge admin creates one via the
-   dashboard (or `POST /api/api-keys`, JWT-authenticated, ADMIN role only).
-   The plaintext key is shown **only once**, at creation time - copy it
-   immediately and hand it to the child system's integration team. There
-   is no way to retrieve it again afterward; only revoke and issue a new
-   one (`PATCH /api/api-keys/:id/status`, `DELETE /api/api-keys/:id`).
-2. **Dashboard JWT login** (`Authorization: Bearer <token>`, via
-   `POST /api/auth/login`) - for this bridge's own frontend, human users
-   only. Not part of the shared collections; relevant if you're testing
-   the admin dashboard itself rather than the child-system integration.
+## Postman
 
-## Child-System Testing Workflow
+1. Import `GePG_Bridge_Postman_Collection.json`.
+2. Set the collection variables: `base_url` (the bridge's address) and `api_key`.
+3. Run **Connection check**: it should answer with your system code.
+4. Run **Create a bill and send it to GePG**. Each run uses a fresh reference, and the collection remembers it as `bill_id` for the next calls.
+5. Try **Is this bill paid?**, **List your bills** and **Collect your events**.
 
-### Step 1: Get an API key
-As a bridge admin, log into the dashboard (or call `POST /api/auth/login`
-then `POST /api/api-keys`) and create a key for the child system. Save the
-plaintext key immediately - set it as the collection's `api_key` variable.
+A `201` for a bill means GePG received it. The control number follows a moment later as a `bill.approved` event, so look for it in **Collect your events** (the collection keeps the cursor in `events_cursor`), or in the Outbox on the dashboard.
 
-### Step 2: Create Bills
-1. **Create Bill** - create without submitting
-2. **Create and Submit Bill** - create and submit to GePG in one call
-3. **Get All Bills** - view created bills
-4. **Get Bill by ID** - full bill detail, items, and payment history
-5. **Get Bill Status** - lightweight paid/unpaid poll, keyed by your own `billId`
+### Sample deliveries to your own endpoint
 
-### Step 3: Bill Operations
-1. **Submit Bill to GePG** - submit a previously created bill
-2. **Cancel Bill** - cancel with a reason
+The last folder sends the bridge's sample events to **your** receiver, signed with a fresh timestamp, the way the bridge does.
 
-### Step 4: View Payments
-1. **Get All Payments** - list all payments
-2. **Get Payment by ID** - view payment details
-3. **Get Payment Statistics** - payment analytics for a date range
+1. Set `callback_url` to your endpoint, for example `http://localhost:4000/gepg/events`.
+2. Set `webhook_secret` to your system's signing secret. The default is the example secret from the test file.
+3. Send one. Your endpoint should check the signature and answer 2xx.
 
-### Step 5: Reconciliation
-1. **Submit Reconciliation Request** - ask GePG for a given day's successful-payments batch
-2. **Get All Reconciliation Requests** - list requests and their status
-3. **Get Reconciliation Request by ID** - view a request's settled transactions
+## Insomnia
 
-## Testing Scenarios
+1. Import `GePG_Bridge_Insomnia.json` (Application, Preferences, Data, Import).
+2. Fill the environment: `base_url` and `api_key`; for the sample deliveries also `callback_url`.
+3. Insomnia cannot compute a signature, so the sample deliveries carry the fixed test signature. Skip the 5-minute clock check while using them, or use Postman, which signs each one freshly.
 
-### Scenario 1: Complete Bill Lifecycle
-1. Create and submit a new bill
-2. Verify it appears in Get All Bills
-3. Poll Get Bill Status until `isPaid`/`remainingAmount` reflect payment
-4. Check the fuller Get Bill by ID response for the payment record
+## Check your signature code
 
-### Scenario 2: Payment Flow
-1. Create a bill (control number generated after submission)
-2. A real payment against that control number triggers GePG's payment
-   webhook - not something the child system calls directly
-3. Check the payment appears in Get All Payments
-4. Confirm Get Bill Status now shows `isPaid: true` and `remainingAmount: 0`
+Open `GePG_Bridge_Webhook_Test.json`. It holds a fixed example secret, timestamp and body, and the signature the bridge's code produces for them. Your verification code must produce the same `expectedSignature` from `"<timestamp>.<body>"` with HMAC-SHA256 as lowercase hex. The guide has working Node, PHP and Python versions; the checker below runs all three against this file.
 
-### Scenario 3: Reconciliation
-1. Submit a reconciliation request for a past date
-2. GePG responds asynchronously; poll Get Reconciliation Request by ID
-3. Confirm settled transactions match your own payment records for that date
+## Common problems
 
-## Common Issues
+| You see | Cause |
+|---|---|
+| 401 | No `X-Api-Key` header, or the key is wrong or was deleted |
+| 403 | The key is not linked to a billing system, or the system is disabled |
+| 404 | No such bill or payment among yours. Another system's bill also answers 404 |
+| 409 with code 7226 | You already used this `billId` |
+| 400 | A value is not valid; `message` and `errors` say which |
+| 422 | GePG refused the request; `code` and `codes` say why (see the GePG codes in the guide) |
 
-### Issue: 401 Unauthorized
-**Solution:** Missing or invalid credential. Confirm the `X-Api-Key` header
-is set and the key hasn't been disabled/deleted by the admin; a JWT-based
-request instead needs a fresh login (tokens expire).
+If deliveries never arrive, check the **Outbox** page: it shows every event, its attempts, and what your endpoint answered. The **Test** button on the Billing Systems page sends a signed test event right now.
 
-### Issue: 403 Forbidden
-**Solution:** Only relevant to JWT-authenticated admin endpoints
-(`/api/api-keys`, `/api/users`, `/api/logs`) - these require the ADMIN role.
-API-key requests to Bills/Payments/Reconciliation don't have role tiers.
+## Keeping these files current
 
-### Issue: 404 Not Found
-**Solution:** Check endpoint URL and ensure the resource (billId, payment
-id, reconciliation request id) exists.
-
-### Issue: 500 Internal Server Error
-**Solution:** Check backend server logs. May be database connectivity or
-GePG network issue.
-
-## API Response Codes
-
-| Code | Meaning                | Action Required           |
-|------|------------------------|---------------------------|
-| 200  | Success                | None                      |
-| 201  | Created                | Resource created          |
-| 400  | Bad Request            | Check request body        |
-| 401  | Unauthorized           | Check X-Api-Key / login token |
-| 403  | Forbidden              | Check role permissions    |
-| 404  | Not Found              | Verify resource ID        |
-| 500  | Server Error           | Check server logs         |
-
-## Security Notes
-
-1. **Never share API keys or tokens over an insecure channel** - both are
-   full-access credentials for whatever they're scoped to.
-2. **Use HTTPS in production** - never send keys/tokens over plain HTTP.
-3. **One key per child system** - makes revoking a compromised or
-   decommissioned integration a single `PATCH .../status` call, without
-   affecting anyone else.
-4. **Rotate on suspicion** - disable and reissue immediately if a key may
-   have leaked; there's no way to "see" a key again to confirm it's the
-   same one, so treat any doubt as reason to rotate.
-5. **Monitor activity logs** - `/api/logs/activity` records which API key
-   (by name) made each call, so unusual activity from a given integration
-   is traceable.
-
-## Sample Test Data
-
-### Sample Bill
-```json
-{
-  "billId": "TEST-001",
-  "billAmount": 50000,
-  "billExpiryDate": "2027-12-31T23:59:59",
-  "payerId": "TEST-PAYER-001",
-  "payerName": "Test User",
-  "payerCellNumber": "255712345678",
-  "payerEmail": "test@example.com",
-  "billDescription": "Test payment",
-  "currency": "TZS",
-  "billPayOption": 1,
-  "items": [
-    {
-      "billItemRef": "ITEM-001",
-      "billItemAmount": 50000,
-      "gfsCode": "140206"
-    }
-  ]
-}
 ```
-
-### Sample Payment Notification (Webhook)
-The real webhook (`POST /api/payments/webhook/notification`) receives a
-signed XML `pmtSpNtfReq` body, not JSON, and is called by GePG - not by
-the child system - so it isn't in the shared collections. The fields below
-are shown as JSON only for readability; see GePG API v5.0 section 6.2 for
-the full XML shape (`PmtHdr` + `PmtDtls > PmtTrxDtl`).
-```json
-{
-  "transactionId": "TXN001",
-  "spCode": "SP023",
-  "payRefId": "PAY001",
-  "billId": "TEST-001",
-  "paymentControlNumber": "990123456789",
-  "paidAmount": 50000,
-  "currency": "TZS",
-  "transactionDateTime": "2027-01-21T10:30:00",
-  "usedPaymentChannel": "MOBILE",
-  "payerName": "Test User",
-  "pspName": "Test Bank",
-  "pspCode": "PSP900"
-}
+cd backend
+npm run docs:check     # fails if a route and its documentation no longer match, or a sample is wrong
+npm run docs:export    # rewrites the files above (add a server address: npm run docs:export -- https://bridge.example.com)
 ```
-Note: v5 merged v4's separate online/offline payment notifications into
-this single flow - there is no longer a distinct online-notification
-webhook or endpoint.
-
-## Advanced Testing
-
-### Load Testing
-Use Postman's Collection Runner or Newman CLI to:
-1. Run multiple requests sequentially
-2. Test with different datasets
-3. Measure API response times
-4. Verify consistency under load
-
-### Integration Testing
-1. Create bill in your system
-2. Submit to GePG (mock or real)
-3. Verify control number received
-4. Simulate payment webhook
-5. Verify payment processed
-6. Check reconciliation
-
-### Automated Testing
-Use collection variables and scripts to:
-1. Generate unique bill IDs per run
-2. Chain requests together (e.g. feed a created billId into Get Bill Status)
-3. Assert response values
-4. Generate test reports
-
-## Support
-
-For API issues:
-1. Check server logs: `backend/logs/`
-2. Verify database connectivity
-3. Check GePG network connection
-4. Ask a bridge admin to review `/api/logs/activity` for your API key's calls
-5. Contact the bridge's system administrator
-
----
-
-**Remember:** Always test in a development environment before deploying to production!

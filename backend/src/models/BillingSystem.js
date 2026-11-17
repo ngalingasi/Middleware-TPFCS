@@ -6,9 +6,7 @@
 const db = require('../config/database');
 const secretBox = require('../services/secretBox');
 
-// retry windows an admin can pick from (hours)
-const RETRY_WINDOWS = [24, 48, 72, 168, 336];
-const DEFAULT_RETRY_WINDOW = 72;
+const { RETRY_WINDOWS, DEFAULT_RETRY_WINDOW } = require('../utils/webhookConfig');
 
 class BillingSystem {
   async create({ code, name, description, contact, callbackUrl, retryWindowHours, createdBy }) {

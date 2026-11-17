@@ -476,3 +476,85 @@ export interface OutboxEventDetail extends OutboxEvent {
 }
 
 export type OutboxStats = Record<EventStatus, number>;
+
+// Developer page (GET /developer/docs)
+export interface DocParam {
+  name: string;
+  in: 'path' | 'query';
+  required: boolean;
+  description: string;
+  example: string;
+}
+
+export interface DocField {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+  example: unknown;
+}
+
+export interface DocResponse {
+  status: number;
+  title: string;
+  body: unknown;
+}
+
+export interface DocEndpoint {
+  id: string;
+  group: string;
+  method: string;
+  path: string;
+  url: string;
+  title: string;
+  summary: string;
+  notes?: string[];
+  params?: DocParam[];
+  body?: { description: string; fields: DocField[]; example: unknown };
+  responses: DocResponse[];
+  curl: string;
+}
+
+export interface DocGroup {
+  id: string;
+  title: string;
+  description: string;
+  endpoints: DocEndpoint[];
+}
+
+export interface DocEvent {
+  type: string;
+  when: string;
+  sample: unknown;
+  sampleText: string;
+}
+
+export interface DeveloperDocs {
+  title: string;
+  baseUrl: string;
+  code: string;
+  system: { code: string; name: string; callbackUrl: string } | null;
+  gettingStarted: Array<{ title: string; text: string }>;
+  authentication: { header: string; text: string; rules: string[] };
+  groups: DocGroup[];
+  events: DocEvent[];
+  delivery: {
+    summary: string;
+    callbackUrl: string;
+    headers: Array<{ name: string; description: string; example: string }>;
+    verify: { steps: string[]; samples: Record<string, string>; receiverSamples: Record<string, string> };
+    testVector: { description: string; secret: string; timestamp: number; body: string; signedText: string; signature: string; header: string };
+    sampleRequest: { text: string; body: string; bodyPretty: string };
+    sampleResponses: Array<{ status: number; title: string; text: string; result: string }>;
+    failures: string[];
+    retries: { schedule: Array<{ afterAttempt: number; wait: string }>; scheduleText: string; windows: Array<{ hours: number; text: string; default: boolean }>; text: string };
+    rules: string[];
+  };
+  errors: { http: Array<{ status: number; meaning: string }>; codesNote: string; gepgCodes: Array<{ code: string; description: string }> };
+}
+
+export interface DeveloperData {
+  docs: DeveloperDocs;
+  systems: Array<{ id: number; code: string; name: string }>;
+  files: Array<{ id: string; name: string }>;
+}

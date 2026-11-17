@@ -1,285 +1,4055 @@
 {
   "info": {
-    "name": "GePG Bridge - Child System Integration",
-    "_postman_id": "gepg-bridge-child-system-collection",
-    "description": "API collection for external child systems integrating with the GePG Bridge to submit bills, check payment status, and request reconciliation data.\n\nAuthentication: every request here uses an API key (X-Api-Key header), issued by a bridge administrator via POST /api/api-keys. Set your key as the `api_key` collection variable below - it is shown only once at creation time, so keep it safe.\n\nThis collection intentionally excludes the bridge's own admin/dashboard endpoints (Auth, Users, Logs, Dashboard stats) and GePG's inbound webhook endpoints (those are called by GePG itself, authenticated via digital signature, not by a child system).",
+    "name": "GePG Bridge - Billing System API (v1)",
+    "description": "Send your API key in the X-Api-Key header on every call. Keys are issued per billing system.\n\nSet api_key (from your admin) and base_url. For the sample deliveries, set callback_url (your endpoint) and webhook_secret (your system's signing secret).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
     "type": "apikey",
     "apikey": [
-      { "key": "key", "value": "X-Api-Key", "type": "string" },
-      { "key": "value", "value": "{{api_key}}", "type": "string" },
-      { "key": "in", "value": "header", "type": "string" }
+      {
+        "key": "key",
+        "value": "X-Api-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
     ]
   },
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:5001",
-      "type": "string"
+      "value": "http://localhost:5001"
     },
     {
       "key": "api_key",
-      "value": "",
-      "type": "string",
-      "description": "Get this from your bridge administrator - created via POST /api/api-keys (admin-only, JWT login required)."
+      "value": "PASTE_YOUR_API_KEY"
+    },
+    {
+      "key": "bill_id",
+      "value": "INV-1001"
+    },
+    {
+      "key": "payment_id",
+      "value": "1"
+    },
+    {
+      "key": "events_cursor",
+      "value": "0"
+    },
+    {
+      "key": "callback_url",
+      "value": "https://billing.example.com/gepg/events"
+    },
+    {
+      "key": "webhook_secret",
+      "value": "whsec_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   ],
   "item": [
     {
-      "name": "Bills",
+      "name": "Connection check",
+      "description": "Confirm your key and system code work.",
       "item": [
         {
-          "name": "Create Bill",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"billId\": \"BILL001\",\n  \"billAmount\": 50000,\n  \"miscAmount\": 0,\n  \"billExpiryDate\": \"2027-12-31T23:59:59\",\n  \"payerId\": \"P001\",\n  \"payerName\": \"John Doe\",\n  \"payerCellNumber\": \"255712345678\",\n  \"payerEmail\": \"john@example.com\",\n  \"billDescription\": \"Service payment\",\n  \"currency\": \"TZS\",\n  \"billEquivAmount\": 50000,\n  \"reminderFlag\": true,\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"ITEM001\",\n      \"billItemAmount\": 50000,\n      \"billItemEquivAmount\": 50000,\n      \"billItemMiscAmount\": 0,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/bills/create",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "create"]
-            },
-            "description": "billId is your own bill/transaction reference - you choose it, the bridge never generates it. It must be unique and is what you'll use in every subsequent lookup (Get Bill by ID, Get Bill Status)."
-          }
-        },
-        {
-          "name": "Create and Submit Bill",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"billId\": \"BILL002\",\n  \"billAmount\": 75000,\n  \"billExpiryDate\": \"2027-12-31T23:59:59\",\n  \"payerId\": \"P002\",\n  \"payerName\": \"Jane Smith\",\n  \"payerCellNumber\": \"255722345678\",\n  \"payerEmail\": \"jane@example.com\",\n  \"billDescription\": \"License fee\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"LIC001\",\n      \"billItemAmount\": 75000,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/bills/create-and-submit",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "create-and-submit"]
-            },
-            "description": "Creates the bill and submits it to GePG in one call. The response is only GePG's immediate acknowledgement (bill received) - the actual approval/rejection and control number arrive asynchronously; poll Get Bill Status afterward."
-          }
-        },
-        {
-          "name": "Submit Bill to GePG",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/bills/submit/BILL001",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "submit", "BILL001"]
-            },
-            "description": "Submits a previously created (not-yet-submitted) bill to GePG."
-          }
-        },
-        {
-          "name": "Cancel Bill",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/bills/cancel/BILL001",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "cancel", "BILL001"]
-            }
-          }
-        },
-        {
-          "name": "Get All Bills",
+          "name": "Check the connection",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/bills?page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "status", "value": "PENDING", "disabled": true },
-                { "key": "controlNumber", "value": "", "disabled": true },
-                { "key": "startDate", "value": "2027-01-01", "disabled": true },
-                { "key": "endDate", "value": "2027-12-31", "disabled": true }
+              "raw": "{{base_url}}/api/v1/ping",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ping"
               ]
+            },
+            "description": "Returns the billing system your API key belongs to. Use it as the first call when setting up."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
-          }
+          ],
+          "response": [
+            {
+              "name": "200 Key is valid",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/ping",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ping"
+                  ]
+                },
+                "description": "Returns the billing system your API key belongs to. Use it as the first call when setting up."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"system\": \"ICDV\",\n    \"name\": \"ICDV Management\",\n    \"serverTime\": \"2026-11-16T09:30:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/ping",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ping"
+                  ]
+                },
+                "description": "Returns the billing system your API key belongs to. Use it as the first call when setting up."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/ping",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ping"
+                  ]
+                },
+                "description": "Returns the billing system your API key belongs to. Use it as the first call when setting up."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bills",
+      "description": "Create bills, check them, and change them.",
+      "item": [
+        {
+          "name": "Create a bill and send it to GePG",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills"
+              ]
+            },
+            "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bill_id', pm.response.json().bill.billId);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created and received by GePG",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "201",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Bill created and submitted successfully\",\n  \"ack\": {\n    \"ok\": true,\n    \"code\": \"7101\",\n    \"description\": \"Successful\",\n    \"codes\": [\n      {\n        \"code\": \"7101\",\n        \"description\": \"Successful\"\n      }\n    ]\n  },\n  \"data\": {\n    \"billSubReqAck\": {\n      \"AckId\": \"GW1763373731000\",\n      \"ReqId\": \"SP0231763373731000\",\n      \"AckStsCode\": \"7101\",\n      \"AckStsDesc\": \"Successful\"\n    }\n  },\n  \"bill\": {\n    \"billId\": \"INV-1001\",\n    \"gepgBillId\": \"ICDV-INV-1001\"\n  }\n}"
+            },
+            {
+              "name": "400 A value is not valid",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"message\": \"Bill amount must be a number greater than zero\",\n  \"errors\": [\n    {\n      \"type\": \"field\",\n      \"value\": 0,\n      \"msg\": \"Bill amount must be a number greater than zero\",\n      \"path\": \"billAmount\",\n      \"location\": \"body\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "409 You already used this billId",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "409",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7226\",\n  \"message\": \"A bill with this billId already exists\"\n}"
+            },
+            {
+              "name": "422 GePG refused the bill",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "422",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"codes\": [\n    {\n      \"code\": \"7242\",\n      \"description\": \"Invalid request data\"\n    }\n  ],\n  \"message\": \"GePG rejected the bill: Invalid request data\",\n  \"data\": {\n    \"billSubReqAck\": {\n      \"AckStsCode\": \"7242\",\n      \"AckStsDesc\": \"Invalid request data\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
         },
         {
-          "name": "Get Bill by ID",
+          "name": "Create many bills at once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/bulk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "bulk"
+              ]
+            },
+            "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Processed (check each result)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/bulk",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "bulk"
+                  ]
+                },
+                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"2 of 2 bills submitted to GePG\",\n  \"summary\": {\n    \"total\": 2,\n    \"succeeded\": 2,\n    \"failed\": 0\n  },\n  \"results\": [\n    {\n      \"billId\": \"INV-1001\",\n      \"success\": true,\n      \"code\": \"7101\",\n      \"message\": \"Submitted to GePG\"\n    },\n    {\n      \"billId\": \"INV-1002\",\n      \"success\": true,\n      \"code\": \"7101\",\n      \"message\": \"Submitted to GePG\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 Empty list or more than 100",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/bulk",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "bulk"
+                  ]
+                },
+                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"message\": \"bills must be a non-empty array\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/bulk",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "bulk"
+                  ]
+                },
+                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/bulk",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "bulk"
+                  ]
+                },
+                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reuse a control number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/reuse",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "reuse"
+              ]
+            },
+            "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('bill_id', pm.response.json().bill.billId);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created and received by GePG",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/reuse",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "reuse"
+                  ]
+                },
+                "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "201",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Control number reuse submitted to GePG\",\n  \"ack\": {\n    \"ok\": true,\n    \"code\": \"7101\",\n    \"description\": \"Successful\",\n    \"codes\": [\n      {\n        \"code\": \"7101\",\n        \"description\": \"Successful\"\n      }\n    ]\n  },\n  \"data\": {\n    \"billSubReqAck\": {\n      \"AckId\": \"GW1763373731000\",\n      \"ReqId\": \"SP0231763373731000\",\n      \"AckStsCode\": \"7101\",\n      \"AckStsDesc\": \"Successful\"\n    }\n  },\n  \"bill\": {\n    \"billId\": \"INV-1003\",\n    \"gepgBillId\": \"ICDV-INV-1003\"\n  }\n}"
+            },
+            {
+              "name": "404 That control number was not issued to your system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/reuse",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "reuse"
+                  ]
+                },
+                "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7335\",\n  \"message\": \"Requested bill control number does not exist\"\n}"
+            },
+            {
+              "name": "400 A value is not valid",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/reuse",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "reuse"
+                  ]
+                },
+                "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"message\": \"Bill amount must be a number greater than zero\",\n  \"errors\": [\n    {\n      \"type\": \"field\",\n      \"value\": 0,\n      \"msg\": \"Bill amount must be a number greater than zero\",\n      \"path\": \"billAmount\",\n      \"location\": \"body\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "422 GePG refused the reuse request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/reuse",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "reuse"
+                  ]
+                },
+                "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "422",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"codes\": [\n    {\n      \"code\": \"7242\",\n      \"description\": \"Invalid request data\"\n    }\n  ],\n  \"message\": \"GePG rejected the reuse request: Invalid request data\",\n  \"data\": {\n    \"billSubReqAck\": {\n      \"AckStsCode\": \"7242\",\n      \"AckStsDesc\": \"Invalid request data\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/reuse",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "reuse"
+                  ]
+                },
+                "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/reuse",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "reuse"
+                  ]
+                },
+                "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check many bills at once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "status"
+              ]
+            },
+            "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Found and not found",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "status"
+                  ]
+                },
+                "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"bills\": [\n      {\n        \"billId\": \"INV-1001\",\n        \"gepgBillId\": \"ICDV-INV-1001\",\n        \"status\": \"APPROVED\",\n        \"controlNumber\": \"991330026625\",\n        \"billAmount\": 500000,\n        \"currency\": \"TZS\",\n        \"totalPaid\": 300000,\n        \"remaining\": 200000,\n        \"isPaid\": false,\n        \"expiresAt\": \"2027-12-17T09:00:00.000Z\"\n      }\n    ],\n    \"notFound\": [\n      \"INV-1002\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 Empty list or more than 100",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "status"
+                  ]
+                },
+                "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"message\": \"billIds must be a list of 1 to 100 bill references\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "status"
+                  ]
+                },
+                "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "status"
+                  ]
+                },
+                "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "List your bills",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/bills/BILL001",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "BILL001"]
+              "raw": "{{base_url}}/api/v1/bills",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, starting at 1.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Bills per page.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "APPROVED",
+                  "description": "PENDING, APPROVED, REJECTED, PAID, CANCELLED or EXPIRED.",
+                  "disabled": true
+                },
+                {
+                  "key": "controlNumber",
+                  "value": "991330026625",
+                  "description": "Only the bill with this control number.",
+                  "disabled": true
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-11-01",
+                  "description": "Created on or after (YYYY-MM-DD). Use with endDate.",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-11-30",
+                  "description": "Created on or before (YYYY-MM-DD).",
+                  "disabled": true
+                }
+              ]
             },
-            "description": "Full bill detail: bill fields, items, and its payment history (payments array), plus a computed isPaid/totalPaid/remainingAmount summary."
-          }
+            "description": "Newest first, 20 per page by default. Only your own bills are returned. Amounts in bill rows are strings with two decimals."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 A page of bills (trimmed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number, starting at 1.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Bills per page.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "APPROVED",
+                      "description": "PENDING, APPROVED, REJECTED, PAID, CANCELLED or EXPIRED.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "controlNumber",
+                      "value": "991330026625",
+                      "description": "Only the bill with this control number.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "startDate",
+                      "value": "2026-11-01",
+                      "description": "Created on or after (YYYY-MM-DD). Use with endDate.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-11-30",
+                      "description": "Created on or before (YYYY-MM-DD).",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Newest first, 20 per page by default. Only your own bills are returned. Amounts in bill rows are strings with two decimals."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"bill_id\": \"ICDV-INV-1001\",\n      \"external_ref\": \"INV-1001\",\n      \"billing_system_code\": \"ICDV\",\n      \"payer_id\": \"P1001\",\n      \"payer_name\": \"Vidah Mwakyusa\",\n      \"payer_cell_num\": \"255786030028\",\n      \"bill_description\": \"Sale of tender document\",\n      \"bill_amount\": \"500000.00\",\n      \"currency\": \"TZS\",\n      \"bill_pay_option\": 2,\n      \"bill_expiry_date\": \"2027-12-17T09:00:00.000Z\",\n      \"payment_control_number\": \"991330026625\",\n      \"status\": \"APPROVED\",\n      \"transaction_status\": \"GS\",\n      \"transaction_status_code\": \"7101\",\n      \"created_at\": \"2026-11-16T09:30:00.000Z\",\n      \"item_count\": 1\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 1,\n    \"pages\": 1\n  }\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number, starting at 1.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Bills per page.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "APPROVED",
+                      "description": "PENDING, APPROVED, REJECTED, PAID, CANCELLED or EXPIRED.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "controlNumber",
+                      "value": "991330026625",
+                      "description": "Only the bill with this control number.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "startDate",
+                      "value": "2026-11-01",
+                      "description": "Created on or after (YYYY-MM-DD). Use with endDate.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-11-30",
+                      "description": "Created on or before (YYYY-MM-DD).",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Newest first, 20 per page by default. Only your own bills are returned. Amounts in bill rows are strings with two decimals."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number, starting at 1.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Bills per page.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "APPROVED",
+                      "description": "PENDING, APPROVED, REJECTED, PAID, CANCELLED or EXPIRED.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "controlNumber",
+                      "value": "991330026625",
+                      "description": "Only the bill with this control number.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "startDate",
+                      "value": "2026-11-01",
+                      "description": "Created on or after (YYYY-MM-DD). Use with endDate.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-11-30",
+                      "description": "Created on or before (YYYY-MM-DD).",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Newest first, 20 per page by default. Only your own bills are returned. Amounts in bill rows are strings with two decimals."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
         },
         {
-          "name": "Get Bill Status",
+          "name": "Get one bill",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/bills/BILL001/status",
-              "host": ["{{base_url}}"],
-              "path": ["api", "bills", "BILL001", "status"]
+              "raw": "{{base_url}}/api/v1/bills/{{bill_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "{{bill_id}}"
+              ]
             },
-            "description": "Lightweight status-only check - use this for polling \"has this bill been paid\" using the billId you originally submitted, without pulling the full bill/items/payments payload.\n\nReturns: status, paymentControlNumber, isPaid, totalPaid, remainingAmount.\n\nNote: isPaid mirrors the bill's status column, which today is set to PAID on the *first* payment received even for a partially-paid bill (BillPayOpt PARTIAL/LIMITED). If you need to know the bill is *fully* settled rather than just \"a payment arrived\", check remainingAmount === 0 rather than isPaid alone."
-          }
+            "description": "The bill with its items and payments, and how much is paid and still due."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 The bill (trimmed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}"
+                  ]
+                },
+                "description": "The bill with its items and payments, and how much is paid and still due."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 1,\n    \"bill_id\": \"ICDV-INV-1001\",\n    \"external_ref\": \"INV-1001\",\n    \"billing_system_code\": \"ICDV\",\n    \"payer_id\": \"P1001\",\n    \"payer_name\": \"Vidah Mwakyusa\",\n    \"payer_cell_num\": \"255786030028\",\n    \"bill_description\": \"Sale of tender document\",\n    \"bill_amount\": \"500000.00\",\n    \"currency\": \"TZS\",\n    \"bill_pay_option\": 2,\n    \"bill_expiry_date\": \"2027-12-17T09:00:00.000Z\",\n    \"payment_control_number\": \"991330026625\",\n    \"status\": \"APPROVED\",\n    \"transaction_status\": \"GS\",\n    \"transaction_status_code\": \"7101\",\n    \"created_at\": \"2026-11-16T09:30:00.000Z\",\n    \"items\": [\n      {\n        \"id\": 1,\n        \"bill_id\": \"ICDV-INV-1001\",\n        \"bill_item_ref\": \"TND-77\",\n        \"gfs_code\": \"140368\",\n        \"bill_item_amount\": \"500000.00\",\n        \"bill_item_equiv_amount\": \"500000.00\"\n      }\n    ],\n    \"payments\": [\n      {\n        \"id\": 12,\n        \"transaction_id\": \"T1001\",\n        \"pay_ref_id\": \"99015046706\",\n        \"bill_id\": \"ICDV-INV-1001\",\n        \"payment_control_number\": \"991330026625\",\n        \"bill_amount\": \"500000.00\",\n        \"paid_amount\": \"300000.00\",\n        \"currency\": \"TZS\",\n        \"transaction_datetime\": \"2026-11-16T09:35:00.000Z\",\n        \"used_payment_channel\": \"MB\",\n        \"psp_name\": \"Example Bank\",\n        \"payment_type\": \"OFFLINE\",\n        \"status\": \"PENDING\"\n      }\n    ],\n    \"isPaid\": false,\n    \"totalPaid\": 300000,\n    \"remainingAmount\": 200000\n  }\n}"
+            },
+            {
+              "name": "404 No such bill among your bills",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}"
+                  ]
+                },
+                "description": "The bill with its items and payments, and how much is paid and still due."
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7204\",\n  \"message\": \"Bill not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}"
+                  ]
+                },
+                "description": "The bill with its items and payments, and how much is paid and still due."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}"
+                  ]
+                },
+                "description": "The bill with its items and payments, and how much is paid and still due."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Is this bill paid?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "{{bill_id}}",
+                "status"
+              ]
+            },
+            "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Status",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "status"
+                  ]
+                },
+                "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"billId\": \"INV-1001\",\n    \"gepgBillId\": \"ICDV-INV-1001\",\n    \"status\": \"APPROVED\",\n    \"paymentControlNumber\": \"991330026625\",\n    \"transactionStatus\": \"GS\",\n    \"transactionStatusCode\": \"7101\",\n    \"isPaid\": false,\n    \"totalPaid\": 300000,\n    \"remainingAmount\": 200000\n  }\n}"
+            },
+            {
+              "name": "404 No such bill among your bills",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "status"
+                  ]
+                },
+                "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due."
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7204\",\n  \"message\": \"Bill not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "status"
+                  ]
+                },
+                "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "status"
+                  ]
+                },
+                "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Extend the expiry date",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "{{bill_id}}",
+                "extend"
+              ]
+            },
+            "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Change received by GePG",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "extend"
+                  ]
+                },
+                "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Bill expiry change submitted to GePG\",\n  \"ack\": {\n    \"ok\": true,\n    \"code\": \"7101\",\n    \"description\": \"Successful\",\n    \"codes\": [\n      {\n        \"code\": \"7101\",\n        \"description\": \"Successful\"\n      }\n    ]\n  },\n  \"data\": {\n    \"billSubReqAck\": {\n      \"AckId\": \"GW1763373731000\",\n      \"ReqId\": \"SP0231763373731000\",\n      \"AckStsCode\": \"7101\",\n      \"AckStsDesc\": \"Successful\"\n    }\n  }\n}"
+            },
+            {
+              "name": "400 Not an approved bill, or the date is not later",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "extend"
+                  ]
+                },
+                "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7231\",\n  \"message\": \"New expiry date must be in the future and later than the current expiry date\"\n}"
+            },
+            {
+              "name": "422 GePG refused the expiry change",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "extend"
+                  ]
+                },
+                "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "422",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"codes\": [\n    {\n      \"code\": \"7242\",\n      \"description\": \"Invalid request data\"\n    }\n  ],\n  \"message\": \"GePG rejected the expiry change: Invalid request data\",\n  \"data\": {\n    \"billSubReqAck\": {\n      \"AckStsCode\": \"7242\",\n      \"AckStsDesc\": \"Invalid request data\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 No such bill among your bills",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "extend"
+                  ]
+                },
+                "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7204\",\n  \"message\": \"Bill not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "extend"
+                  ]
+                },
+                "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/extend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "extend"
+                  ]
+                },
+                "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Cancel a bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "{{bill_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Cancelled",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Bill cancelled successfully\",\n  \"data\": {\n    \"billCanclRes\": {\n      \"ResId\": \"GW1763373731001\",\n      \"ReqId\": \"SP0231763373731001\",\n      \"GrpBillId\": \"ICDV-INV-1001\",\n      \"CanclSts\": \"GS\",\n      \"CanclStsCode\": \"7283\",\n      \"CanclStsDesc\": \"Bill has been cancelled\"\n    }\n  }\n}"
+            },
+            {
+              "name": "400 The bill cannot be cancelled in its current state",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Bill not found or cannot be cancelled\"\n}"
+            },
+            {
+              "name": "502 GePG declined the cancellation",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "502",
+              "code": 502,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7201\",\n  \"message\": \"GePG declined the cancellation\",\n  \"data\": {\n    \"billCanclRes\": {\n      \"CanclSts\": \"GF\",\n      \"CanclStsCode\": \"7201\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 No such bill among your bills",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7204\",\n  \"message\": \"Bill not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "cancel"
+                  ]
+                },
+                "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Duplicate bill\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Data for a printable bill",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/print",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "bills",
+                "{{bill_id}}",
+                "print"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "bill",
+                  "description": "bill (default) or transfer.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Print data (trimmed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/print",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "print"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "bill",
+                      "description": "bill (default) or transfer.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"type\": \"bill\",\n    \"title\": \"Government Bill\",\n    \"bill\": {\n      \"controlNumber\": \"991330026625\",\n      \"billReference\": \"ICDV-INV-1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"total\": \"500,000.00\",\n      \"currency\": \"TZS\",\n      \"amountInWords\": \"Five Hundred Thousand Tanzanian Shilling Only.\",\n      \"expiresOn\": \"17-Dec-2027\"\n    },\n    \"qr\": {\n      \"payload\": {\n        \"opType\": \"2\",\n        \"shortCode\": \"001001\",\n        \"billReference\": \"991330026625\",\n        \"amount\": \"500000.00\"\n      }\n    },\n    \"warnings\": []\n  }\n}"
+            },
+            {
+              "name": "409 Not approved yet",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/print",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "print"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "bill",
+                      "description": "bill (default) or transfer.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form."
+              },
+              "status": "409",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Bill has no control number yet (status PENDING). It can be printed once GePG approves it.\"\n}"
+            },
+            {
+              "name": "404 No such bill among your bills",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/print",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "print"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "bill",
+                      "description": "bill (default) or transfer.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form."
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7204\",\n  \"message\": \"Bill not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/print",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "print"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "bill",
+                      "description": "bill (default) or transfer.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills/{{bill_id}}/print",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills",
+                    "{{bill_id}}",
+                    "print"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "bill",
+                      "description": "bill (default) or transfer.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
         }
       ]
     },
     {
       "name": "Payments",
+      "description": "Payments received on your bills.",
       "item": [
         {
-          "name": "Get All Payments",
+          "name": "List payments",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/payments?page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments"],
+              "raw": "{{base_url}}/api/v1/payments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "status", "value": "PENDING", "disabled": true },
-                { "key": "billId", "value": "BILL001", "disabled": true },
-                { "key": "startDate", "value": "2027-01-01", "disabled": true },
-                { "key": "endDate", "value": "2027-12-31", "disabled": true }
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, starting at 1.",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Payments per page.",
+                  "disabled": true
+                },
+                {
+                  "key": "billId",
+                  "value": "INV-1001",
+                  "description": "Only payments on this bill (your own reference).",
+                  "disabled": true
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-11-01",
+                  "description": "Paid on or after (YYYY-MM-DD). Use with endDate.",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-11-30",
+                  "description": "Paid on or before (YYYY-MM-DD).",
+                  "disabled": true
+                }
               ]
-            }
-          }
-        },
-        {
-          "name": "Get Payment by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/payments/1",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "1"]
             },
-            "description": "1 here is the payments table's own numeric id (from the Get All Payments list), not the billId."
-          }
+            "description": "Payments on your own bills, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data; if (d.length) pm.collectionVariables.set('payment_id', d[0].id);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 A page of payments (trimmed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number, starting at 1.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Payments per page.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "billId",
+                      "value": "INV-1001",
+                      "description": "Only payments on this bill (your own reference).",
+                      "disabled": true
+                    },
+                    {
+                      "key": "startDate",
+                      "value": "2026-11-01",
+                      "description": "Paid on or after (YYYY-MM-DD). Use with endDate.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-11-30",
+                      "description": "Paid on or before (YYYY-MM-DD).",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Payments on your own bills, newest first."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 12,\n      \"transaction_id\": \"T1001\",\n      \"pay_ref_id\": \"99015046706\",\n      \"bill_id\": \"ICDV-INV-1001\",\n      \"payment_control_number\": \"991330026625\",\n      \"bill_amount\": \"500000.00\",\n      \"paid_amount\": \"300000.00\",\n      \"currency\": \"TZS\",\n      \"transaction_datetime\": \"2026-11-16T09:35:00.000Z\",\n      \"used_payment_channel\": \"MB\",\n      \"psp_name\": \"Example Bank\",\n      \"payment_type\": \"OFFLINE\",\n      \"status\": \"PENDING\"\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 1,\n    \"pages\": 1\n  }\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number, starting at 1.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Payments per page.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "billId",
+                      "value": "INV-1001",
+                      "description": "Only payments on this bill (your own reference).",
+                      "disabled": true
+                    },
+                    {
+                      "key": "startDate",
+                      "value": "2026-11-01",
+                      "description": "Paid on or after (YYYY-MM-DD). Use with endDate.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-11-30",
+                      "description": "Paid on or before (YYYY-MM-DD).",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Payments on your own bills, newest first."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number, starting at 1.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "description": "Payments per page.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "billId",
+                      "value": "INV-1001",
+                      "description": "Only payments on this bill (your own reference).",
+                      "disabled": true
+                    },
+                    {
+                      "key": "startDate",
+                      "value": "2026-11-01",
+                      "description": "Paid on or after (YYYY-MM-DD). Use with endDate.",
+                      "disabled": true
+                    },
+                    {
+                      "key": "endDate",
+                      "value": "2026-11-30",
+                      "description": "Paid on or before (YYYY-MM-DD).",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Payments on your own bills, newest first."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
         },
         {
-          "name": "Get Payment Statistics",
+          "name": "Get one payment",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/payments/statistics/summary?startDate=2027-01-01&endDate=2027-12-31",
-              "host": ["{{base_url}}"],
-              "path": ["api", "payments", "statistics", "summary"],
-              "query": [
-                { "key": "startDate", "value": "2027-01-01" },
-                { "key": "endDate", "value": "2027-12-31" }
+              "raw": "{{base_url}}/api/v1/payments/{{payment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}"
               ]
+            },
+            "description": "One payment on your bills."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
-          }
+          ],
+          "response": [
+            {
+              "name": "200 The payment (trimmed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}"
+                  ]
+                },
+                "description": "One payment on your bills."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": 12,\n    \"transaction_id\": \"T1001\",\n    \"pay_ref_id\": \"99015046706\",\n    \"bill_id\": \"ICDV-INV-1001\",\n    \"payment_control_number\": \"991330026625\",\n    \"bill_amount\": \"500000.00\",\n    \"paid_amount\": \"300000.00\",\n    \"currency\": \"TZS\",\n    \"transaction_datetime\": \"2026-11-16T09:35:00.000Z\",\n    \"used_payment_channel\": \"MB\",\n    \"psp_name\": \"Example Bank\",\n    \"payment_type\": \"OFFLINE\",\n    \"status\": \"PENDING\"\n  }\n}"
+            },
+            {
+              "name": "404 Not found among your payments",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}"
+                  ]
+                },
+                "description": "One payment on your bills."
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Payment not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}"
+                  ]
+                },
+                "description": "One payment on your bills."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}"
+                  ]
+                },
+                "description": "One payment on your bills."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Data for a printable receipt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/{{payment_id}}/receipt",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}",
+                "receipt"
+              ]
+            },
+            "description": "Everything needed to print the GePG receipt for a payment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Receipt data (trimmed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}/receipt",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}",
+                    "receipt"
+                  ]
+                },
+                "description": "Everything needed to print the GePG receipt for a payment."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"type\": \"receipt\",\n    \"title\": \"Exchequer Receipts\",\n    \"receipt\": {\n      \"receiptNumber\": \"99015046706\",\n      \"receivedFrom\": \"Vidah Mwakyusa\",\n      \"amount\": \"300,000.00\",\n      \"currency\": \"TZS\",\n      \"amountInWords\": \"Three Hundred Thousand Tanzanian Shilling Only.\",\n      \"outstandingBalance\": \"200,000.00\",\n      \"controlNumber\": \"991330026625\",\n      \"paymentDate\": \"16-Nov-2026\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 Not found among your payments",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}/receipt",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}",
+                    "receipt"
+                  ]
+                },
+                "description": "Everything needed to print the GePG receipt for a payment."
+              },
+              "status": "404",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Payment not found\"\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}/receipt",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}",
+                    "receipt"
+                  ]
+                },
+                "description": "Everything needed to print the GePG receipt for a payment."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/payments/{{payment_id}}/receipt",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments",
+                    "{{payment_id}}",
+                    "receipt"
+                  ]
+                },
+                "description": "Everything needed to print the GePG receipt for a payment."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Reconciliation",
+      "name": "Events feed",
+      "description": "The same events that are sent to your callback URL, for you to collect.",
       "item": [
         {
-          "name": "Submit Reconciliation Request",
+          "name": "Collect your events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/events?after={{events_cursor}}&limit=100",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "after",
+                  "value": "{{events_cursor}}",
+                  "description": "Cursor: only events after this one. Start with 0.",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "Events per call, 1 to 500. Defaults to 100.",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Your events in order, oldest first. Keep the nextCursor of the last batch you processed and ask for what came after it. Use this to catch up after downtime, or as your whole integration if you have no callback URL."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('events_cursor', pm.response.json().data.nextCursor);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Events and the next cursor",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/events?after={{events_cursor}}&limit=100",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events"
+                  ],
+                  "query": [
+                    {
+                      "key": "after",
+                      "value": "{{events_cursor}}",
+                      "description": "Cursor: only events after this one. Start with 0.",
+                      "disabled": false
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100",
+                      "description": "Events per call, 1 to 500. Defaults to 100.",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Your events in order, oldest first. Keep the nextCursor of the last batch you processed and ask for what came after it. Use this to catch up after downtime, or as your whole integration if you have no callback URL."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"events\": [\n      {\n        \"id\": \"183\",\n        \"type\": \"bill.approved\",\n        \"createdAt\": \"2026-11-16T09:35:12.000Z\",\n        \"bill\": {\n          \"billId\": \"INV-1001\",\n          \"gepgBillId\": \"ICDV-INV-1001\",\n          \"controlNumber\": \"991330026625\",\n          \"status\": \"APPROVED\"\n        }\n      },\n      {\n        \"id\": \"184\",\n        \"type\": \"payment.received\",\n        \"createdAt\": \"2026-11-16T09:35:12.000Z\",\n        \"bill\": {\n          \"billId\": \"INV-1001\",\n          \"gepgBillId\": \"ICDV-INV-1001\",\n          \"controlNumber\": \"991330026625\",\n          \"status\": \"APPROVED\"\n        },\n        \"payment\": {\n          \"receiptNumber\": \"99015046706\",\n          \"transactionId\": \"T1001\",\n          \"paidAmount\": 300000,\n          \"currency\": \"TZS\",\n          \"channel\": \"MB\",\n          \"psp\": \"Example Bank\",\n          \"paidAt\": \"2026-11-16T09:35:00\",\n          \"payerName\": null,\n          \"payerPhone\": null\n        },\n        \"totals\": {\n          \"billAmount\": 500000,\n          \"totalPaid\": 300000,\n          \"remaining\": 200000,\n          \"isPaid\": false\n        },\n        \"source\": \"gepg\"\n      }\n    ],\n    \"nextCursor\": \"184\"\n  }\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/events?after={{events_cursor}}&limit=100",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events"
+                  ],
+                  "query": [
+                    {
+                      "key": "after",
+                      "value": "{{events_cursor}}",
+                      "description": "Cursor: only events after this one. Start with 0.",
+                      "disabled": false
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100",
+                      "description": "Events per call, 1 to 500. Defaults to 100.",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Your events in order, oldest first. Keep the nextCursor of the last batch you processed and ask for what came after it. Use this to catch up after downtime, or as your whole integration if you have no callback URL."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/events?after={{events_cursor}}&limit=100",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "events"
+                  ],
+                  "query": [
+                    {
+                      "key": "after",
+                      "value": "{{events_cursor}}",
+                      "description": "Cursor: only events after this one. Start with 0.",
+                      "disabled": false
+                    },
+                    {
+                      "key": "limit",
+                      "value": "100",
+                      "description": "Events per call, 1 to 500. Defaults to 100.",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Your events in order, oldest first. Keep the nextCursor of the last batch you processed and ask for what came after it. Use this to catch up after downtime, or as your whole integration if you have no callback URL."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sample deliveries (to YOUR callback URL)",
+      "description": "These send the bridge's sample events to your own endpoint, signed with a fresh timestamp from the webhook_secret variable. Use them to build and test your receiver before connecting for real.",
+      "item": [
+        {
+          "name": "bill.approved",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "bill.approved"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
               }
             ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"transactionDate\": \"2027-01-15\"\n}"
+              "raw": "{\"id\":\"184\",\"type\":\"bill.approved\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
-            "url": {
-              "raw": "{{base_url}}/api/reconciliation/request",
-              "host": ["{{base_url}}"],
-              "path": ["api", "reconciliation", "request"]
-            },
-            "description": "Asks GePG for the previous working day's successful-payments batch (transactionDate, format YYYY-MM-DD). The result arrives asynchronously via GePG's own webhook - poll Get Reconciliation Request by ID afterward."
+            "description": "GePG accepted the bill. It now has a control number the payer can use.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
           }
         },
         {
-          "name": "Get All Reconciliation Requests",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/reconciliation?page=1&limit=20",
-              "host": ["{{base_url}}"],
-              "path": ["api", "reconciliation"],
-              "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "status", "value": "COMPLETED", "disabled": true }
-              ]
+          "name": "bill.rejected",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
             }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "bill.rejected"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"bill.rejected\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":null,\"status\":\"REJECTED\"},\"reason\":{\"code\":\"7223\",\"description\":\"Invalid or inactive GFS code or service type\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "GePG refused the bill. reason.code and reason.description say why.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
           }
         },
         {
-          "name": "Get Reconciliation Request by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/reconciliation/1700000000000",
-              "host": ["{{base_url}}"],
-              "path": ["api", "reconciliation", "1700000000000"]
+          "name": "payment.received",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
             },
-            "description": "The id here is the reconciliationRequestId returned by Submit Reconciliation Request."
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "payment.received"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A payment arrived. It is also sent for a payment recovered by reconciliation (source is \"reconciliation\"). A bill paid in parts gives one of these per payment.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
+          }
+        },
+        {
+          "name": "bill.paid",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "bill.paid"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"bill.paid\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"PAID\"},\"totals\":{\"billAmount\":500000,\"totalPaid\":500000,\"remaining\":0,\"isPaid\":true}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The payments now cover the billed amount. Sent once, right after the payment.received that settled it.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
+          }
+        },
+        {
+          "name": "bill.cancelled",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "bill.cancelled"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"bill.cancelled\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"CANCELLED\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The bill was cancelled.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
+          }
+        },
+        {
+          "name": "bill.expired",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "bill.expired"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"bill.expired\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"EXPIRED\"},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "An approved bill passed its expiry date without being fully paid. totals shows what is still due.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
+          }
+        },
+        {
+          "name": "system.test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// sign this delivery with a fresh timestamp, the way the bridge does",
+                  "const body = pm.request.body.raw;",
+                  "const t = Math.floor(Date.now() / 1000);",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const sig = CryptoJS.HmacSHA256(t + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Timestamp', value: String(t) });",
+                  "pm.request.headers.upsert({ key: 'X-Bridge-Signature', value: 't=' + t + ',v1=' + sig });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Your system answered 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "GePG-Bridge/1.0"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "system.test"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "set by the script"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "set by the script"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"system.test\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"message\":\"Test event from the GePG bridge\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Sent by the Test button on the Billing Systems page. Not part of the events feed.\n\nSent to your own callback URL with a fresh signature made from the webhook_secret variable."
+          }
+        },
+        {
+          "name": "Signature test vector (fixed timestamp)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Bridge-Event",
+                "value": "payment.received"
+              },
+              {
+                "key": "X-Bridge-Event-Id",
+                "value": "184"
+              },
+              {
+                "key": "X-Bridge-Delivery-Attempt",
+                "value": "1"
+              },
+              {
+                "key": "X-Bridge-Timestamp",
+                "value": "1763373731"
+              },
+              {
+                "key": "X-Bridge-Signature",
+                "value": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+              }
+            ],
+            "url": {
+              "raw": "{{callback_url}}",
+              "host": [
+                "{{callback_url}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Signed with the example secret whsec_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef at a fixed time. Your receiver should accept it only if you skip the 5-minute clock check for this one test."
           }
         }
       ]
-    },
-    {
-      "name": "Health Check",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "auth": { "type": "noauth" },
-        "url": {
-          "raw": "{{base_url}}/health",
-          "host": ["{{base_url}}"],
-          "path": ["health"]
-        },
-        "description": "No authentication required - use this to confirm the bridge is reachable before troubleshooting an auth issue."
-      }
     }
   ]
 }

@@ -7,51 +7,11 @@ const crypto = require('crypto');
 const axios = require('axios');
 const db = require('../config/database');
 const BillingSystem = require('../models/BillingSystem');
+const { EVENT_TYPES, BACKOFF_SECONDS, TIMEOUT_MS, sign } = require('../utils/webhookConfig');
+const { envelope, billBlock, paymentBlock } = require('../utils/eventPayloads');
 
-const EVENT_TYPES = ['bill.approved', 'bill.rejected', 'payment.received', 'bill.paid', 'bill.cancelled', 'bill.expired', 'system.test'];
-
-// seconds to wait after the 1st, 2nd, 3rd... failed attempt; the last value repeats
-const BACKOFF_SECONDS = [60, 300, 900, 3600, 10800, 21600, 43200, 86400];
 const LEASE_SECONDS = 120;
-const TIMEOUT_MS = 10000;
 const WORKER_INTERVAL_MS = 5000;
-
-// t=<unix seconds>,v1=<hex hmac-sha256 of "<t>.<body>">, so receivers can reject replays
-function sign(secret, timestamp, body) {
-  return crypto.createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
-}
-
-function envelope(row) {
-  return {
-    id: String(row.id),
-    type: row.type,
-    createdAt: new Date(row.created_at).toISOString(),
-    ...JSON.parse(row.payload)
-  };
-}
-
-function billBlock(bill) {
-  return {
-    billId: bill.external_ref || bill.bill_id,
-    gepgBillId: bill.bill_id,
-    controlNumber: bill.payment_control_number || null,
-    status: bill.status
-  };
-}
-
-function paymentBlock(p) {
-  return {
-    receiptNumber: p.pay_ref_id,
-    transactionId: p.transaction_id,
-    paidAmount: Number(p.paid_amount),
-    currency: p.currency,
-    channel: p.used_payment_channel,
-    psp: p.psp_name,
-    paidAt: p.transaction_datetime,
-    payerName: p.payer_name || null,
-    payerPhone: p.payer_cell_num || null
-  };
-}
 
 async function totalsFor(exec, bill) {
   const [[row]] = await exec.query('SELECT COALESCE(SUM(paid_amount), 0) AS total FROM payments WHERE bill_id = ?', [bill.bill_id]);

@@ -301,17 +301,10 @@ export default function BillingSystemsPage() {
         </div>
       </div>
 
-      <details className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 text-sm dark:border-gray-800 dark:bg-white/[0.03]">
-        <summary className="cursor-pointer font-medium text-gray-800 dark:text-white/90">How a billing system checks a delivery</summary>
-        <div className="mt-3 space-y-2 text-gray-600 dark:text-gray-300">
-          <p>Every delivery is a POST with a JSON body and these headers:</p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li><code>X-Bridge-Event</code> and <code>X-Bridge-Event-Id</code>: the event type and its number. The same event can arrive twice, so ignore ones already handled.</li>
-            <li><code>X-Bridge-Signature: t=&lt;unix time&gt;,v1=&lt;hex&gt;</code>: an HMAC-SHA256 of <code>&lt;t&gt;.&lt;body&gt;</code> using the signing secret. Reject a delivery if the signature does not match or <code>t</code> is more than 5 minutes old.</li>
-          </ul>
-          <p>Answer with any 2xx status to confirm. Anything else, or no answer within 10 seconds, is retried (after 1 minute, 5 minutes, 15 minutes, 1 hour and so on) until the retry window ends.</p>
-        </div>
-      </details>
+      <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+        Setting up a system? Share the endpoints, delivery details and sample requests from{' '}
+        <Link to="/developer?tab=delivery" className="text-brand-600 hover:underline dark:text-brand-400">Developer</Link>.
+      </p>
 
       <Modal isOpen={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Add billing system' : `Edit ${editing ? editing.code : ''}`} size="lg">
         <div className="space-y-4">

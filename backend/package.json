@@ -7,7 +7,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate": "node src/database/migrate.js",
-    "migrate:auth": "node src/database/migrate-auth.js"
+    "migrate:auth": "node src/database/migrate-auth.js",
+    "docs:export": "node scripts/export-docs.js",
+    "docs:check": "node scripts/check-docs.js"
   },
   "keywords": [
     "gepg",

@@ -503,7 +503,8 @@ async function getBillStatus(req, res) {
     res.json({
       success: true,
       data: {
-        billId: bill.bill_id,
+        billId: bill.external_ref || bill.bill_id,
+        gepgBillId: bill.bill_id,
         status: bill.status,
         paymentControlNumber: bill.payment_control_number,
         transactionStatus: bill.transaction_status,

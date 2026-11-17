@@ -1,192 +1,733 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2026-09-02T00:00:00.000Z",
-  "__export_source": "insomnia.desktop.app:v2023.5.0",
+  "__export_date": "2026-11-18T00:00:00.000Z",
+  "__export_source": "gepg-bridge:developer-docs",
   "resources": [
     {
-      "_id": "wrk_gepg",
-      "parentId": null,
+      "_id": "wrk_gepg_bridge_billing_api",
       "_type": "workspace",
-      "name": "GePG Bridge - Child System Integration",
-      "description": "API collection for external child systems integrating with the GePG Bridge to submit bills, check payment status, and request reconciliation data.\n\nAuthentication: every request here uses an API key (X-Api-Key header), issued by a bridge administrator via POST /api/api-keys. Set your key in the api_key environment variable below - it is shown only once at creation time, so keep it safe.\n\nThis collection intentionally excludes the bridge's own admin/dashboard endpoints (Auth, Users, Logs, Dashboard stats) and GePG's inbound webhook endpoints (those are called by GePG itself, authenticated via digital signature, not by a child system)."
+      "name": "GePG Bridge - Billing System API (v1)",
+      "description": "Send your API key in the X-Api-Key header on every call. Keys are issued per billing system.",
+      "scope": "collection"
     },
     {
-      "_id": "env_base",
-      "parentId": "wrk_gepg",
+      "_id": "env_gepg_bridge_base",
       "_type": "environment",
+      "parentId": "wrk_gepg_bridge_billing_api",
       "name": "Base Environment",
       "data": {
         "base_url": "http://localhost:5001",
-        "api_key": ""
+        "api_key": "PASTE_YOUR_API_KEY",
+        "bill_id": "INV-1001",
+        "payment_id": "1",
+        "events_cursor": "0",
+        "callback_url": "https://billing.example.com/gepg/events"
       }
     },
     {
-      "_id": "req_create_bill",
-      "parentId": "fld_bills",
-      "_type": "request",
-      "name": "Create Bill",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/bills/create",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"billId\": \"BILL001\",\n  \"billAmount\": 50000,\n  \"miscAmount\": 0,\n  \"billExpiryDate\": \"2027-12-31T23:59:59\",\n  \"payerId\": \"P001\",\n  \"payerName\": \"John Doe\",\n  \"payerCellNumber\": \"255712345678\",\n  \"payerEmail\": \"john@example.com\",\n  \"billDescription\": \"Service payment\",\n  \"currency\": \"TZS\",\n  \"billEquivAmount\": 50000,\n  \"reminderFlag\": true,\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"ITEM001\",\n      \"billItemAmount\": 50000,\n      \"billItemEquivAmount\": 50000,\n      \"billItemMiscAmount\": 0,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
-      },
-      "description": "billId is your own bill/transaction reference - you choose it, the bridge never generates it. Must be unique; used in every subsequent lookup."
+      "_id": "fld_start",
+      "_type": "request_group",
+      "parentId": "wrk_gepg_bridge_billing_api",
+      "name": "Connection check",
+      "description": "Confirm your key and system code work.",
+      "metaSortKey": 0
     },
     {
-      "_id": "req_create_submit_bill",
-      "parentId": "fld_bills",
+      "_id": "req_ping",
       "_type": "request",
-      "name": "Create and Submit Bill",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/bills/create-and-submit",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"billId\": \"BILL002\",\n  \"billAmount\": 75000,\n  \"billExpiryDate\": \"2027-12-31T23:59:59\",\n  \"payerId\": \"P002\",\n  \"payerName\": \"Jane Smith\",\n  \"payerCellNumber\": \"255722345678\",\n  \"payerEmail\": \"jane@example.com\",\n  \"billDescription\": \"License fee\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 1,\n  \"items\": [\n    {\n      \"billItemRef\": \"LIC001\",\n      \"billItemAmount\": 75000,\n      \"gfsCode\": \"140206\"\n    }\n  ]\n}"
-      },
-      "description": "Creates and submits to GePG in one call. Response is only GePG's immediate ack - poll Get Bill Status afterward for the real outcome."
-    },
-    {
-      "_id": "req_submit_bill",
-      "parentId": "fld_bills",
-      "_type": "request",
-      "name": "Submit Bill to GePG",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/bills/submit/BILL001",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }]
-    },
-    {
-      "_id": "req_cancel_bill",
-      "parentId": "fld_bills",
-      "_type": "request",
-      "name": "Cancel Bill",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/bills/cancel/BILL001",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
-      }
-    },
-    {
-      "_id": "req_get_bills",
-      "parentId": "fld_bills",
-      "_type": "request",
-      "name": "Get All Bills",
+      "parentId": "fld_start",
+      "name": "Check the connection",
       "method": "GET",
-      "url": "{{ _.base_url }}/api/bills?page=1&limit=20",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }]
-    },
-    {
-      "_id": "req_get_bill",
-      "parentId": "fld_bills",
-      "_type": "request",
-      "name": "Get Bill by ID",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/bills/BILL001",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "description": "Full bill detail: bill fields, items, payment history (payments array), and isPaid/totalPaid/remainingAmount."
-    },
-    {
-      "_id": "req_get_bill_status",
-      "parentId": "fld_bills",
-      "_type": "request",
-      "name": "Get Bill Status",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/bills/BILL001/status",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "description": "Lightweight paid/unpaid poll using the billId you submitted. Returns status, paymentControlNumber, isPaid, totalPaid, remainingAmount.\n\nNote: isPaid mirrors the bill's status column, set to PAID on the *first* payment even for a partially-paid (PARTIAL/LIMITED) bill - check remainingAmount === 0 if you need \"fully settled\" rather than just isPaid."
-    },
-    {
-      "_id": "req_get_payments",
-      "parentId": "fld_payments",
-      "_type": "request",
-      "name": "Get All Payments",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/payments?page=1&limit=20",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }]
-    },
-    {
-      "_id": "req_get_payment",
-      "parentId": "fld_payments",
-      "_type": "request",
-      "name": "Get Payment by ID",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/payments/1",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "description": "1 here is the payments table's own numeric id, not the billId."
-    },
-    {
-      "_id": "req_payment_stats",
-      "parentId": "fld_payments",
-      "_type": "request",
-      "name": "Get Payment Statistics",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/payments/statistics/summary?startDate=2027-01-01&endDate=2027-12-31",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }]
-    },
-    {
-      "_id": "req_submit_reconciliation",
-      "parentId": "fld_reconciliation",
-      "_type": "request",
-      "name": "Submit Reconciliation Request",
-      "method": "POST",
-      "url": "{{ _.base_url }}/api/reconciliation/request",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n  \"transactionDate\": \"2027-01-15\"\n}"
-      },
-      "description": "Asks GePG for the previous working day's successful-payments batch. Result arrives asynchronously via GePG's webhook - poll Get Reconciliation Request by ID afterward."
-    },
-    {
-      "_id": "req_get_reconciliations",
-      "parentId": "fld_reconciliation",
-      "_type": "request",
-      "name": "Get All Reconciliation Requests",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/reconciliation?page=1&limit=20",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }]
-    },
-    {
-      "_id": "req_get_reconciliation",
-      "parentId": "fld_reconciliation",
-      "_type": "request",
-      "name": "Get Reconciliation Request by ID",
-      "method": "GET",
-      "url": "{{ _.base_url }}/api/reconciliation/1700000000000",
-      "headers": [{ "name": "X-Api-Key", "value": "{{ _.api_key }}" }],
-      "description": "The id here is the reconciliationRequestId returned by Submit Reconciliation Request."
-    },
-    {
-      "_id": "req_health",
-      "parentId": "wrk_gepg",
-      "_type": "request",
-      "name": "Health Check",
-      "method": "GET",
-      "url": "{{ _.base_url }}/health",
-      "description": "No authentication required."
+      "url": "{{ _.base_url }}/api/v1/ping",
+      "description": "Returns the billing system your API key belongs to. Use it as the first call when setting up.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 1
     },
     {
       "_id": "fld_bills",
-      "parentId": "wrk_gepg",
       "_type": "request_group",
-      "name": "Bills"
+      "parentId": "wrk_gepg_bridge_billing_api",
+      "name": "Bills",
+      "description": "Create bills, check them, and change them.",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_createBill",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Create a bill and send it to GePG",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/bills",
+      "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 3,
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"billId\": \"INV-{% now 'millis', '' %}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_bulkBills",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Create many bills at once",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/bills/bulk",
+      "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 4,
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-1001\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-1002\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_reuseBill",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Reuse a control number",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/bills/reuse",
+      "description": "Issue a new bill under a control number you were given earlier, for example after the first bill was paid or expired. Same body as creating a bill, plus the old control number and a reason.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 5,
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"billId\": \"INV-{% now 'millis', '' %}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}"
+      }
+    },
+    {
+      "_id": "req_billStatuses",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Check many bills at once",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/bills/status",
+      "description": "Status, control number and amount paid for up to 100 bills in one call. References that are not yours or do not exist are listed in notFound.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 6,
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_listBills",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "List your bills",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/bills",
+      "description": "Newest first, 20 per page by default. Only your own bills are returned. Amounts in bill rows are strings with two decimals.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "20",
+          "disabled": true
+        },
+        {
+          "name": "status",
+          "value": "APPROVED",
+          "disabled": true
+        },
+        {
+          "name": "controlNumber",
+          "value": "991330026625",
+          "disabled": true
+        },
+        {
+          "name": "startDate",
+          "value": "2026-11-01",
+          "disabled": true
+        },
+        {
+          "name": "endDate",
+          "value": "2026-11-30",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 7
+    },
+    {
+      "_id": "req_getBill",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Get one bill",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/bills/{{ _.bill_id }}",
+      "description": "The bill with its items and payments, and how much is paid and still due.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 8
+    },
+    {
+      "_id": "req_getBillStatus",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Is this bill paid?",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/bills/{{ _.bill_id }}/status",
+      "description": "A light check you can poll. isPaid is true only when payments cover the whole amount; remainingAmount says how much is still due.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 9
+    },
+    {
+      "_id": "req_extendBill",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Extend the expiry date",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/bills/{{ _.bill_id }}/extend",
+      "description": "Gives an approved bill more time. The control number stays the same. The new date must be in the future and later than the current one.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 10,
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}"
+      }
+    },
+    {
+      "_id": "req_cancelBill",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Cancel a bill",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/bills/{{ _.bill_id }}/cancel",
+      "description": "Cancels a bill that has not been paid in full. You get a bill.cancelled event.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 11,
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"reason\": \"Duplicate bill\"\n}"
+      }
+    },
+    {
+      "_id": "req_printBill",
+      "_type": "request",
+      "parentId": "fld_bills",
+      "name": "Data for a printable bill",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/bills/{{ _.bill_id }}/print",
+      "description": "Everything needed to print the bill: control number, items, amount in words, payment instructions and the QR message. Only available once the bill has a control number. Add ?type=transfer for the bank-transfer form.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "type",
+          "value": "bill",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 12
     },
     {
       "_id": "fld_payments",
-      "parentId": "wrk_gepg",
       "_type": "request_group",
-      "name": "Payments"
+      "parentId": "wrk_gepg_bridge_billing_api",
+      "name": "Payments",
+      "description": "Payments received on your bills.",
+      "metaSortKey": 13
     },
     {
-      "_id": "fld_reconciliation",
-      "parentId": "wrk_gepg",
+      "_id": "req_listPayments",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "List payments",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/payments",
+      "description": "Payments on your own bills, newest first.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "1",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "20",
+          "disabled": true
+        },
+        {
+          "name": "billId",
+          "value": "INV-1001",
+          "disabled": true
+        },
+        {
+          "name": "startDate",
+          "value": "2026-11-01",
+          "disabled": true
+        },
+        {
+          "name": "endDate",
+          "value": "2026-11-30",
+          "disabled": true
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 14
+    },
+    {
+      "_id": "req_getPayment",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "Get one payment",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/payments/{{ _.payment_id }}",
+      "description": "One payment on your bills.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 15
+    },
+    {
+      "_id": "req_paymentReceipt",
+      "_type": "request",
+      "parentId": "fld_payments",
+      "name": "Data for a printable receipt",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/payments/{{ _.payment_id }}/receipt",
+      "description": "Everything needed to print the GePG receipt for a payment.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 16
+    },
+    {
+      "_id": "fld_events",
       "_type": "request_group",
-      "name": "Reconciliation"
+      "parentId": "wrk_gepg_bridge_billing_api",
+      "name": "Events feed",
+      "description": "The same events that are sent to your callback URL, for you to collect.",
+      "metaSortKey": 17
+    },
+    {
+      "_id": "req_getEvents",
+      "_type": "request",
+      "parentId": "fld_events",
+      "name": "Collect your events",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/events",
+      "description": "Your events in order, oldest first. Keep the nextCursor of the last batch you processed and ask for what came after it. Use this to catch up after downtime, or as your whole integration if you have no callback URL.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [
+        {
+          "name": "after",
+          "value": "{{ _.events_cursor }}",
+          "disabled": false
+        },
+        {
+          "name": "limit",
+          "value": "100",
+          "disabled": false
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": 18
+    },
+    {
+      "_id": "fld_sample_deliveries",
+      "_type": "request_group",
+      "parentId": "wrk_gepg_bridge_billing_api",
+      "name": "Sample deliveries (to YOUR callback URL)",
+      "description": "The bridge's sample events, sent to your own callback_url. Insomnia cannot compute the signature, so these carry the fixed test-vector signature: skip the 5-minute clock check while testing with them, or use the Postman collection which signs each one freshly.",
+      "metaSortKey": 19
+    },
+    {
+      "_id": "req_delivery_bill_approved",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "bill.approved",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "GePG accepted the bill. It now has a control number the payer can use.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "bill.approved"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"bill.approved\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"}}"
+      },
+      "authentication": {},
+      "metaSortKey": 20
+    },
+    {
+      "_id": "req_delivery_bill_rejected",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "bill.rejected",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "GePG refused the bill. reason.code and reason.description say why.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "bill.rejected"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"bill.rejected\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":null,\"status\":\"REJECTED\"},\"reason\":{\"code\":\"7223\",\"description\":\"Invalid or inactive GFS code or service type\"}}"
+      },
+      "authentication": {},
+      "metaSortKey": 21
+    },
+    {
+      "_id": "req_delivery_payment_received",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "payment.received",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "A payment arrived. It is also sent for a payment recovered by reconciliation (source is \"reconciliation\"). A bill paid in parts gives one of these per payment.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "payment.received"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}"
+      },
+      "authentication": {},
+      "metaSortKey": 22
+    },
+    {
+      "_id": "req_delivery_bill_paid",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "bill.paid",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "The payments now cover the billed amount. Sent once, right after the payment.received that settled it.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "bill.paid"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"bill.paid\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"PAID\"},\"totals\":{\"billAmount\":500000,\"totalPaid\":500000,\"remaining\":0,\"isPaid\":true}}"
+      },
+      "authentication": {},
+      "metaSortKey": 23
+    },
+    {
+      "_id": "req_delivery_bill_cancelled",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "bill.cancelled",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "The bill was cancelled.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "bill.cancelled"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"bill.cancelled\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"CANCELLED\"}}"
+      },
+      "authentication": {},
+      "metaSortKey": 24
+    },
+    {
+      "_id": "req_delivery_bill_expired",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "bill.expired",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "An approved bill passed its expiry date without being fully paid. totals shows what is still due.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "bill.expired"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"bill.expired\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"EXPIRED\"},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false}}"
+      },
+      "authentication": {},
+      "metaSortKey": 25
+    },
+    {
+      "_id": "req_delivery_system_test",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "system.test",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "Sent by the Test button on the Billing Systems page. Not part of the events feed.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "system.test"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"system.test\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"message\":\"Test event from the GePG bridge\"}"
+      },
+      "authentication": {},
+      "metaSortKey": 26
+    },
+    {
+      "_id": "req_delivery_test_vector",
+      "_type": "request",
+      "parentId": "fld_sample_deliveries",
+      "name": "Signature test vector (fixed timestamp)",
+      "method": "POST",
+      "url": "{{ _.callback_url }}",
+      "description": "Signed with the example secret whsec_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef at a fixed time.",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Bridge-Event",
+          "value": "payment.received"
+        },
+        {
+          "name": "X-Bridge-Event-Id",
+          "value": "184"
+        },
+        {
+          "name": "X-Bridge-Delivery-Attempt",
+          "value": "1"
+        },
+        {
+          "name": "X-Bridge-Timestamp",
+          "value": "1763373731"
+        },
+        {
+          "name": "X-Bridge-Signature",
+          "value": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}"
+      },
+      "authentication": {},
+      "metaSortKey": 27
     }
   ]
 }

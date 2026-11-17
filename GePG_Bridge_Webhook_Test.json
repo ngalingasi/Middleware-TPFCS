@@ -1,0 +1,10 @@
+{
+  "description": "Check your verification code against this before connecting anything. It uses a fixed example secret and a fixed timestamp, so skip the 5-minute clock check for this one test.",
+  "algorithm": "HMAC-SHA256 over \"<timestamp>.<body>\", hex",
+  "secret": "whsec_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "timestamp": 1763373731,
+  "body": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}",
+  "signedText": "1763373731.{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}",
+  "expectedSignature": "3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4",
+  "header": "t=1763373731,v1=3b1c68cb39862d432b0ce13a12a3ee7242627e6bbb23e64e09afadb77781a4b4"
+}

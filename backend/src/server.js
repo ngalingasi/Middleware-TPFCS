@@ -23,6 +23,7 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const billingSystemRoutes = require('./routes/billingSystemRoutes');
 const outboxRoutes = require('./routes/outboxRoutes');
 const v1Routes = require('./routes/v1Routes');
+const developerRoutes = require('./routes/developerRoutes');
 const settings = require('./services/settingsService');
 const eventService = require('./services/eventService');
 const { startExpiryJob } = require('./services/expiryService');
@@ -61,6 +62,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/billing-systems', billingSystemRoutes);
 app.use('/api/outbox', outboxRoutes);
 app.use('/api/v1', v1Routes);
+app.use('/api/developer', developerRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
