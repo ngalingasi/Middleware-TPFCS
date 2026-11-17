@@ -13,6 +13,7 @@ const userRoutes = require('./routes/userRoutes');
 const logsRoutes = require('./routes/logsRoutes');
 const apiKeyRoutes = require('./routes/apiKeyRoutes');
 const gfsCodeRoutes = require('./routes/gfsCodeRoutes');
+const gepgCodeRoutes = require('./routes/gepgCodeRoutes');
 const activityLogger = require('./middleware/activityLogger');
 
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/reconciliation', reconciliationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/api-keys', apiKeyRoutes);
 app.use('/api/gfs-codes', gfsCodeRoutes);
+app.use('/api/gepg-codes', gepgCodeRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {

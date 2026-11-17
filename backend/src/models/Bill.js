@@ -162,7 +162,9 @@ class Bill {
   async markSubmissionFailed(billId, errorMessage) {
     await db.query(
       'UPDATE bills SET status = ?, transaction_status_code = ? WHERE bill_id = ?',
-      ['REJECTED', errorMessage, billId]
+      // transaction_status_code is VARCHAR(50) - a long error message would
+      // otherwise fail the UPDATE itself (strict mode) and mask the real error.
+      ['REJECTED', String(errorMessage).slice(0, 50), billId]
     );
   }
 
@@ -181,6 +183,8 @@ class Bill {
     // previously issued control number, so keep it and treat the bill as
     // approved (SIT BP001_05).
     const isDuplicateWithControlNumber = String(transactionStatusCode) === '7226' && hasControlNumber;
+    // A failed response for a bill that already holds a control number (e.g.
+    // a rejected expiry change) must not downgrade it - see the status CASE.
     const succeeded = transactionStatusCode
       ? String(transactionStatusCode) === '7101' || isDuplicateWithControlNumber
       : transactionStatus === 'GS';
@@ -190,7 +194,9 @@ class Bill {
         payment_control_number = CASE WHEN ? THEN ? ELSE payment_control_number END,
         status = CASE
           WHEN status IN ('PAID', 'CANCELLED') THEN status
-          ELSE ?
+          WHEN ? = 'APPROVED' THEN 'APPROVED'
+          WHEN status = 'APPROVED' AND payment_control_number IS NOT NULL THEN status
+          ELSE 'REJECTED'
         END,
         transaction_status = ?,
         transaction_status_code = ?
@@ -203,6 +209,34 @@ class Bill {
         transactionStatusCode,
         billId
       ]
+    );
+  }
+
+  /**
+   * Most recent bill that was issued the given control number. Used to
+   * validate a reuse request: GePG only lets a control number be reused by
+   * the institution that was issued it.
+   */
+  async findByControlNumber(controlNumber) {
+    const [rows] = await db.query(
+      'SELECT * FROM bills WHERE payment_control_number = ? ORDER BY id DESC LIMIT 1',
+      [String(controlNumber)]
+    );
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  async updateExpiry(billId, billExpiryDate) {
+    await db.query('UPDATE bills SET bill_expiry_date = ? WHERE bill_id = ?', [billExpiryDate, billId]);
+  }
+
+  /**
+   * Record that GePG's immediate acknowledgement refused the request, so the
+   * bill shows as REJECTED with the code instead of staying PENDING forever.
+   */
+  async markRejectedByAck(billId, ackStatusCode) {
+    await db.query(
+      `UPDATE bills SET status = 'REJECTED', transaction_status_code = ? WHERE bill_id = ? AND status = 'PENDING'`,
+      [String(ackStatusCode).slice(0, 50), billId]
     );
   }
 

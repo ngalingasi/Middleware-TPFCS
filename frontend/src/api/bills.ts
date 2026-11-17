@@ -26,6 +26,23 @@ export const billsApi = {
   submit: (billId: string) =>
     gepgClient.post<GepgApiResponse<unknown>>(`/bills/submit/${billId}`),
 
+  /** Extend an approved bill's expiry date; the control number is unchanged. */
+  changeExpiry: (billId: string, billExpiryDate: string, reason: string) =>
+    gepgClient.post<GepgApiResponse<unknown>>(`/bills/change/${billId}`, { billExpiryDate, reason }),
+
+  /** Reuse a control number GePG issued earlier for new bill details. */
+  reuse: (data: CreateBillPayload & { paymentControlNumber: string; reuseReason: string }) =>
+    gepgClient.post<GepgApiResponse<unknown>>('/bills/reuse', data),
+
+  /** Create and submit many bills at once; returns a result per bill. */
+  bulk: (bills: CreateBillPayload[]) =>
+    gepgClient.post<{
+      success: boolean;
+      message: string;
+      summary: { total: number; succeeded: number; failed: number };
+      results: Array<{ billId: string; success: boolean; code?: string; message: string }>;
+    }>('/bills/bulk', { bills }),
+
   cancel: (billId: string, reason: string) =>
     gepgClient.post<GepgApiResponse<unknown>>(`/bills/cancel/${billId}`, { reason }),
 };

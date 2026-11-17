@@ -56,6 +56,41 @@ router.post('/submit/:billId', authenticateAny, billController.submitBill);
 router.post('/create-and-submit', authenticateAny, billValidation, billController.createAndSubmit);
 
 /**
+ * @route   POST /api/bills/bulk
+ * @desc    Create and submit many bills in one call ({ bills: [...] }, max
+ *          100). Each bill is validated and sent independently; the response
+ *          lists a result (and GePG code) per bill.
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
+ */
+router.post('/bulk', authenticateAny, billController.bulkCreateAndSubmit);
+
+/**
+ * @route   POST /api/bills/reuse
+ * @desc    Reuse a control number GePG issued earlier (paid, expired or
+ *          cancelled bill) for new bill details. Same payload as /create plus
+ *          paymentControlNumber and reuseReason.
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
+ */
+router.post(
+  '/reuse',
+  authenticateAny,
+  billValidation,
+  [
+    body('paymentControlNumber').notEmpty().withMessage('paymentControlNumber is required for reuse'),
+    body('reuseReason').trim().notEmpty().withMessage('reuseReason is required for reuse')
+  ],
+  billController.reuseBill
+);
+
+/**
+ * @route   POST /api/bills/change/:billId
+ * @desc    Extend the expiry date of an existing approved bill; the control
+ *          number is unchanged. Body: { billExpiryDate, reason }.
+ * @access  Dashboard (JWT) or child system (X-Api-Key)
+ */
+router.post('/change/:billId', authenticateAny, billController.changeBillExpiry);
+
+/**
  * @route   POST /api/bills/cancel/:billId
  * @desc    Cancel a bill
  * @access  Dashboard (JWT) or child system (X-Api-Key)

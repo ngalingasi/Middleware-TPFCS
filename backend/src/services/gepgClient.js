@@ -156,7 +156,7 @@ class GePGClient {
    * Synchronous API: the HTTP response to this call is the billCanclRes
    * itself, no separate ack/webhook involved.
    */
-  async cancelBill(billId, cancellationReason) {
+  async cancelBill(billId, cancellationReason, actor) {
     try {
       const data = {
         spCode: this.spCode,
@@ -164,7 +164,11 @@ class GePGClient {
         spGrpCode: this.spGrpCode,
         reqId: this.generateReqId(),
         billId,
-        cancellationReason
+        cancellationReason,
+        // CanclGenBy / CanclApprBy are String(30) - xmlBuilder falls back to
+        // 'SYSTEM' when these are undefined.
+        cancelledBy: actor ? String(actor).slice(0, 30) : undefined,
+        approvedBy: actor ? String(actor).slice(0, 30) : undefined
       };
 
       const xmlMessage = xmlBuilder.buildBillCancellationRequest(data);

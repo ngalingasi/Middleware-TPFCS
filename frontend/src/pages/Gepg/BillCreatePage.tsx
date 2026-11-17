@@ -12,6 +12,7 @@ import { billsApi } from '../../api/bills';
 import { gfsCodesApi } from '../../api/gfsCodes';
 import type { CreateBillPayload, GfsCodeRecord } from '../../types/gepg';
 import { toast } from '../../components/tpfcs/Toast';
+import { gepgErrorMessage } from '../../utils/gepgError';
 
 interface ItemRow {
   uid: number; // stable identity for React's key - array index isn't
@@ -74,6 +75,18 @@ export default function BillCreatePage() {
       return;
     }
 
+    // GePG rejects zero/negative amounts as invalid request data (7242,
+    // SIT BP001_10). Catch it here so the user gets an immediate message
+    // naming the offending item; the server enforces the same rule.
+    const badItem = items.findIndex((it) => {
+      const amount = Number(it.billItemAmount);
+      return !Number.isFinite(amount) || amount <= 0;
+    });
+    if (badItem !== -1) {
+      toast.error('Invalid amount', `Item ${badItem + 1}: amount must be greater than zero.`);
+      return;
+    }
+
     const payload: CreateBillPayload = {
       billId,
       billAmount: totalAmount,
@@ -104,7 +117,7 @@ export default function BillCreatePage() {
       }
       navigate(`/bills/${billId}`);
     } catch (err: any) {
-      toast.error('Failed to create bill', err?.response?.data?.message ?? 'Unknown error');
+      toast.error('Failed to create bill', gepgErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -182,7 +195,7 @@ export default function BillCreatePage() {
                 </div>
                 <div>
                   <Label>Amount *</Label>
-                  <Input type="number" value={item.billItemAmount} onChange={(e) => updateItem(item.uid, 'billItemAmount', e.target.value)} />
+                  <Input type="number" min="0.01" step={0.01} value={item.billItemAmount} onChange={(e) => updateItem(item.uid, 'billItemAmount', e.target.value)} />
                 </div>
                 <div className="flex items-end">
                   <Button type="button" variant="outline" size="sm" onClick={() => removeItem(item.uid)} disabled={items.length === 1}>

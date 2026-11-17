@@ -2,6 +2,51 @@ const ReconciliationRequest = require('../models/ReconciliationRequest');
 const ReconciliationTransaction = require('../models/ReconciliationTransaction');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
+const Payment = require('../models/Payment');
+const Bill = require('../models/Bill');
+const { validationResult } = require('express-validator');
+
+// Same local ONLINE/OFFLINE approximation paymentController uses.
+const ONLINE_CHANNELS = new Set(['MC', 'VC', 'OT', 'AMEX', 'UPI']);
+
+// GePG keeps reconciliation data for 7 days from receipt (spec section 7,
+// note 4) and only reconciles *previous* days: today and future dates are
+// out of range (SIT RP001_02: 10 days old / today / beyond today must fail
+// with an out-of-range error). Tanzania is UTC+3 with no DST, so "today" is
+// computed there rather than in the server's timezone.
+const RECONCILIATION_MAX_DAYS_BACK = 7;
+
+function tanzaniaToday() {
+  const tzNow = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return new Date(Date.UTC(tzNow.getUTCFullYear(), tzNow.getUTCMonth(), tzNow.getUTCDate()));
+}
+
+/**
+ * Returns null when the date is acceptable, otherwise { code, message }
+ * using GePG's own codes (7318 invalid date, 7319 out of allowable range).
+ */
+function validateReconciliationDate(transactionDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)) {
+    return { code: '7318', message: 'Invalid reconciliation request date (expected YYYY-MM-DD)' };
+  }
+
+  const requested = new Date(`${transactionDate}T00:00:00Z`);
+  if (Number.isNaN(requested.getTime()) || requested.toISOString().slice(0, 10) !== transactionDate) {
+    return { code: '7318', message: 'Invalid reconciliation request date' };
+  }
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const daysBack = Math.round((tanzaniaToday() - requested) / dayMs);
+
+  if (daysBack < 1 || daysBack > RECONCILIATION_MAX_DAYS_BACK) {
+    return {
+      code: '7319',
+      message: `Reconciliation request date is out of allowable range (must be between ${RECONCILIATION_MAX_DAYS_BACK} days ago and yesterday)`
+    };
+  }
+
+  return null;
+}
 
 /**
  * POST /api/reconciliation/request
@@ -12,10 +57,20 @@ const xmlBuilder = require('../utils/xmlBuilder');
  */
 async function submitReconciliationRequest(req, res) {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, code: '7318', message: errors.array()[0].msg, errors: errors.array() });
+    }
+
     const { transactionDate } = req.body;
 
     if (!transactionDate) {
-      return res.status(400).json({ success: false, message: 'transactionDate is required (YYYY-MM-DD)' });
+      return res.status(400).json({ success: false, code: '7318', message: 'transactionDate is required (YYYY-MM-DD)' });
+    }
+
+    const dateProblem = validateReconciliationDate(transactionDate);
+    if (dateProblem) {
+      return res.status(400).json({ success: false, code: dateProblem.code, message: dateProblem.message });
     }
 
     const reqId = gepgClient.generateReqId();
