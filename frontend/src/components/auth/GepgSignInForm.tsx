@@ -242,6 +242,7 @@ export default function GepgSignInForm() {
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const autoSubmitted = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -321,13 +322,7 @@ export default function GepgSignInForm() {
     otpInputsRef.current[pasted.length - 1]?.focus();
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = otpDigits.join('');
-    if (code.length < OTP_LENGTH) {
-      setError('Please enter the complete 6-digit code.');
-      return;
-    }
+  const verifyOtp = async (code: string) => {
     setError('');
     setLoading(true);
     try {
@@ -337,10 +332,35 @@ export default function GepgSignInForm() {
       navigate('/');
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Invalid or expired OTP. Please request a new one.');
+      resetOtp();
+      setTimeout(() => otpInputsRef.current[0]?.focus(), 0);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otpDigits.join('');
+    if (code.length < OTP_LENGTH) {
+      setError('Please enter the complete 6-digit code.');
+      return;
+    }
+    autoSubmitted.current = true;
+    verifyOtp(code);
+  };
+
+  // submit as soon as the last digit is in (typed or pasted)
+  useEffect(() => {
+    const code = otpDigits.join('');
+    if (code.length < OTP_LENGTH) {
+      autoSubmitted.current = false;
+      return;
+    }
+    if (step !== 'otp' || loading || autoSubmitted.current) return;
+    autoSubmitted.current = true;
+    verifyOtp(code);
+  }, [otpDigits]);
 
   const backToCredentials = () => {
     setError('');
