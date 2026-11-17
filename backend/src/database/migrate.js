@@ -335,6 +335,34 @@ CREATE TABLE IF NOT EXISTS gfs_codes (
 -- (section 4.6) declares GfsCode as String(20) - a legitimate 20-char code
 -- would have silently truncated. Widening is safe (never loses data).
 ALTER TABLE bill_items MODIFY COLUMN gfs_code VARCHAR(20) NOT NULL;
+
+-- Column widening to match GePG API v5.0 field definitions. Several columns
+-- were sized for v4-era values and silently truncate (or reject in strict
+-- mode) real v5 data:
+--   * ReqId is String(100) - our generated ReqId is SpCode + 13-digit
+--     timestamp (~20 chars), which does not fit VARCHAR(15).
+--   * SpCode examples are 7 chars ("SP99128"), SysCode up to 10+.
+--   * Control numbers are Numeric(20) (combined/customer control numbers
+--     are 15 digits), not 12.
+-- Widening is safe (never loses data). reconciliation_request_id is
+-- referenced by a foreign key, so both sides are changed together with FK
+-- checks off, then re-enabled.
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE reconciliation_requests MODIFY COLUMN reconciliation_request_id VARCHAR(100) NOT NULL;
+ALTER TABLE reconciliation_transactions MODIFY COLUMN reconciliation_request_id VARCHAR(100);
+SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE reconciliation_requests MODIFY COLUMN sp_code VARCHAR(10);
+ALTER TABLE reconciliation_requests MODIFY COLUMN sp_sys_id VARCHAR(20);
+ALTER TABLE reconciliation_transactions MODIFY COLUMN bill_control_number VARCHAR(20);
+ALTER TABLE reconciliation_transactions MODIFY COLUMN credited_account_number VARCHAR(50);
+ALTER TABLE reconciliation_transactions MODIFY COLUMN depositor_cell_num VARCHAR(15);
+ALTER TABLE bills MODIFY COLUMN sp_sys_id VARCHAR(20);
+ALTER TABLE bills MODIFY COLUMN payment_control_number VARCHAR(20);
+ALTER TABLE payments MODIFY COLUMN sp_code VARCHAR(10);
+ALTER TABLE payments MODIFY COLUMN payment_control_number VARCHAR(20);
+ALTER TABLE payments MODIFY COLUMN credited_account_number VARCHAR(50);
+ALTER TABLE payments MODIFY COLUMN payer_cell_num VARCHAR(15);
 `;
 
 async function runMigrations() {

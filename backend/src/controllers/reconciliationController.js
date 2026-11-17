@@ -90,6 +90,46 @@ async function handleReconciliationResponseWebhook(req, res) {
     }));
 
     await ReconciliationTransaction.createMany(reconciliationRequestId, transactions);
+
+    // SIT RP001_03: a payment GePG settled but whose pmtSpNtfReq never
+    // reached us must be recovered from reconciliation, otherwise the bill
+    // stays unpaid here. Payment.create is idempotent on transaction id, so
+    // entries we already hold are skipped.
+    if (String(batchHdr.PayStsCode) === '7101') {
+      for (const t of rawTransactions) {
+        const bill = await Bill.findById(t.BillId);
+        if (!bill) {
+          console.warn(`Reconciliation: no local bill ${t.BillId} for transaction ${t.TrxId}, skipped`);
+          continue;
+        }
+
+        const result = await Payment.create({
+          transactionId: t.TrxId,
+          spCode: t.SpCode,
+          payRefId: t.PayRefId,
+          billId: t.BillId,
+          paymentControlNumber: t.BillCtrNum,
+          billAmount: parseFloat(t.BillAmt),
+          paidAmount: parseFloat(t.PaidAmt),
+          billPayOption: t.BillPayOpt,
+          currency: t.Ccy,
+          transactionDateTime: t.TrxDtTm,
+          usedPaymentChannel: t.UsdPayChnl,
+          payerCellNumber: t.PyrCellNum,
+          payerName: t.PyrName,
+          payerEmail: t.PyrEmail,
+          pspReceiptNumber: t.TrdPtyTrxId,
+          pspName: t.PspName,
+          pspCode: t.PspCode,
+          creditedAccountNumber: t.CollAccNum,
+          paymentType: ONLINE_CHANNELS.has((t.UsdPayChnl || '').toUpperCase()) ? 'ONLINE' : 'OFFLINE'
+        });
+
+        if (!result.duplicate) {
+          console.log(`Reconciliation: recovered missed payment ${t.TrxId} for bill ${t.BillId}`);
+        }
+      }
+    }
     await ReconciliationRequest.markCompleted(reconciliationRequestId, batchHdr.PayStsCode);
 
     const ackXML = xmlBuilder.buildAcknowledgement({

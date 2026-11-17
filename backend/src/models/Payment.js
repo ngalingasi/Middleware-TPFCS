@@ -13,6 +13,20 @@ class Payment {
     try {
       await connection.beginTransaction();
 
+      // Idempotency (SIT PP001_02): GePG re-sends payments it already
+      // delivered, and reconciliation can replay ones we already hold.
+      // transaction_id is UNIQUE, so inserting again would throw and make
+      // the webhook nack - GePG would then retry for 24h. Treat a repeat as
+      // already-processed instead.
+      const [existing] = await connection.query(
+        'SELECT id FROM payments WHERE transaction_id = ? LIMIT 1',
+        [paymentData.transactionId]
+      );
+      if (existing.length > 0) {
+        await connection.rollback();
+        return { success: true, duplicate: true, paymentId: existing[0].id };
+      }
+
       const [result] = await connection.query(
         `INSERT INTO payments (
           transaction_id, sp_code, pay_ref_id, bill_id, payment_control_number,
@@ -50,6 +64,10 @@ class Payment {
       return { success: true, paymentId: result.insertId };
     } catch (error) {
       await connection.rollback();
+      // Lost a race with a concurrent delivery of the same transaction.
+      if (error.code === 'ER_DUP_ENTRY') {
+        return { success: true, duplicate: true };
+      }
       throw error;
     } finally {
       connection.release();

@@ -171,17 +171,35 @@ class Bill {
    * outcome (GS/GF) and the payment control number.
    */
   async applySubmissionResponse(billId, { paymentControlNumber, transactionStatus, transactionStatusCode }) {
+    // GePG sends BillCntrNum=0 on a failed bill - never overwrite a stored
+    // control number with that placeholder.
+    const hasControlNumber = paymentControlNumber && String(paymentControlNumber) !== '0';
+
+    // Per-bill status code decides the outcome, falling back to the header
+    // ResSts when absent. 7226 (duplicate bill information) is NOT a
+    // failure: spec 4.1 says a resubmitted BillId is answered with the
+    // previously issued control number, so keep it and treat the bill as
+    // approved (SIT BP001_05).
+    const isDuplicateWithControlNumber = String(transactionStatusCode) === '7226' && hasControlNumber;
+    const succeeded = transactionStatusCode
+      ? String(transactionStatusCode) === '7101' || isDuplicateWithControlNumber
+      : transactionStatus === 'GS';
+
     await db.query(
       `UPDATE bills SET
-        payment_control_number = ?,
-        status = ?,
+        payment_control_number = CASE WHEN ? THEN ? ELSE payment_control_number END,
+        status = CASE
+          WHEN status IN ('PAID', 'CANCELLED') THEN status
+          ELSE ?
+        END,
         transaction_status = ?,
         transaction_status_code = ?
       WHERE bill_id = ?`,
       [
-        paymentControlNumber,
-        transactionStatus === 'GS' ? 'APPROVED' : 'REJECTED',
-        transactionStatus,
+        hasControlNumber ? 1 : 0,
+        hasControlNumber ? String(paymentControlNumber) : null,
+        succeeded ? 'APPROVED' : 'REJECTED',
+        succeeded ? 'GS' : 'GF',
         transactionStatusCode,
         billId
       ]

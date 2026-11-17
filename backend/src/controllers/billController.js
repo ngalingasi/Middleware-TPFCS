@@ -15,7 +15,7 @@ async function createBill(req, res) {
     // only populate req, they don't reject on their own without this.
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: errors.array()[0].msg, errors: errors.array() });
+      return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
     }
 
     const result = await Bill.create(req.body, req.body.items || []);
@@ -118,7 +118,7 @@ async function createAndSubmit(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, message: errors.array()[0].msg, errors: errors.array() });
+      return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
     }
 
     await Bill.create(req.body, req.body.items || []);
