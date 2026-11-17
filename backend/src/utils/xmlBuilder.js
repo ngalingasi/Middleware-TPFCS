@@ -1,4 +1,5 @@
 const xml2js = require('xml2js');
+const { ACK, gepgError } = require('./gepgErrors');
 
 /**
  * Builds/parses GePG API v5.0 XML payloads.
@@ -233,7 +234,7 @@ class XMLBuilder {
     try {
       return await this.parser.parseStringPromise(xmlString);
     } catch (error) {
-      throw new Error(`XML parsing failed: ${error.message}`);
+      throw gepgError(`XML parsing failed: ${error.message}`, ACK.INVALID_DATA, error);
     }
   }
 

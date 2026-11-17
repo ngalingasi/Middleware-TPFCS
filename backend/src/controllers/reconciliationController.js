@@ -2,6 +2,7 @@ const ReconciliationRequest = require('../models/ReconciliationRequest');
 const ReconciliationTransaction = require('../models/ReconciliationTransaction');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
+const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErrors');
 const Payment = require('../models/Payment');
 const Bill = require('../models/Bill');
 const { validationResult } = require('express-validator');
@@ -115,7 +116,7 @@ async function handleReconciliationResponseWebhook(req, res) {
     reconcResp = verified.sucSpPmtRes;
 
     if (!reconcResp) {
-      throw new Error('Payload did not contain sucSpPmtRes');
+      throw gepgError('Payload did not contain sucSpPmtRes', ACK.INVALID_DATA);
     }
 
     const batchHdr = reconcResp.BatchHdr;
@@ -197,14 +198,18 @@ async function handleReconciliationResponseWebhook(req, res) {
     res.send(ackXML);
   } catch (error) {
     console.error('Reconciliation response webhook error:', error);
+    const ackCode = ackCodeFor(error);
+    if (ackCode === ACK.INVALID_SIGNATURE || ackCode === ACK.SIGNATURE_CONFIG) {
+      console.warn(`Rejected inbound GePG message (${ackCode}): ${error.message}`);
+    }
     const ackXML = xmlBuilder.buildAcknowledgement({
       ackId: gepgClient.generateReqId(),
       referenceId: reconcResp && reconcResp.BatchHdr ? reconcResp.BatchHdr.ResId : '',
-      statusCode: '7242',
+      statusCode: ackCode,
       type: 'sucSpPmtResAck'
     });
     res.set('Content-Type', 'application/xml');
-    res.status(400).send(ackXML);
+    res.status(httpStatusFor(ackCode)).send(ackXML);
   }
 }
 

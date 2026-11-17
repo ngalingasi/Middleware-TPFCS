@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const forge = require('node-forge');
+const { ACK, gepgError } = require('./gepgErrors');
 
 /**
  * Implements GePG's digital signature requirements (API v5.0, section 13):
@@ -88,7 +89,9 @@ class DigitalSignature {
   verifySignature(message, signature, publicKeyPath) {
     try {
       if (!fs.existsSync(publicKeyPath)) {
-        throw new Error(`Public key/certificate file not found: ${publicKeyPath}`);
+        // Our copy of GePG's certificate is missing: a configuration fault
+        // (7304), not evidence the message is forged.
+        throw gepgError(`Public key/certificate file not found: ${publicKeyPath}`, ACK.SIGNATURE_CONFIG);
       }
 
       const publicKeyPem = fs.readFileSync(publicKeyPath, 'utf8');
@@ -100,7 +103,9 @@ class DigitalSignature {
 
       return verify.verify(publicKeyPem, cleanSignature, this.encoding);
     } catch (error) {
-      throw new Error(`Verification failed: ${error.message}`);
+      // A signature that cannot even be decoded/verified is an invalid
+      // signature (7303) unless a more specific code was already set.
+      throw gepgError(`Verification failed: ${error.message}`, error.gepgCode || ACK.INVALID_SIGNATURE, error);
     }
   }
 
@@ -127,7 +132,8 @@ class DigitalSignature {
       const signatureMatch = envelopeXML.match(/<signature>([\s\S]*?)<\/signature>/);
 
       if (!messageMatch || !signatureMatch) {
-        throw new Error('Invalid envelope format: missing <Gepg> message or <signature>');
+        // No signature element means there is nothing to verify.
+        throw gepgError('Invalid envelope format: missing <Gepg> message or <signature>', ACK.INVALID_SIGNATURE);
       }
 
       const message = messageMatch[1].trim();
@@ -137,7 +143,7 @@ class DigitalSignature {
 
       return { message, signature, isValid };
     } catch (error) {
-      throw new Error(`Failed to extract and verify envelope: ${error.message}`);
+      throw gepgError(`Failed to extract and verify envelope: ${error.message}`, error.gepgCode || ACK.INVALID_SIGNATURE, error);
     }
   }
 }

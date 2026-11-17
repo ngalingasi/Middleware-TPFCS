@@ -1,6 +1,7 @@
 const axios = require('axios');
 const xmlBuilder = require('../utils/xmlBuilder');
 const digitalSignature = require('../utils/digitalSignature');
+const { ACK, gepgError } = require('../utils/gepgErrors');
 require('dotenv').config();
 
 class GePGClient {
@@ -225,13 +226,15 @@ class GePGClient {
       );
 
       if (!result.isValid) {
-        throw new Error('Invalid signature from GePG');
+        throw gepgError('Invalid signature from GePG', ACK.INVALID_SIGNATURE);
       }
 
       return await xmlBuilder.parseXML(result.message);
 
     } catch (error) {
-      throw new Error(`Message verification failed: ${error.message}`);
+      // Keep the specific code (7303 bad signature, 7304 certificate config,
+      // 7242 malformed XML) so the webhook can acknowledge with it.
+      throw gepgError(`Message verification failed: ${error.message}`, error.gepgCode || ACK.INVALID_SIGNATURE, error);
     }
   }
 }

@@ -1,6 +1,7 @@
 const Payment = require('../models/Payment');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
+const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErrors');
 
 // v5 has no online/offline distinction at the protocol level (both were
 // merged into pmtSpNtfReq) - this is a local approximation only, so the
@@ -21,7 +22,7 @@ async function handlePaymentNotification(req, res) {
     pmtReq = verified.pmtSpNtfReq;
 
     if (!pmtReq) {
-      throw new Error('Payload did not contain pmtSpNtfReq');
+      throw gepgError('Payload did not contain pmtSpNtfReq', ACK.INVALID_DATA);
     }
 
     const trxDtlList = xmlBuilder.toArray(pmtReq.PmtDtls && pmtReq.PmtDtls.PmtTrxDtl);
@@ -67,14 +68,18 @@ async function handlePaymentNotification(req, res) {
     res.send(ackXML);
   } catch (error) {
     console.error('Payment notification error:', error);
+    const ackCode = ackCodeFor(error);
+    if (ackCode === ACK.INVALID_SIGNATURE || ackCode === ACK.SIGNATURE_CONFIG) {
+      console.warn(`Rejected inbound GePG message (${ackCode}): ${error.message}`);
+    }
     const ackXML = xmlBuilder.buildAcknowledgement({
       ackId: gepgClient.generateReqId(),
       referenceId: pmtReq && pmtReq.PmtHdr ? pmtReq.PmtHdr.ReqId : '',
-      statusCode: '7242',
+      statusCode: ackCode,
       type: 'pmtSpNtfReqAck'
     });
     res.set('Content-Type', 'application/xml');
-    res.status(400).send(ackXML);
+    res.status(httpStatusFor(ackCode)).send(ackXML);
   }
 }
 

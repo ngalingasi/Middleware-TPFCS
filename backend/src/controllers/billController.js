@@ -4,6 +4,7 @@ const BillItem = require('../models/BillItem');
 const Payment = require('../models/Payment');
 const gepgClient = require('../services/gepgClient');
 const xmlBuilder = require('../utils/xmlBuilder');
+const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErrors');
 const GfsCode = require('../models/GfsCode');
 const { describeCode, describeCodes } = require('../utils/gepgCodes');
 
@@ -583,7 +584,7 @@ async function handleBillResponseWebhook(req, res) {
     billResp = verified.billSubRes;
 
     if (!billResp) {
-      throw new Error('Payload did not contain billSubRes');
+      throw gepgError('Payload did not contain billSubRes', ACK.INVALID_DATA);
     }
 
     const billDtlList = xmlBuilder.toArray(billResp.BillDtls && billResp.BillDtls.BillDtl);
@@ -606,14 +607,18 @@ async function handleBillResponseWebhook(req, res) {
     res.send(ackXML);
   } catch (error) {
     console.error('Bill response webhook error:', error);
+    const ackCode = ackCodeFor(error);
+    if (ackCode === ACK.INVALID_SIGNATURE || ackCode === ACK.SIGNATURE_CONFIG) {
+      console.warn(`Rejected inbound GePG message (${ackCode}): ${error.message}`);
+    }
     const ackXML = xmlBuilder.buildAcknowledgement({
       ackId: gepgClient.generateReqId(),
       referenceId: billResp && billResp.BillHdr ? billResp.BillHdr.ResId : '',
-      statusCode: '7242',
+      statusCode: ackCode,
       type: 'billSubResAck'
     });
     res.set('Content-Type', 'application/xml');
-    res.status(400).send(ackXML);
+    res.status(httpStatusFor(ackCode)).send(ackXML);
   }
 }
 
