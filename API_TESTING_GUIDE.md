@@ -10,7 +10,7 @@ Everything a billing system needs to call the bridge and receive its events is i
 | `GePG_Bridge_OpenAPI.json` | Swagger, Redoc or code generators. Events are listed under `webhooks` |
 | `GePG_Bridge_Webhook_Test.json` | A fixed secret, body and signature to check your signature code against |
 
-The Developer page of the dashboard offers the same files, written for one billing system (its code, its callback URL) and with the real server address filled in. That is the best copy to hand to a billing system's team.
+The dashboard's Developer page offers the same files, written for one billing system (its code, its callback URL) and with the real server address filled in, which is the best copy to hand to a billing system's team. It can be shown or hidden with `VITE_SHOW_DEVELOPER` in `frontend/.env`.
 
 ## Before you start (an admin does this)
 

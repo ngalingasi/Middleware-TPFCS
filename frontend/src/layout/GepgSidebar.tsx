@@ -6,6 +6,7 @@
 import { Link, useLocation } from 'react-router';
 import { useSidebar } from '../context/SidebarContext';
 import { useGepgAuth } from '../store/gepgAuthStore';
+import { FEATURES } from '../config/features';
 
 const Icon = {
   Dashboard: () => (
@@ -99,7 +100,8 @@ export default function GepgSidebar() {
   const location = useLocation();
   const expanded = isExpanded || isHovered || isMobileOpen;
 
-  const nav = isAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
+  const adminNav = FEATURES.developer ? ADMIN_NAV : ADMIN_NAV.filter((item) => item.path !== '/developer');
+  const nav = isAdmin ? [...NAV, ...adminNav] : NAV;
 
   const isActive = (path: string) => (path === '/' ? location.pathname === '/' : location.pathname.startsWith(path));
 

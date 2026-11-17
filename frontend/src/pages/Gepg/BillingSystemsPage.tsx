@@ -16,6 +16,7 @@ import { toast } from '../../components/tpfcs/Toast';
 import { billingSystemsApi } from '../../api/billingSystems';
 import { apiKeysApi } from '../../api/apiKeys';
 import { gepgErrorMessage } from '../../utils/gepgError';
+import { FEATURES } from '../../config/features';
 import type { ApiKeyRecord, BillingSystem, BillingSystemInput } from '../../types/gepg';
 
 const selectClass =
@@ -301,10 +302,12 @@ export default function BillingSystemsPage() {
         </div>
       </div>
 
-      <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-        Setting up a system? Share the endpoints, delivery details and sample requests from{' '}
-        <Link to="/developer?tab=delivery" className="text-brand-600 hover:underline dark:text-brand-400">Developer</Link>.
-      </p>
+      {FEATURES.developer && (
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+          Setting up a system? Share the endpoints, delivery details and sample requests from{' '}
+          <Link to="/developer?tab=delivery" className="text-brand-600 hover:underline dark:text-brand-400">Developer</Link>.
+        </p>
+      )}
 
       <Modal isOpen={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Add billing system' : `Edit ${editing ? editing.code : ''}`} size="lg">
         <div className="space-y-4">

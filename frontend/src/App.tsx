@@ -3,7 +3,8 @@
 // │ App routes
 // └──────────────────────────────────────────────────────────────────────────┘
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router';
+import { FEATURES } from './config/features';
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { GepgAuthProvider } from './context/GepgAuthContext';
 import GepgProtectedRoute from './components/tpfcs/GepgProtectedRoute';
@@ -88,7 +89,7 @@ export default function App() {
               <Route path="/gfs-codes" element={<GfsCodesPage />} />
               <Route path="/billing-systems" element={<BillingSystemsPage />} />
               <Route path="/outbox" element={<OutboxPage />} />
-              <Route path="/developer" element={<DeveloperPage />} />
+              <Route path="/developer" element={FEATURES.developer ? <DeveloperPage /> : <Navigate to="/" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Route>
