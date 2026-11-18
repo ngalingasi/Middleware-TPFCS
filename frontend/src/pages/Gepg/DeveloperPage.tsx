@@ -310,7 +310,7 @@ billing system --"is it paid?"--> bridge`}</pre>
           </Section>
         )}
 
-        {tab === 'bills' && <Groups groups={group('bills')} />}
+        {tab === 'bills' && <Groups groups={[...group('reference'), ...group('bills')]} />}
 
         {tab === 'payments' && <Groups groups={[...group('payments'), ...group('events')]} />}
 

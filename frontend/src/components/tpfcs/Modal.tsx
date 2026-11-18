@@ -42,7 +42,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[rgba(0,0,0,0.7)] dark:bg-[rgba(0,0,0,0.8)] backdrop-blur-[2px]"
         onClick={onClose}
       />
 

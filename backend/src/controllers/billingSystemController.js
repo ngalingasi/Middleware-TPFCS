@@ -6,6 +6,8 @@
 const BillingSystem = require('../models/BillingSystem');
 const ApiKey = require('../models/ApiKey');
 const eventService = require('../services/eventService');
+const GfsCode = require('../models/GfsCode');
+const ActivityLog = require('../models/ActivityLog');
 
 const CODE_PATTERN = /^[A-Z][A-Z0-9]{1,11}$/;
 
@@ -160,4 +162,67 @@ async function replayDead(req, res) {
   }
 }
 
-module.exports = { list, create, update, rotateSecret, keys, sendTest, replayDead };
+function audit(req, system, description, data) {
+  return ActivityLog.create({
+    user_id: req.user.id, action: 'GFS_LINK', entity_type: 'billing_system', entity_id: system.code, description,
+    ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: data, response_data: null, status: 'SUCCESS'
+  });
+}
+
+// the codes this system may bill with, and the others that could be linked to it
+async function gfsCodes(req, res) {
+  try {
+    const system = await BillingSystem.findById(req.params.id);
+    if (!system) return res.status(404).json({ success: false, message: 'Billing system not found' });
+    res.json({ success: true, data: await GfsCode.linkedAndAvailable(system.id) });
+  } catch (error) {
+    console.error('List system GFS codes error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// a code belongs to one system, so linking one that belongs to another moves it
+async function linkGfsCodes(req, res) {
+  try {
+    const system = await BillingSystem.findById(req.params.id);
+    if (!system) return res.status(404).json({ success: false, message: 'Billing system not found' });
+
+    const ids = Array.isArray(req.body.codeIds) ? [...new Set(req.body.codeIds.map(Number).filter(Number.isInteger))] : [];
+    if (ids.length === 0) return res.status(400).json({ success: false, message: 'Choose at least one GFS code' });
+
+    const before = await GfsCode.linkToSystem(system.id, ids);
+    const moved = before.filter((b) => b.previous_id && b.previous_id !== system.id);
+    const added = before.filter((b) => b.previous_id !== system.id);
+
+    if (added.length > 0) {
+      await audit(req, system,
+        `Linked ${added.map((b) => b.code).join(', ')} to ${system.code}${moved.length ? ` (moved from ${moved.map((m) => `${m.code}: ${m.previous_code}`).join(', ')})` : ''}`,
+        { codeIds: ids, moved });
+    }
+    res.json({ success: true, message: `${added.length} code(s) linked to ${system.code}`, data: { linked: added.length, moved: moved.map((m) => ({ code: m.code, from: m.previous_code })) } });
+  } catch (error) {
+    console.error('Link GFS codes error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+async function unlinkGfsCode(req, res) {
+  try {
+    const system = await BillingSystem.findById(req.params.id);
+    if (!system) return res.status(404).json({ success: false, message: 'Billing system not found' });
+
+    const code = await GfsCode.findById(req.params.codeId);
+    if (!code || code.billing_system_id !== system.id) {
+      return res.status(404).json({ success: false, message: 'That GFS code is not linked to this billing system' });
+    }
+
+    await GfsCode.unlink(system.id, code.id);
+    await audit(req, system, `Unlinked ${code.code} from ${system.code}`, { codeId: code.id });
+    res.json({ success: true, message: `${code.code} unlinked from ${system.code}` });
+  } catch (error) {
+    console.error('Unlink GFS code error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+module.exports = { list, create, update, rotateSecret, keys, sendTest, replayDead, gfsCodes, linkGfsCodes, unlinkGfsCode };

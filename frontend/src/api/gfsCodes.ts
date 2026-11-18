@@ -14,10 +14,11 @@ export const gfsCodesApi = {
       params: { page, limit, ...(status ? { status } : {}) },
     }),
 
-  create: (code: string, description?: string) =>
-    gepgClient.post<GepgApiResponse<GfsCodeRecord>>('/gfs-codes', { code, description }),
+  create: (code: string, description?: string, billingSystemId?: number | null) =>
+    gepgClient.post<GepgApiResponse<GfsCodeRecord>>('/gfs-codes', { code, description, billingSystemId }),
 
-  update: (id: number, updates: { description?: string; status?: GfsCodeStatus }) =>
+  // billingSystemId: a number links the code to that billing system, null unlinks it
+  update: (id: number, updates: { description?: string; status?: GfsCodeStatus; billingSystemId?: number | null }) =>
     gepgClient.patch<GepgApiResponse<unknown>>(`/gfs-codes/${id}`, updates),
 
   delete: (id: number) => gepgClient.delete<GepgApiResponse<unknown>>(`/gfs-codes/${id}`),

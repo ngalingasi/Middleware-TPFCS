@@ -11,12 +11,14 @@ const billController = require('../controllers/billController');
 const paymentController = require('../controllers/paymentController');
 const printController = require('../controllers/printController');
 const v1 = require('../controllers/v1Controller');
+const gfsCodeController = require('../controllers/gfsCodeController');
 
 // billing systems only: an API key that belongs to an active billing system
 router.use(apiKeyAuth);
 
 router.get('/ping', v1.ping);
 router.get('/events', v1.getEvents);
+router.get('/gfs-codes', gfsCodeController.getActiveGfsCodes);
 
 router.post('/bills', billValidation, billController.createAndSubmit);
 router.post('/bills/bulk', billController.bulkCreateAndSubmit);

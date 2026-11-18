@@ -391,6 +391,10 @@ CREATE TABLE IF NOT EXISTS event_deliveries (
   FOREIGN KEY (event_id) REFERENCES outbound_events(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- a GFS code belongs to one billing system (one system, many codes); a system may only bill with its own codes
+ALTER TABLE gfs_codes ADD COLUMN IF NOT EXISTS billing_system_id INT NULL AFTER description;
+ALTER TABLE gfs_codes ADD INDEX IF NOT EXISTS idx_gfs_system (billing_system_id);
+
 -- the first payment used to mark a bill PAID even when it was only partial; undo that
 UPDATE bills b SET b.status = 'APPROVED'
 WHERE b.status = 'PAID'

@@ -120,6 +120,113 @@
         }
       }
     },
+    "/api/v1/gfs-codes": {
+      "get": {
+        "operationId": "listGfsCodes",
+        "tags": [
+          "GFS codes"
+        ],
+        "summary": "Your GFS codes",
+        "description": "The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The codes you can use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "code": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 1,
+                      "code": "140368",
+                      "description": "Receipts from sale of tender documents",
+                      "status": "ACTIVE",
+                      "created_at": "2026-11-10T08:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid or disabled API key"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Key not linked to an active billing system",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bills": {
       "post": {
         "operationId": "createBill",
@@ -779,7 +886,7 @@
           "Bills"
         ],
         "summary": "Create many bills at once",
-        "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+        "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
         "parameters": [],
         "responses": {
           "200": {

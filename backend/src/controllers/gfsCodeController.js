@@ -5,10 +5,15 @@
 
 const { validationResult } = require('express-validator');
 const GfsCode = require('../models/GfsCode');
+const BillingSystem = require('../models/BillingSystem');
+const ActivityLog = require('../models/ActivityLog');
+const caller = require('../utils/caller');
 
 async function getActiveGfsCodes(req, res) {
   try {
-    const codes = await GfsCode.findAllActive();
+    // a billing system sees only the codes linked to it; dashboard users see all of them
+    const system = caller.systemOf(req);
+    const codes = await GfsCode.findAllActive(system ? system.id : undefined);
     res.json({ success: true, data: codes });
   } catch (error) {
     console.error('Get active GFS codes error:', error);
@@ -21,7 +26,11 @@ async function getGfsCodesAdmin(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
 
-    const result = await GfsCode.findAllAdmin(page, limit, { status: req.query.status });
+    const result = await GfsCode.findAllAdmin(page, limit, {
+      status: req.query.status,
+      systemId: req.query.systemId,
+      unlinked: req.query.unlinked === '1'
+    });
     res.json({ success: true, data: result.data, pagination: result.pagination });
   } catch (error) {
     console.error('Get GFS codes error:', error);
@@ -37,7 +46,11 @@ async function createGfsCode(req, res) {
     }
 
     const { code, description } = req.body;
-    const id = await GfsCode.create({ code: code.trim(), description, createdBy: req.user.id });
+    const billingSystemId = req.body.billingSystemId ? Number(req.body.billingSystemId) : null;
+    if (billingSystemId && !(await BillingSystem.findById(billingSystemId))) {
+      return res.status(400).json({ success: false, message: 'Billing system not found' });
+    }
+    const id = await GfsCode.create({ code: code.trim(), description, createdBy: req.user.id, billingSystemId });
 
     res.status(201).json({
       success: true,
@@ -66,7 +79,26 @@ async function updateGfsCode(req, res) {
       return res.status(404).json({ success: false, message: 'GFS code not found' });
     }
 
-    await GfsCode.update(id, { description: req.body.description, status: req.body.status });
+    // billingSystemId: null unlinks the code, a number moves it to that billing system
+    let billingSystemId;
+    let target = null;
+    if ('billingSystemId' in req.body) {
+      billingSystemId = req.body.billingSystemId ? Number(req.body.billingSystemId) : null;
+      if (billingSystemId) {
+        target = await BillingSystem.findById(billingSystemId);
+        if (!target) return res.status(400).json({ success: false, message: 'Billing system not found' });
+      }
+    }
+
+    await GfsCode.update(id, { description: req.body.description, status: req.body.status, billingSystemId });
+
+    if (billingSystemId !== undefined && billingSystemId !== existing.billing_system_id) {
+      await ActivityLog.create({
+        user_id: req.user.id, action: 'GFS_LINK', entity_type: 'gfs_code', entity_id: existing.code,
+        description: target ? `GFS code ${existing.code} linked to ${target.code}` : `GFS code ${existing.code} unlinked from its billing system`,
+        ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: { billingSystemId }, response_data: null, status: 'SUCCESS'
+      });
+    }
     res.json({ success: true, message: 'GFS code updated' });
   } catch (error) {
     console.error('Update GFS code error:', error);

@@ -163,7 +163,7 @@ function buildDocs({ baseUrl = 'https://bridge.example.com', system = null } = {
     { name: 'items[].billItemRef', type: 'string', required: true, description: 'Your reference for the item.', example: 'TND-77' },
     { name: 'items[].billItemAmount', type: 'number', required: true, description: 'Item amount, greater than zero.', example: 500000 },
     { name: 'items[].billItemEquivAmount', type: 'number', required: true, description: 'Item amount in TZS.', example: 500000 },
-    { name: 'items[].gfsCode', type: 'string', required: true, description: 'The revenue code (GFS code). It must be on the bridge\'s active GFS list.', example: '140368' },
+    { name: 'items[].gfsCode', type: 'string', required: true, description: 'The revenue code (GFS code). It must be one of the codes linked to your billing system (see GET /api/v1/gfs-codes); any other code refuses the bill.', example: '140368' },
     { name: 'custTin, custIdTyp, custAccnt, collCentCode, minPayAmt, exchRate, payPlan, payLimTyp, payLimAmt, collPsp', type: 'various', required: false, description: 'Other GePG v5 bill fields, passed through when you need them (custIdTyp: 1 national ID, 2 driver\'s licence, 3 tax ID, 4 wallet number).', example: '' }
   ];
 
@@ -210,6 +210,17 @@ function buildDocs({ baseUrl = 'https://bridge.example.com', system = null } = {
       }]
     },
     {
+      id: 'reference', title: 'GFS codes', description: 'The revenue codes your billing system may use on bill items.',
+      endpoints: [{
+        id: 'listGfsCodes', method: 'GET', path: '/api/v1/gfs-codes', title: 'Your GFS codes',
+        summary: 'The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another.',
+        responses: [
+          { status: 200, title: 'The codes you can use', body: { success: true, data: [{ id: 1, code: '140368', description: 'Receipts from sale of tender documents', status: 'ACTIVE', created_at: '2026-11-10T08:00:00.000Z' }] } },
+          e401, e403
+        ]
+      }]
+    },
+    {
       id: 'bills', title: 'Bills', description: 'Create bills, check them, and change them.',
       endpoints: [
         {
@@ -220,13 +231,18 @@ function buildDocs({ baseUrl = 'https://bridge.example.com', system = null } = {
           responses: [
             { status: 201, title: 'Created and received by GePG', body: { success: true, message: 'Bill created and submitted successfully', ack, data: gepgAck, bill: { billId: 'INV-1001', gepgBillId: gepgId('INV-1001') } } },
             validationError,
+            err(400, 'A GFS code is not linked to your billing system', {
+              success: false, code: '7223',
+              message: `GFS code(s) not linked to billing system ${code}: 140206. Ask an admin to link them.`,
+              errors: [{ type: 'field', value: [{ billItemRef: 'TND-77', billItemAmount: 500000, billItemEquivAmount: 500000, gfsCode: '140206' }], msg: `GFS code(s) not linked to billing system ${code}: 140206. Ask an admin to link them.`, path: 'items', location: 'body' }]
+            }),
             err(409, 'You already used this billId', { success: false, code: '7226', message: 'A bill with this billId already exists' }),
             refused('bill'), e401, e403
           ]
         },
         {
           id: 'bulkBills', method: 'POST', path: '/api/v1/bills/bulk', title: 'Create many bills at once',
-          summary: 'Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.',
+          summary: 'Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.',
           body: { description: 'JSON body with a list of bills, each shaped like a single bill.', fields: [{ name: 'bills', type: 'array', required: true, description: 'Between 1 and 100 bills.', example: '[ ... ]' }], example: { bills: [billBody, { ...billBody, billId: 'INV-1002', payerName: 'Amani Juma' }] } },
           responses: [
             { status: 200, title: 'Processed (check each result)', body: { success: true, message: '2 of 2 bills submitted to GePG', summary: { total: 2, succeeded: 2, failed: 0 }, results: [{ billId: 'INV-1001', success: true, code: '7101', message: 'Submitted to GePG' }, { billId: 'INV-1002', success: true, code: '7101', message: 'Submitted to GePG' }] } },
@@ -405,6 +421,7 @@ function buildDocs({ baseUrl = 'https://bridge.example.com', system = null } = {
       { title: 'Copy the signing secret', text: 'It is shown once. Your system uses it to check that deliveries really come from the bridge.' },
       { title: 'Get an API key', text: 'Created under Keys for your system, shown once. A key belongs to one system and only ever sees that system\'s bills and payments.' },
       { title: 'Check the connection', text: `Call GET ${url('/api/v1/ping')} with your key. It answers with your system code.` },
+      { title: 'Have your GFS codes linked', text: 'Each revenue code (GFS code) belongs to one billing system. An admin links the codes your system bills with; a bill using any other code is refused, so one system cannot bill another\'s revenue. See them with GET /api/v1/gfs-codes.' },
       { title: 'Send a bill, then listen', text: `POST a bill. GePG gives the control number a moment later, as a bill.approved event at your callback URL or in the events feed.` }
     ],
 
@@ -414,6 +431,7 @@ function buildDocs({ baseUrl = 'https://bridge.example.com', system = null } = {
       rules: [
         'A key only sees its own system\'s bills and payments. Asking for anything else answers 404, as if it did not exist.',
         'Bill ids are yours: you send INV-1001; GePG sees ' + gepgId('INV-1001') + '. Responses give both (billId and gepgBillId).',
+        'A bill may only use GFS codes linked to your billing system; any other code is refused with 7223.',
         'A disabled billing system\'s key answers 403 until an admin enables it again.',
         'Reconciliation with GePG is done by the bridge, not by billing systems. Recovered payments reach you as normal payment.received events.'
       ]

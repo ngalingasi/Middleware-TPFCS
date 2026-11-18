@@ -52,12 +52,38 @@
       "metaSortKey": 1
     },
     {
+      "_id": "fld_reference",
+      "_type": "request_group",
+      "parentId": "wrk_gepg_bridge_billing_api",
+      "name": "GFS codes",
+      "description": "The revenue codes your billing system may use on bill items.",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_listGfsCodes",
+      "_type": "request",
+      "parentId": "fld_reference",
+      "name": "Your GFS codes",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/gfs-codes",
+      "description": "The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another.",
+      "headers": [
+        {
+          "name": "X-Api-Key",
+          "value": "{{ _.api_key }}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "metaSortKey": 3
+    },
+    {
       "_id": "fld_bills",
       "_type": "request_group",
       "parentId": "wrk_gepg_bridge_billing_api",
       "name": "Bills",
       "description": "Create bills, check them, and change them.",
-      "metaSortKey": 2
+      "metaSortKey": 4
     },
     {
       "_id": "req_createBill",
@@ -79,7 +105,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 3,
+      "metaSortKey": 5,
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"billId\": \"INV-{% now 'millis', '' %}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}"
@@ -92,7 +118,7 @@
       "name": "Create many bills at once",
       "method": "POST",
       "url": "{{ _.base_url }}/api/v1/bills/bulk",
-      "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+      "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
       "headers": [
         {
           "name": "X-Api-Key",
@@ -105,7 +131,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 4,
+      "metaSortKey": 6,
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-1001\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-1002\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}"
@@ -131,7 +157,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 5,
+      "metaSortKey": 7,
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"billId\": \"INV-{% now 'millis', '' %}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ],\n  \"paymentControlNumber\": \"991330026625\",\n  \"reuseReason\": \"Billed amount adjustment\"\n}"
@@ -157,7 +183,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 6,
+      "metaSortKey": 8,
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"billIds\": [\n    \"INV-1001\",\n    \"INV-1002\"\n  ]\n}"
@@ -210,7 +236,7 @@
         }
       ],
       "authentication": {},
-      "metaSortKey": 7
+      "metaSortKey": 9
     },
     {
       "_id": "req_getBill",
@@ -228,7 +254,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 8
+      "metaSortKey": 10
     },
     {
       "_id": "req_getBillStatus",
@@ -246,7 +272,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 9
+      "metaSortKey": 11
     },
     {
       "_id": "req_extendBill",
@@ -268,7 +294,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 10,
+      "metaSortKey": 12,
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"billExpiryDate\": \"2028-01-31T12:00:00\",\n  \"reason\": \"Customer asked for more time\"\n}"
@@ -294,7 +320,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 11,
+      "metaSortKey": 13,
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"reason\": \"Duplicate bill\"\n}"
@@ -322,7 +348,7 @@
         }
       ],
       "authentication": {},
-      "metaSortKey": 12
+      "metaSortKey": 14
     },
     {
       "_id": "fld_payments",
@@ -330,7 +356,7 @@
       "parentId": "wrk_gepg_bridge_billing_api",
       "name": "Payments",
       "description": "Payments received on your bills.",
-      "metaSortKey": 13
+      "metaSortKey": 15
     },
     {
       "_id": "req_listPayments",
@@ -374,7 +400,7 @@
         }
       ],
       "authentication": {},
-      "metaSortKey": 14
+      "metaSortKey": 16
     },
     {
       "_id": "req_getPayment",
@@ -392,7 +418,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 15
+      "metaSortKey": 17
     },
     {
       "_id": "req_paymentReceipt",
@@ -410,7 +436,7 @@
       ],
       "parameters": [],
       "authentication": {},
-      "metaSortKey": 16
+      "metaSortKey": 18
     },
     {
       "_id": "fld_events",
@@ -418,7 +444,7 @@
       "parentId": "wrk_gepg_bridge_billing_api",
       "name": "Events feed",
       "description": "The same events that are sent to your callback URL, for you to collect.",
-      "metaSortKey": 17
+      "metaSortKey": 19
     },
     {
       "_id": "req_getEvents",
@@ -447,7 +473,7 @@
         }
       ],
       "authentication": {},
-      "metaSortKey": 18
+      "metaSortKey": 20
     },
     {
       "_id": "fld_sample_deliveries",
@@ -455,7 +481,7 @@
       "parentId": "wrk_gepg_bridge_billing_api",
       "name": "Sample deliveries (to YOUR callback URL)",
       "description": "The bridge's sample events, sent to your own callback_url. Insomnia cannot compute the signature, so these carry the fixed test-vector signature: skip the 5-minute clock check while testing with them, or use the Postman collection which signs each one freshly.",
-      "metaSortKey": 19
+      "metaSortKey": 21
     },
     {
       "_id": "req_delivery_bill_approved",
@@ -488,7 +514,7 @@
         "text": "{\"id\":\"184\",\"type\":\"bill.approved\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"}}"
       },
       "authentication": {},
-      "metaSortKey": 20
+      "metaSortKey": 22
     },
     {
       "_id": "req_delivery_bill_rejected",
@@ -521,7 +547,7 @@
         "text": "{\"id\":\"184\",\"type\":\"bill.rejected\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":null,\"status\":\"REJECTED\"},\"reason\":{\"code\":\"7223\",\"description\":\"Invalid or inactive GFS code or service type\"}}"
       },
       "authentication": {},
-      "metaSortKey": 21
+      "metaSortKey": 23
     },
     {
       "_id": "req_delivery_payment_received",
@@ -554,7 +580,7 @@
         "text": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}"
       },
       "authentication": {},
-      "metaSortKey": 22
+      "metaSortKey": 24
     },
     {
       "_id": "req_delivery_bill_paid",
@@ -587,7 +613,7 @@
         "text": "{\"id\":\"184\",\"type\":\"bill.paid\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"PAID\"},\"totals\":{\"billAmount\":500000,\"totalPaid\":500000,\"remaining\":0,\"isPaid\":true}}"
       },
       "authentication": {},
-      "metaSortKey": 23
+      "metaSortKey": 25
     },
     {
       "_id": "req_delivery_bill_cancelled",
@@ -620,7 +646,7 @@
         "text": "{\"id\":\"184\",\"type\":\"bill.cancelled\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"CANCELLED\"}}"
       },
       "authentication": {},
-      "metaSortKey": 24
+      "metaSortKey": 26
     },
     {
       "_id": "req_delivery_bill_expired",
@@ -653,7 +679,7 @@
         "text": "{\"id\":\"184\",\"type\":\"bill.expired\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"EXPIRED\"},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false}}"
       },
       "authentication": {},
-      "metaSortKey": 25
+      "metaSortKey": 27
     },
     {
       "_id": "req_delivery_system_test",
@@ -686,7 +712,7 @@
         "text": "{\"id\":\"184\",\"type\":\"system.test\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"message\":\"Test event from the GePG bridge\"}"
       },
       "authentication": {},
-      "metaSortKey": 26
+      "metaSortKey": 28
     },
     {
       "_id": "req_delivery_test_vector",
@@ -727,7 +753,7 @@
         "text": "{\"id\":\"184\",\"type\":\"payment.received\",\"createdAt\":\"2026-11-16T09:35:12.000Z\",\"bill\":{\"billId\":\"INV-1001\",\"gepgBillId\":\"ICDV-INV-1001\",\"controlNumber\":\"991330026625\",\"status\":\"APPROVED\"},\"payment\":{\"receiptNumber\":\"99015046706\",\"transactionId\":\"T1001\",\"paidAmount\":300000,\"currency\":\"TZS\",\"channel\":\"MB\",\"psp\":\"Example Bank\",\"paidAt\":\"2026-11-16T09:35:00\",\"payerName\":null,\"payerPhone\":null},\"totals\":{\"billAmount\":500000,\"totalPaid\":300000,\"remaining\":200000,\"isPaid\":false},\"source\":\"gepg\"}"
       },
       "authentication": {},
-      "metaSortKey": 27
+      "metaSortKey": 29
     }
   ]
 }

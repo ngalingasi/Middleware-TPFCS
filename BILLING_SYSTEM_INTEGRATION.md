@@ -16,7 +16,8 @@ Base URL: `http://localhost:5001`
 2. **Copy the signing secret.** It is shown once. Your system uses it to check that deliveries really come from the bridge.
 3. **Get an API key.** Created under Keys for your system, shown once. A key belongs to one system and only ever sees that system's bills and payments.
 4. **Check the connection.** Call GET http://localhost:5001/api/v1/ping with your key. It answers with your system code.
-5. **Send a bill, then listen.** POST a bill. GePG gives the control number a moment later, as a bill.approved event at your callback URL or in the events feed.
+5. **Have your GFS codes linked.** Each revenue code (GFS code) belongs to one billing system. An admin links the codes your system bills with; a bill using any other code is refused, so one system cannot bill another's revenue. See them with GET /api/v1/gfs-codes.
+6. **Send a bill, then listen.** POST a bill. GePG gives the control number a moment later, as a bill.approved event at your callback URL or in the events feed.
 
 ## 2. Authentication
 
@@ -24,6 +25,7 @@ Send your API key in the X-Api-Key header on every call. Keys are issued per bil
 
 - A key only sees its own system's bills and payments. Asking for anything else answers 404, as if it did not exist.
 - Bill ids are yours: you send INV-1001; GePG sees ICDV-INV-1001. Responses give both (billId and gepgBillId).
+- A bill may only use GFS codes linked to your billing system; any other code is refused with 7223.
 - A disabled billing system's key answers 403 until an admin enables it again.
 - Reconciliation with GePG is done by the bridge, not by billing systems. Recovered payments reach you as normal payment.received events.
 
@@ -77,6 +79,58 @@ Response 403: Key not linked to an active billing system
 }
 ```
 
+### GFS codes
+
+The revenue codes your billing system may use on bill items.
+
+#### Your GFS codes
+
+`GET /api/v1/gfs-codes`
+
+The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another.
+
+Request with curl:
+
+```bash
+curl -X GET 'http://localhost:5001/api/v1/gfs-codes' \
+  -H 'X-Api-Key: YOUR_API_KEY'
+```
+
+Response 200: The codes you can use
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "code": "140368",
+      "description": "Receipts from sale of tender documents",
+      "status": "ACTIVE",
+      "created_at": "2026-11-10T08:00:00.000Z"
+    }
+  ]
+}
+```
+
+Response 401: Missing or wrong API key
+
+```json
+{
+  "success": false,
+  "message": "Invalid or disabled API key"
+}
+```
+
+Response 403: Key not linked to an active billing system
+
+```json
+{
+  "success": false,
+  "message": "This API key is not linked to a billing system. Ask an admin to link it."
+}
+```
+
 ### Bills
 
 Create bills, check them, and change them.
@@ -108,7 +162,7 @@ Request body (JSON):
 | `items[].billItemRef` | string | yes | Your reference for the item. |
 | `items[].billItemAmount` | number | yes | Item amount, greater than zero. |
 | `items[].billItemEquivAmount` | number | yes | Item amount in TZS. |
-| `items[].gfsCode` | string | yes | The revenue code (GFS code). It must be on the bridge's active GFS list. |
+| `items[].gfsCode` | string | yes | The revenue code (GFS code). It must be one of the codes linked to your billing system (see GET /api/v1/gfs-codes); any other code refuses the bill. |
 | `custTin, custIdTyp, custAccnt, collCentCode, minPayAmt, exchRate, payPlan, payLimTyp, payLimAmt, collPsp` | various | no | Other GePG v5 bill fields, passed through when you need them (custIdTyp: 1 national ID, 2 driver's licence, 3 tax ID, 4 wallet number). |
 
 Example:
@@ -217,6 +271,32 @@ Response 400: A value is not valid
 }
 ```
 
+Response 400: A GFS code is not linked to your billing system
+
+```json
+{
+  "success": false,
+  "code": "7223",
+  "message": "GFS code(s) not linked to billing system ICDV: 140206. Ask an admin to link them.",
+  "errors": [
+    {
+      "type": "field",
+      "value": [
+        {
+          "billItemRef": "TND-77",
+          "billItemAmount": 500000,
+          "billItemEquivAmount": 500000,
+          "gfsCode": "140206"
+        }
+      ],
+      "msg": "GFS code(s) not linked to billing system ICDV: 140206. Ask an admin to link them.",
+      "path": "items",
+      "location": "body"
+    }
+  ]
+}
+```
+
 Response 409: You already used this billId
 
 ```json
@@ -271,7 +351,7 @@ Response 403: Key not linked to an active billing system
 
 `POST /api/v1/bills/bulk`
 
-Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.
+Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.
 
 Request body (JSON):
 

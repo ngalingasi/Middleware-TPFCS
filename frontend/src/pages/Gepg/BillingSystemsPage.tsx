@@ -17,7 +17,7 @@ import { billingSystemsApi } from '../../api/billingSystems';
 import { apiKeysApi } from '../../api/apiKeys';
 import { gepgErrorMessage } from '../../utils/gepgError';
 import { FEATURES } from '../../config/features';
-import type { ApiKeyRecord, BillingSystem, BillingSystemInput } from '../../types/gepg';
+import type { ApiKeyRecord, BillingSystem, BillingSystemInput, GfsLinks } from '../../types/gepg';
 
 const selectClass =
   'h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
@@ -79,6 +79,12 @@ export default function BillingSystemsPage() {
   const [newKeyName, setNewKeyName] = useState('');
   const [newKey, setNewKey] = useState<string | null>(null);
   const [testing, setTesting] = useState<number | null>(null);
+
+  // GFS codes: which ones this system may bill with
+  const [gfsFor, setGfsFor] = useState<BillingSystem | null>(null);
+  const [gfs, setGfs] = useState<GfsLinks | null>(null);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [gfsSearch, setGfsSearch] = useState('');
 
   const load = () =>
     billingSystemsApi
@@ -172,6 +178,54 @@ export default function BillingSystemsPage() {
     }
   };
 
+  const loadGfs = (s: BillingSystem) =>
+    billingSystemsApi.gfsCodes(s.id).then((res) => setGfs(res.data.data)).catch((err) => toast.error('Could not load the GFS codes', gepgErrorMessage(err)));
+
+  const openGfs = (s: BillingSystem) => {
+    setGfsFor(s);
+    setGfs(null);
+    setPicked(new Set());
+    setGfsSearch('');
+    loadGfs(s);
+  };
+
+  const togglePick = (id: number) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const linkPicked = async () => {
+    if (!gfsFor || !gfs || picked.size === 0) return;
+    // a code belongs to one system, so taking one from another system needs a yes
+    const moving = gfs.available.filter((c) => picked.has(c.id) && c.billing_system_id);
+    if (moving.length > 0 && !window.confirm(`${moving.map((c) => `${c.code} (now ${c.billing_system_code})`).join(', ')} will be taken away from the system that has it now. Continue?`)) return;
+    try {
+      const { data } = await billingSystemsApi.linkGfsCodes(gfsFor.id, [...picked]);
+      toast.success(`${data.data.linked} GFS code(s) linked to ${gfsFor.code}`);
+      setPicked(new Set());
+      loadGfs(gfsFor);
+      load();
+    } catch (err) {
+      toast.error('Could not link them', gepgErrorMessage(err));
+    }
+  };
+
+  const unlinkGfs = async (codeId: number, codeText: string) => {
+    if (!gfsFor) return;
+    if (!window.confirm(`Unlink ${codeText} from ${gfsFor.code}? ${gfsFor.code} can no longer bill with it; bills already made are not changed.`)) return;
+    try {
+      await billingSystemsApi.unlinkGfsCode(gfsFor.id, codeId);
+      toast.success(`${codeText} unlinked`);
+      loadGfs(gfsFor);
+      load();
+    } catch (err) {
+      toast.error('Could not unlink it', gepgErrorMessage(err));
+    }
+  };
+
   const openKeys = (s: BillingSystem) => {
     setKeysFor(s);
     setKeys([]);
@@ -219,6 +273,7 @@ export default function BillingSystemsPage() {
                 <th className={th}>Status</th>
                 <th className={th}>Delivery</th>
                 <th className={th}>Keys</th>
+                <th className={th}>GFS codes</th>
                 <th className={th}>Bills</th>
                 <th className={th}>Queue</th>
                 <th className={th}>Last delivered</th>
@@ -228,14 +283,14 @@ export default function BillingSystemsPage() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={10} className="px-4 py-4 text-center text-sm text-gray-400">
                     Loading…
                   </td>
                 </tr>
               )}
               {!loading && systems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-sm text-gray-400">
+                  <td colSpan={10} className="px-4 py-6 text-center text-sm text-gray-400">
                     No billing systems yet. Add one, then create an API key for it.
                   </td>
                 </tr>
@@ -272,6 +327,13 @@ export default function BillingSystemsPage() {
                       s.active_keys
                     )}
                   </td>
+                  <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                    {s.gfs_code_count === 0 ? (
+                      <Badge size="sm" color="warning">None: cannot bill</Badge>
+                    ) : (
+                      s.gfs_code_count
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{s.bill_count}</td>
                   <td className="px-3 py-2 text-sm">
                     <Link to={`/outbox?systemId=${s.id}`} className="hover:underline">
@@ -287,6 +349,7 @@ export default function BillingSystemsPage() {
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-brand-600 dark:text-brand-400">
                       <button onClick={() => openEdit(s)} className="hover:underline">Edit</button>
                       <button onClick={() => openKeys(s)} className="hover:underline">Keys</button>
+                      <button onClick={() => openGfs(s)} className="hover:underline">GFS codes</button>
                       <button onClick={() => sendTest(s)} disabled={!s.callback_url || testing === s.id} className="hover:underline disabled:text-gray-300 disabled:no-underline" title={s.callback_url ? 'Send a signed test event now' : 'Set a callback URL first'}>
                         {testing === s.id ? 'Sending…' : 'Test'}
                       </button>
@@ -367,6 +430,66 @@ export default function BillingSystemsPage() {
             {secret.code && <p className="text-gray-500 dark:text-gray-400">Next: create an API key for {secret.code} (Keys) so it can send bills.</p>}
             <div className="flex justify-end">
               <Button type="button" onClick={() => setSecret(null)}>I have copied it</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal isOpen={!!gfsFor} onClose={() => setGfsFor(null)} title={`GFS codes for ${gfsFor?.code ?? ''}`} size="lg">
+        {gfsFor && (
+          <div className="space-y-5 text-sm">
+            <p className="text-gray-500 dark:text-gray-400">
+              {gfsFor.name} can only bill with the GFS codes linked here; a bill using any other code is refused. A code belongs to one billing system, so two systems can never mix up each other's revenue.
+            </p>
+
+            <div>
+              <p className="mb-2 font-medium text-gray-800 dark:text-white/90">Linked to {gfsFor.code}</p>
+              {!gfs && <p className="text-gray-400">Loading…</p>}
+              {gfs && gfs.linked.length === 0 && (
+                <p className="rounded-lg bg-warning-50 p-3 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400">None yet, so {gfsFor.code} cannot send any bill. Add codes below.</p>
+              )}
+              <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+                {gfs?.linked.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+                    <span>
+                      <code className="font-medium text-gray-800 dark:text-white/90">{c.code}</code>
+                      <span className="ml-2 text-gray-500 dark:text-gray-400">{c.description || ''}</span>
+                      {c.status !== 'ACTIVE' && <span className="ml-2"><Badge size="sm" color="error">Switched off</Badge></span>}
+                    </span>
+                    <button onClick={() => unlinkGfs(c.id, c.code)} className="text-gray-500 hover:text-error-500 dark:text-gray-400">Unlink</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <p className="mb-2 font-medium text-gray-800 dark:text-white/90">Add codes</p>
+              <Input size="md" value={gfsSearch} placeholder="Search by code or description" onChange={(e) => setGfsSearch(e.target.value)} />
+              <ul className="mt-2 max-h-64 divide-y divide-gray-100 overflow-auto rounded-lg border border-gray-100 dark:divide-gray-800 dark:border-gray-800">
+                {gfs && gfs.available.length === 0 && <li className="p-3 text-gray-400">Every GFS code is already linked here. New codes are added on the GFS Codes page.</li>}
+                {gfs?.available
+                  .filter((c) => `${c.code} ${c.description ?? ''}`.toLowerCase().includes(gfsSearch.trim().toLowerCase()))
+                  .map((c) => (
+                    <li key={c.id}>
+                      <label className="flex cursor-pointer items-center gap-3 p-2.5 hover:bg-gray-50 dark:hover:bg-white/[0.03]">
+                        <input type="checkbox" checked={picked.has(c.id)} onChange={() => togglePick(c.id)} className="h-4 w-4 rounded border-gray-300" />
+                        <span className="flex-1">
+                          <code className="font-medium text-gray-800 dark:text-white/90">{c.code}</code>
+                          <span className="ml-2 text-gray-500 dark:text-gray-400">{c.description || ''}</span>
+                        </span>
+                        {c.billing_system_code ? (
+                          <Badge size="sm" color="warning">now {c.billing_system_code}: will move</Badge>
+                        ) : (
+                          <Badge size="sm" color="light">not linked</Badge>
+                        )}
+                      </label>
+                    </li>
+                  ))}
+              </ul>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-gray-500 dark:text-gray-400">{picked.size} selected</span>
+                <Button type="button" onClick={linkPicked} disabled={picked.size === 0}>Link selected to {gfsFor.code}</Button>
+              </div>
             </div>
           </div>
         )}

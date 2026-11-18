@@ -57,7 +57,7 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 flex items-center justify-center h-screen  modal z-99999 p-4 sm:p-0">
       {!isFullscreen && (
         <div
-          className="fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"
+          className="fixed inset-0 h-full w-full bg-[rgba(0,0,0,0.7)] backdrop-blur-[2px] dark:bg-[rgba(0,0,0,0.8)]"
           onClick={onClose}
         ></div>
       )}

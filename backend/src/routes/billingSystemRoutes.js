@@ -17,5 +17,8 @@ router.post('/:id/secret', controller.rotateSecret);
 router.get('/:id/keys', controller.keys);
 router.post('/:id/test', controller.sendTest);
 router.post('/:id/replay-dead', controller.replayDead);
+router.get('/:id/gfs-codes', controller.gfsCodes);
+router.post('/:id/gfs-codes', controller.linkGfsCodes);
+router.delete('/:id/gfs-codes/:codeId', controller.unlinkGfsCode);
 
 module.exports = router;

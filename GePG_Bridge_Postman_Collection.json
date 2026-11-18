@@ -181,6 +181,131 @@
       ]
     },
     {
+      "name": "GFS codes",
+      "description": "The revenue codes your billing system may use on bill items.",
+      "item": [
+        {
+          "name": "Your GFS codes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/gfs-codes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "gfs-codes"
+              ]
+            },
+            "description": "The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 The codes you can use",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/gfs-codes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "gfs-codes"
+                  ]
+                },
+                "description": "The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"code\": \"140368\",\n      \"description\": \"Receipts from sale of tender documents\",\n      \"status\": \"ACTIVE\",\n      \"created_at\": \"2026-11-10T08:00:00.000Z\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "401 Missing or wrong API key",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/gfs-codes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "gfs-codes"
+                  ]
+                },
+                "description": "The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another."
+              },
+              "status": "401",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or disabled API key\"\n}"
+            },
+            {
+              "name": "403 Key not linked to an active billing system",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/gfs-codes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "gfs-codes"
+                  ]
+                },
+                "description": "The GFS codes linked to your billing system. A bill can only use these: a bill item with any other code is refused with code 7223. An admin links codes to your system, so ask for one to be added if you need another."
+              },
+              "status": "403",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This API key is not linked to a billing system. Ask an admin to link it.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Bills",
       "description": "Create bills, check them, and change them.",
       "item": [
@@ -314,6 +439,49 @@
                 }
               ],
               "body": "{\n  \"success\": false,\n  \"code\": \"7242\",\n  \"message\": \"Bill amount must be a number greater than zero\",\n  \"errors\": [\n    {\n      \"type\": \"field\",\n      \"value\": 0,\n      \"msg\": \"Bill amount must be a number greater than zero\",\n      \"path\": \"billAmount\",\n      \"location\": \"body\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 A GFS code is not linked to your billing system",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/bills",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "bills"
+                  ]
+                },
+                "description": "Saves the bill and sends it to GePG. GePG answers in two steps: an immediate acknowledgement (this response) and, a moment later, the control number as a bill.approved event.\n\nA 201 means GePG received the bill, not that it approved it. Wait for the bill.approved or bill.rejected event, or check the status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"billId\": \"INV-{{$timestamp}}\",\n  \"billAmount\": 500000,\n  \"billEquivAmount\": 500000,\n  \"billExpiryDate\": \"2027-12-17T12:00:00\",\n  \"payerId\": \"P1001\",\n  \"payerName\": \"Vidah Mwakyusa\",\n  \"payerCellNumber\": \"255786030028\",\n  \"payerEmail\": \"vidah@example.com\",\n  \"billDescription\": \"Sale of tender document\",\n  \"currency\": \"TZS\",\n  \"billPayOption\": 2,\n  \"items\": [\n    {\n      \"billItemRef\": \"TND-77\",\n      \"billItemAmount\": 500000,\n      \"billItemEquivAmount\": 500000,\n      \"gfsCode\": \"140368\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"code\": \"7223\",\n  \"message\": \"GFS code(s) not linked to billing system ICDV: 140206. Ask an admin to link them.\",\n  \"errors\": [\n    {\n      \"type\": \"field\",\n      \"value\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140206\"\n        }\n      ],\n      \"msg\": \"GFS code(s) not linked to billing system ICDV: 140206. Ask an admin to link them.\",\n      \"path\": \"items\",\n      \"location\": \"body\"\n    }\n  ]\n}"
             },
             {
               "name": "409 You already used this billId",
@@ -511,7 +679,7 @@
                 "bulk"
               ]
             },
-            "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+            "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
@@ -556,7 +724,7 @@
                     "bulk"
                   ]
                 },
-                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
@@ -600,7 +768,7 @@
                     "bulk"
                   ]
                 },
-                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
@@ -644,7 +812,7 @@
                     "bulk"
                   ]
                 },
-                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",
@@ -688,7 +856,7 @@
                     "bulk"
                   ]
                 },
-                "description": "Up to 100 bills. Each is checked and sent on its own, so one bad bill does not stop the others. The response lists the result of every bill.",
+                "description": "Up to 100 bills. Each is checked and sent on its own (including that its GFS codes are linked to your system), so one bad bill does not stop the others. The response lists the result of every bill.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"bills\": [\n    {\n      \"billId\": \"INV-{{$timestamp}}-1\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Vidah Mwakyusa\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    },\n    {\n      \"billId\": \"INV-{{$timestamp}}-2\",\n      \"billAmount\": 500000,\n      \"billEquivAmount\": 500000,\n      \"billExpiryDate\": \"2027-12-17T12:00:00\",\n      \"payerId\": \"P1001\",\n      \"payerName\": \"Amani Juma\",\n      \"payerCellNumber\": \"255786030028\",\n      \"payerEmail\": \"vidah@example.com\",\n      \"billDescription\": \"Sale of tender document\",\n      \"currency\": \"TZS\",\n      \"billPayOption\": 2,\n      \"items\": [\n        {\n          \"billItemRef\": \"TND-77\",\n          \"billItemAmount\": 500000,\n          \"billItemEquivAmount\": 500000,\n          \"gfsCode\": \"140368\"\n        }\n      ]\n    }\n  ]\n}",

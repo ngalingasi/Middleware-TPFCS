@@ -13,11 +13,19 @@ const { ACK, gepgError, ackCodeFor, httpStatusFor } = require('../utils/gepgErro
 const GfsCode = require('../models/GfsCode');
 const { describeCode, describeCodes } = require('../utils/gepgCodes');
 const caller = require('../utils/caller');
+const { gfsProblem } = require('../middleware/billValidation');
 const BillingSystem = require('../models/BillingSystem');
 
 // the caller's own id and the id GePG knows the bill by
 function billRef(bill) {
   return { billId: bill.externalRef || bill.billId, gepgBillId: bill.billId };
+}
+
+// 7223 when it is a GFS code that is wrong, otherwise 7242 (invalid request data)
+function invalidRequest(res, errors) {
+  const first = errors.array()[0];
+  const code = /GFS code/.test(first.msg) ? '7223' : '7242';
+  return res.status(400).json({ success: false, code, message: first.msg, errors: errors.array() });
 }
 
 function duplicateResponse(res) {
@@ -49,7 +57,7 @@ async function createBill(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
+      return invalidRequest(res, errors);
     }
 
     const prepared = caller.prepare(caller.systemOf(req), req.body, actorName(req));
@@ -183,7 +191,7 @@ async function createAndSubmit(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
+      return invalidRequest(res, errors);
     }
 
     const prepared = caller.prepare(caller.systemOf(req), req.body, actorName(req));
@@ -248,7 +256,7 @@ async function reuseBill(req, res) {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, code: '7242', message: errors.array()[0].msg, errors: errors.array() });
+      return invalidRequest(res, errors);
     }
 
     const { paymentControlNumber, reuseReason } = req.body;
@@ -356,7 +364,7 @@ async function changeBillExpiry(req, res) {
   }
 }
 
-async function validateBulkBill(bill) {
+async function validateBulkBill(bill, system) {
   const invalid = (message) => ({ code: '7242', message });
 
   if (!bill || typeof bill !== 'object') return invalid('Bill must be an object');
@@ -371,10 +379,13 @@ async function validateBulkBill(bill) {
   }
 
   const submitted = [...new Set(bill.items.map(i => i && i.gfsCode).filter(Boolean))];
-  const valid = submitted.length ? await GfsCode.findActiveCodesIn(submitted) : [];
-  const unknown = submitted.filter(c => !valid.includes(c));
-  if (unknown.length > 0) {
-    return { code: '7223', message: `Unknown or inactive GFS code(s): ${unknown.join(', ')}` };
+  if (system) {
+    const problem = gfsProblem(system, await GfsCode.classifyFor(system.id, submitted));
+    if (problem) return { code: '7223', message: problem };
+  } else {
+    const valid = submitted.length ? await GfsCode.findActiveCodesIn(submitted) : [];
+    const unknown = submitted.filter(c => !valid.includes(c));
+    if (unknown.length > 0) return { code: '7223', message: `Unknown or inactive GFS code(s): ${unknown.join(', ')}` };
   }
 
   return null;
@@ -400,7 +411,7 @@ async function bulkCreateAndSubmit(req, res) {
     const billId = bill && bill.billId;
 
     try {
-      const problem = await validateBulkBill(bill);
+      const problem = await validateBulkBill(bill, system);
       if (problem) {
         results.push({ billId, success: false, code: problem.code, message: problem.message });
         continue;

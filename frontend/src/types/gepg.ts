@@ -246,6 +246,9 @@ export interface GfsCodeRecord {
   created_at?: string;
   updated_at?: string;
   created_by_username?: string | null;
+  billing_system_id?: number | null;
+  billing_system_code?: string | null;
+  billing_system_name?: string | null;
 }
 
 // Dashboard
@@ -408,6 +411,7 @@ export interface BillingSystem {
   created_at: string;
   active_keys: number;
   bill_count: number;
+  gfs_code_count: number;
   pending_events: number;
   dead_events: number;
   last_delivered_at?: string | null;
@@ -557,4 +561,19 @@ export interface DeveloperData {
   docs: DeveloperDocs;
   systems: Array<{ id: number; code: string; name: string }>;
   files: Array<{ id: string; name: string; audience: 'billing' | 'gepg' }>;
+}
+
+// GFS codes linked to a billing system
+export interface GfsLinkRow {
+  id: number;
+  code: string;
+  description?: string | null;
+  status: GfsCodeStatus;
+  billing_system_id?: number | null;
+  billing_system_code?: string | null;
+}
+
+export interface GfsLinks {
+  linked: GfsLinkRow[];
+  available: GfsLinkRow[];
 }

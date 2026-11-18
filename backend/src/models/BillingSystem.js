@@ -35,6 +35,7 @@ class BillingSystem {
       `SELECT s.id, s.code, s.name, s.description, s.contact, s.status, s.callback_url, s.retry_window_hours, s.created_at,
         (SELECT COUNT(*) FROM api_keys k WHERE k.billing_system_id = s.id AND k.status = 'ACTIVE') AS active_keys,
         (SELECT COUNT(*) FROM bills b WHERE b.billing_system_id = s.id) AS bill_count,
+        (SELECT COUNT(*) FROM gfs_codes g WHERE g.billing_system_id = s.id AND g.status = 'ACTIVE') AS gfs_code_count,
         (SELECT COUNT(*) FROM outbound_events e WHERE e.billing_system_id = s.id AND e.delivery_status = 'PENDING') AS pending_events,
         (SELECT COUNT(*) FROM outbound_events e WHERE e.billing_system_id = s.id AND e.delivery_status = 'DEAD') AS dead_events,
         (SELECT MAX(e.delivered_at) FROM outbound_events e WHERE e.billing_system_id = s.id) AS last_delivered_at
