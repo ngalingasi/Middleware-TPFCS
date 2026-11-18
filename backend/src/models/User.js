@@ -101,8 +101,23 @@ class User {
     await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [id]);
   }
 
+  // the database no longer cascades, so what depended on the user is cleaned up here
   async delete(id) {
-    await db.query('DELETE FROM users WHERE id = ?', [id]);
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query('DELETE FROM user_sessions WHERE user_id = ?', [id]);
+      for (const [table, column] of [['activity_logs', 'user_id'], ['api_keys', 'created_by'], ['billing_systems', 'created_by'], ['gfs_codes', 'created_by']]) {
+        await connection.query(`UPDATE \`${table}\` SET \`${column}\` = NULL WHERE \`${column}\` = ?`, [id]);
+      }
+      await connection.query('DELETE FROM users WHERE id = ?', [id]);
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 }
 

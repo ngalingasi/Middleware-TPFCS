@@ -4,6 +4,7 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const mysql = require('mysql2/promise');
+const dropForeignKeys = require('./dropForeignKeys');
 require('dotenv').config();
 
 const authMigrations = `
@@ -94,6 +95,7 @@ async function runAuthMigrations() {
 
     console.log('Running authentication migrations...');
     await connection.query(authMigrations);
+    await dropForeignKeys(connection, process.env.DB_NAME);
     console.log('Authentication migrations completed successfully!');
     console.log('\nDefault users created:');
     console.log('   Admin    - username: admin,  password: admin123');

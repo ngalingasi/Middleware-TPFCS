@@ -4,6 +4,7 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const mysql = require('mysql2/promise');
+const dropForeignKeys = require('./dropForeignKeys');
 require('dotenv').config();
 
 const migrations = `
@@ -431,6 +432,10 @@ async function runMigrations() {
 
     console.log('Running database migrations...');
     await connection.query(migrations);
+
+    // relations are kept in the application, not enforced by the database; the indexes stay
+    const dropped = await dropForeignKeys(connection, process.env.DB_NAME);
+    if (dropped.length) console.log(`Removed ${dropped.length} foreign key constraint(s), indexes kept: ${dropped.join(', ')}`);
     console.log('Migrations completed successfully!');
     console.log('\nTables created:');
     console.log('   - bills, bill_items, payments');
