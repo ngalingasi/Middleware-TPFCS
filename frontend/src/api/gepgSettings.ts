@@ -15,5 +15,11 @@ export const gepgSettingsApi = {
 
   status: () => gepgClient.get<GepgApiResponse<{ certificates: CertificateStatus[] }>>('/settings/status'),
 
+  uploadCertificate: (kind: CertificateStatus['kind'], file: { fileName: string; data: string; password?: string }) =>
+    gepgClient.post<GepgApiResponse<{ certificates: CertificateStatus[] }>>(`/settings/certificates/${kind}`, file),
+
+  removeCertificate: (kind: CertificateStatus['kind']) =>
+    gepgClient.delete<GepgApiResponse<{ certificates: CertificateStatus[] }>>(`/settings/certificates/${kind}`),
+
   environment: () => gepgClient.get<GepgApiResponse<{ environment: string }>>('/settings/environment'),
 };

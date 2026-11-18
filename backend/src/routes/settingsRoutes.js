@@ -14,5 +14,7 @@ router.get('/environment', authenticate, settingsController.getEnvironment);
 router.get('/', authenticate, authorize('ADMIN'), settingsController.getSettings);
 router.put('/', authenticate, authorize('ADMIN'), settingsController.updateSettings);
 router.get('/status', authenticate, authorize('ADMIN'), settingsController.getStatus);
+router.post('/certificates/:kind', authenticate, authorize('ADMIN'), settingsController.uploadCertificate);
+router.delete('/certificates/:kind', authenticate, authorize('ADMIN'), settingsController.removeCertificate);
 
 module.exports = router;

@@ -11,7 +11,7 @@ import { Modal } from '../../components/ui/modal';
 import { useModal } from '../../hooks/useModal';
 import Label from '../../components/form/Label';
 import Input from '../../components/form/input/InputField';
-import Switch from '../../components/form/switch/Switch';
+import RowActions from '../../components/common/RowActions';
 import { apiKeysApi } from '../../api/apiKeys';
 import type { ApiKeyRecord, BillingSystem } from '../../types/gepg';
 import { toast } from '../../components/tpfcs/Toast';
@@ -120,21 +120,20 @@ export default function ApiKeysPage() {
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Status</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Created</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Last used</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Enable/Disable</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
                     Loading…
                   </td>
                 </tr>
               )}
               {!loading && keys.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
                     No API keys yet
                   </td>
                 </tr>
@@ -190,15 +189,12 @@ export default function ApiKeysPage() {
                     {key.last_used_at ? new Date(key.last_used_at).toLocaleString() : 'Never'}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    <Switch defaultChecked={key.status === 'ACTIVE'} onChange={() => handleToggle(key)} />
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <button
-                      onClick={() => handleDelete(key)}
-                      className="text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-500"
-                    >
-                      Delete
-                    </button>
+                    <RowActions
+                      actions={[
+                        { label: key.status === 'ACTIVE' ? 'Disable' : 'Enable', onClick: () => handleToggle(key) },
+                        { label: 'Delete', onClick: () => handleDelete(key), danger: true },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

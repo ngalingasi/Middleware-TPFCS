@@ -44,4 +44,4 @@ fs.writeFileSync('gepg-callbacks-test-environment.json', JSON.stringify({
   id: 'gepg-callbacks-test', name: 'GePG callbacks (local test signatures)', values, _postman_variable_scope: 'environment'
 }, null, 2));
 console.log('\nWrote gepg-callbacks-test-environment.json: import it in Postman.');
-console.log('The bridge only accepts these if GEPG_PUBLIC_CERT_PATH points at the certificate that matches this key.');
+console.log('The bridge only accepts these if the GePG certificate it uses (uploaded in Settings > Certificates, or GEPG_PUBLIC_CERT_PATH) matches this key.');

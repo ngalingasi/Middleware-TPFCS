@@ -25,6 +25,7 @@ const outboxRoutes = require('./routes/outboxRoutes');
 const v1Routes = require('./routes/v1Routes');
 const developerRoutes = require('./routes/developerRoutes');
 const settings = require('./services/settingsService');
+const certificates = require('./services/certificateService');
 const eventService = require('./services/eventService');
 const { startExpiryJob } = require('./services/expiryService');
 const activityLogger = require('./middleware/activityLogger');
@@ -118,8 +119,10 @@ const PORT = process.env.PORT || 5001;
 // load saved settings first so the first request already uses them
 settings.load()
   .catch((error) => console.error('Could not load saved settings, using .env values:', error.message))
+  .then(() => certificates.load().catch((error) => console.error('Could not load uploaded certificates (run npm run migrate?), using .env paths:', error.message)))
   .then(() => {
     settings.startAutoRefresh();
+    certificates.startAutoRefresh();
     eventService.startWorker();
     startExpiryJob();
     app.listen(PORT, () => {

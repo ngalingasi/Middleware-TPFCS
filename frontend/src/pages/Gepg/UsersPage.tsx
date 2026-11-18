@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import PageBreadcrumb from '../../components/common/PageBreadCrumb';
 import PageMeta from '../../components/common/PageMeta';
+import RowActions from '../../components/common/RowActions';
 import Badge from '../../components/ui/badge/Badge';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
@@ -136,14 +137,12 @@ export default function GepgUsersPage() {
                     </Badge>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-3 text-sm">
-                      <button onClick={() => toggleStatus(u)} className="text-brand-600 hover:underline dark:text-brand-400">
-                        {u.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button onClick={() => handleDelete(u)} className="text-error-500 hover:underline">
-                        Delete
-                      </button>
-                    </div>
+                    <RowActions
+                      actions={[
+                        { label: u.status === 'ACTIVE' ? 'Deactivate' : 'Activate', onClick: () => toggleStatus(u) },
+                        { label: 'Delete', onClick: () => handleDelete(u), danger: true },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

@@ -191,8 +191,7 @@ const ENV_ONLY = [
   { name: 'DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD', meaning: 'Database connection.' },
   { name: 'JWT_SECRET, JWT_EXPIRES_IN', meaning: 'Signs login tokens and sets how long a login lasts.' },
   { name: 'OTP_EXPIRY_MINUTES', meaning: 'How long a one-time login code stays valid.' },
-  { name: 'CERT_PATH, CERT_PASSWORD', meaning: 'Your signing certificate (PKCS#12) and its password. Used to sign every message sent to GePG.' },
-  { name: 'GEPG_PUBLIC_CERT_PATH', meaning: 'GePG\'s public certificate, used to verify messages GePG sends to you.' },
+  { name: 'CERT_PATH, CERT_PASSWORD, GEPG_PUBLIC_CERT_PATH', meaning: 'Optional. Certificates are uploaded on this page; these .env values are only used while nothing is uploaded.' },
   { name: 'SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, EMAIL_FROM', meaning: 'Outgoing email, used to send login codes.' },
   { name: 'BRANDBOX_API_KEY, BRANDBOX_API_SECRET, BRANDBOX_SENDER_NAME', meaning: 'BrandBox SMS account, used to send login codes by SMS.' },
   { name: 'PORT, NODE_ENV', meaning: 'Server port and mode.' }

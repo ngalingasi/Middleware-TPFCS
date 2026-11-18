@@ -41,6 +41,11 @@ const TERMS: Array<[string, string]> = [
   ['UAT', 'User Acceptance Testing: GePG\'s test system, as opposed to production'],
 ];
 
+const CERT_HELP: Record<CertificateStatus['kind'], string> = {
+  signing: 'Signs every message sent to GePG. Upload the .p12 / .pfx file and its password.',
+  'gepg-public': 'Checks that messages really come from GePG. Upload the .pem, .cer or .crt file GePG gave you.',
+};
+
 const selectClass =
   'h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90';
 
@@ -114,6 +119,11 @@ export default function SettingsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [confirmGroup, setConfirmGroup] = useState<SettingGroup | null>(null);
+  const [uploadFor, setUploadFor] = useState<CertificateStatus | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [certPassword, setCertPassword] = useState('');
+  const [certError, setCertError] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     gepgSettingsApi
@@ -166,6 +176,52 @@ export default function SettingsPage() {
     else save(group);
   };
 
+  const closeUpload = () => {
+    setUploadFor(null);
+    setFile(null);
+    setCertPassword('');
+    setCertError('');
+  };
+
+  const readAsBase64 = (f: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+      reader.onerror = () => reject(new Error('Could not read the file'));
+      reader.readAsDataURL(f);
+    });
+
+  const uploadCertificate = async () => {
+    if (!uploadFor || !file) return;
+    setUploading(true);
+    setCertError('');
+    try {
+      const res = await gepgSettingsApi.uploadCertificate(uploadFor.kind, {
+        fileName: file.name,
+        data: await readAsBase64(file),
+        password: uploadFor.kind === 'signing' ? certPassword : undefined,
+      });
+      setCertificates(res.data.data.certificates);
+      toast.success('Certificate saved', uploadFor.label);
+      closeUpload();
+    } catch (err) {
+      setCertError(gepgErrorMessage(err));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeCertificate = async (cert: CertificateStatus) => {
+    if (!window.confirm(`Remove the uploaded certificate (${cert.label})? The value in .env (if any) is used again.`)) return;
+    try {
+      const res = await gepgSettingsApi.removeCertificate(cert.kind);
+      setCertificates(res.data.data.certificates);
+      toast.success('Removed', cert.label);
+    } catch (err) {
+      toast.error('Could not remove it', gepgErrorMessage(err));
+    }
+  };
+
   if (loading) return <p className="text-sm text-gray-500 dark:text-gray-400">Loading…</p>;
   if (!data) return <p className="text-sm text-error-500">Settings could not be loaded</p>;
 
@@ -216,21 +272,40 @@ export default function SettingsPage() {
           );
         })}
 
-        <ComponentCard title="Certificates" desc="Checked on the server. The files and the password are managed there, not here.">
-          <div className="space-y-3">
+        <ComponentCard title="Certificates" desc="Upload the files here. Each file is checked when you upload it. Only the password is kept encrypted; the file is never shown again.">
+          <div className="space-y-4">
             {certificates.length === 0 && <p className="text-sm text-gray-500 dark:text-gray-400">Status unavailable.</p>}
             {certificates.map((cert) => (
-              <div key={cert.label} className="flex flex-wrap items-start justify-between gap-2 text-sm">
-                <div>
-                  <p className="font-medium text-gray-800 dark:text-white/90">{cert.label}</p>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    {cert.message}
-                    {cert.file ? ` (${cert.file})` : ''}
+              <div key={cert.kind} className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4 text-sm last:border-b-0 last:pb-0 dark:border-gray-800">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-gray-800 dark:text-white/90">{cert.label}</p>
+                    <Badge size="sm" color={CERT_COLOR[cert.status]}>
+                      {cert.status}
+                    </Badge>
+                    <Badge size="sm" color={cert.source === 'uploaded' ? 'success' : 'light'}>
+                      {cert.source === 'uploaded' ? 'Uploaded' : 'From .env'}
+                    </Badge>
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400">{cert.message}</p>
+                  <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                    {CERT_HELP[cert.kind]}
+                    {cert.file ? ` · File: ${cert.file}` : ''}
+                    {cert.subject ? ` · Name: ${cert.subject}` : ''}
+                    {cert.uploadedAt ? ` · Uploaded ${new Date(cert.uploadedAt).toLocaleString()}` : ''}
                   </p>
+                  {cert.fingerprint && <p className="mt-0.5 break-all font-mono text-[11px] text-gray-400 dark:text-gray-500">SHA-256 {cert.fingerprint}</p>}
                 </div>
-                <Badge size="sm" color={CERT_COLOR[cert.status]}>
-                  {cert.status}
-                </Badge>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setUploadFor(cert)}>
+                    {cert.source === 'uploaded' ? 'Replace' : 'Upload'}
+                  </Button>
+                  {cert.source === 'uploaded' && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => removeCertificate(cert)}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -247,6 +322,42 @@ export default function SettingsPage() {
           </ul>
         </ComponentCard>
       </div>
+
+      <Modal isOpen={!!uploadFor} onClose={closeUpload} title={uploadFor ? `${uploadFor.source === 'uploaded' ? 'Replace' : 'Upload'}: ${uploadFor.label}` : ''} size="md">
+        {uploadFor && (
+          <div className="space-y-4 text-sm">
+            <p className="text-gray-600 dark:text-gray-300">{CERT_HELP[uploadFor.kind]}</p>
+            <div>
+              <Label>File</Label>
+              <input
+                type="file"
+                accept={uploadFor.kind === 'signing' ? '.p12,.pfx,.pem,.key' : '.pem,.cer,.crt'}
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] ?? null);
+                  setCertError('');
+                }}
+                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200 dark:text-gray-300 dark:file:bg-white/[0.06] dark:file:text-gray-200"
+              />
+            </div>
+            {uploadFor.kind === 'signing' && (
+              <div>
+                <Label>Password of the file</Label>
+                <Input type="password" value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="Leave empty if it has none" />
+                <p className="mt-1 text-xs text-gray-400">Kept encrypted on the server so the bridge can open the file. It is never shown again.</p>
+              </div>
+            )}
+            {certError && <p className="rounded-lg bg-error-50 p-3 text-error-600 dark:bg-error-500/10 dark:text-error-500">{certError}</p>}
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="outline" onClick={closeUpload}>
+                Cancel
+              </Button>
+              <Button type="button" disabled={!file || uploading} onClick={uploadCertificate}>
+                {uploading ? 'Checking…' : 'Upload'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={!!confirmGroup} onClose={() => setConfirmGroup(null)} title="Confirm changes" size="md">
         {confirmGroup && (

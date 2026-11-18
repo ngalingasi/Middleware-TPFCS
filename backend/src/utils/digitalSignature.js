@@ -8,6 +8,8 @@ const fs = require('fs');
 const forge = require('node-forge');
 const { ACK, gepgError } = require('./gepgErrors');
 
+const isPem = (value) => typeof value === 'string' && value.includes('-----BEGIN');
+
 class DigitalSignature {
   constructor() {
     this.algorithm = 'RSA-SHA256'; // Node's name for SHA256withRSA
@@ -52,7 +54,9 @@ class DigitalSignature {
     return privateKeyPem;
   }
 
+  // certPath may also be the key itself, as PEM text (an uploaded certificate)
   _resolvePrivateKeyPem(certPath, password) {
+    if (isPem(certPath)) return certPath;
     if (certPath.endsWith('.pem') || certPath.endsWith('.key')) {
       return fs.readFileSync(certPath, 'utf8');
     }
@@ -75,12 +79,12 @@ class DigitalSignature {
 
   verifySignature(message, signature, publicKeyPath) {
     try {
-      if (!fs.existsSync(publicKeyPath)) {
+      if (!isPem(publicKeyPath) && !fs.existsSync(publicKeyPath)) {
         // our certificate config is broken, not proof the message is forged
         throw gepgError(`Public key/certificate file not found: ${publicKeyPath}`, ACK.SIGNATURE_CONFIG);
       }
 
-      const publicKeyPem = fs.readFileSync(publicKeyPath, 'utf8');
+      const publicKeyPem = isPem(publicKeyPath) ? publicKeyPath : fs.readFileSync(publicKeyPath, 'utf8');
       const cleanSignature = signature.replace(/\s+/g, '');
 
       const verify = crypto.createVerify(this.algorithm);

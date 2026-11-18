@@ -391,11 +391,15 @@ export interface SettingChange {
 }
 
 export interface CertificateStatus {
+  kind: 'signing' | 'gepg-public';
+  source: 'uploaded' | 'env';
   label: string;
   file: string;
   status: 'ok' | 'expiring' | 'expired' | 'missing' | 'unreadable';
   message: string;
   subject?: string;
+  fingerprint?: string;
+  uploadedAt?: string;
 }
 
 // Billing systems and the outbox

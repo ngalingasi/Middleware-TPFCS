@@ -11,6 +11,7 @@ import Badge from '../../components/ui/badge/Badge';
 import Button from '../../components/ui/button/Button';
 import Label from '../../components/form/Label';
 import Input from '../../components/form/input/InputField';
+import RowActions from '../../components/common/RowActions';
 import Modal from '../../components/tpfcs/Modal';
 import { toast } from '../../components/tpfcs/Toast';
 import { billingSystemsApi } from '../../api/billingSystems';
@@ -346,17 +347,20 @@ export default function BillingSystemsPage() {
                     {s.last_delivered_at ? new Date(s.last_delivered_at).toLocaleString() : 'Never'}
                   </td>
                   <td className="px-3 py-2 text-sm whitespace-nowrap">
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-brand-600 dark:text-brand-400">
-                      <button onClick={() => openEdit(s)} className="hover:underline">Edit</button>
-                      <button onClick={() => openKeys(s)} className="hover:underline">Keys</button>
-                      <button onClick={() => openGfs(s)} className="hover:underline">GFS codes</button>
-                      <button onClick={() => sendTest(s)} disabled={!s.callback_url || testing === s.id} className="hover:underline disabled:text-gray-300 disabled:no-underline" title={s.callback_url ? 'Send a signed test event now' : 'Set a callback URL first'}>
-                        {testing === s.id ? 'Sending…' : 'Test'}
-                      </button>
-                      {s.dead_events > 0 && s.callback_url && (
-                        <button onClick={() => replayDead(s)} className="hover:underline">Retry failed</button>
-                      )}
-                    </div>
+                    <RowActions
+                      actions={[
+                        { label: 'Edit', onClick: () => openEdit(s) },
+                        { label: 'Keys', onClick: () => openKeys(s) },
+                        { label: 'GFS codes', onClick: () => openGfs(s) },
+                        {
+                          label: testing === s.id ? 'Sending…' : 'Send test event',
+                          onClick: () => sendTest(s),
+                          disabled: !s.callback_url || testing === s.id,
+                          title: s.callback_url ? 'Send a signed test event now' : 'Set a callback URL first',
+                        },
+                        { label: 'Retry failed', onClick: () => replayDead(s), hidden: !(s.dead_events > 0 && s.callback_url) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

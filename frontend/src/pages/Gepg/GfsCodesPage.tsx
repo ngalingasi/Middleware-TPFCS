@@ -11,7 +11,7 @@ import { Modal } from '../../components/ui/modal';
 import { useModal } from '../../hooks/useModal';
 import Label from '../../components/form/Label';
 import Input from '../../components/form/input/InputField';
-import Switch from '../../components/form/switch/Switch';
+import RowActions from '../../components/common/RowActions';
 import { gfsCodesApi } from '../../api/gfsCodes';
 import { billingSystemsApi } from '../../api/billingSystems';
 import type { BillingSystem, GfsCodeRecord } from '../../types/gepg';
@@ -113,21 +113,20 @@ export default function GfsCodesPage() {
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Billing system</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Status</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Added</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Enable/Disable</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide dark:text-gray-300">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={6} className="px-4 py-4 text-center text-sm text-gray-400">
                     Loading…
                   </td>
                 </tr>
               )}
               {!loading && codes.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">
+                  <td colSpan={6} className="px-4 py-4 text-center text-sm text-gray-400">
                     No GFS codes yet - add one so it appears in the Create Bill dropdown.
                   </td>
                 </tr>
@@ -178,15 +177,12 @@ export default function GfsCodesPage() {
                     {record.created_at ? new Date(record.created_at).toLocaleDateString() : '—'}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    <Switch defaultChecked={record.status === 'ACTIVE'} onChange={() => handleToggle(record)} />
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <button
-                      onClick={() => handleDelete(record)}
-                      className="text-gray-500 hover:text-error-500 dark:text-gray-400 dark:hover:text-error-500"
-                    >
-                      Delete
-                    </button>
+                    <RowActions
+                      actions={[
+                        { label: record.status === 'ACTIVE' ? 'Disable' : 'Enable', onClick: () => handleToggle(record) },
+                        { label: 'Delete', onClick: () => handleDelete(record), danger: true },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

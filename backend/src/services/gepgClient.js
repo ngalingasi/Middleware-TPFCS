@@ -8,14 +8,21 @@ const xmlBuilder = require('../utils/xmlBuilder');
 const digitalSignature = require('../utils/digitalSignature');
 const { ACK, gepgError } = require('../utils/gepgErrors');
 const settings = require('./settingsService');
+const certificates = require('./certificateService');
 require('dotenv').config();
 
 class GePGClient {
-  // certificates and the password stay in .env
-  constructor() {
-    this.certPath = process.env.CERT_PATH;
-    this.certPassword = process.env.CERT_PASSWORD;
-    this.gepgPublicCertPath = process.env.GEPG_PUBLIC_CERT_PATH;
+  // an uploaded certificate wins; the .env paths are the fallback
+  get signingKey() {
+    return certificates.signingKey() || process.env.CERT_PATH;
+  }
+
+  get signingPassword() {
+    return certificates.signingKey() ? undefined : process.env.CERT_PASSWORD;
+  }
+
+  get gepgPublicCertPath() {
+    return certificates.gepgPublicPem() || process.env.GEPG_PUBLIC_CERT_PATH;
   }
 
   // everything below can be changed on the Settings page, so it is read on use
@@ -67,8 +74,8 @@ class GePGClient {
       if (useSigning) {
         requestBody = digitalSignature.createSignedEnvelope(
           xmlMessage,
-          this.certPath,
-          this.certPassword
+          this.signingKey,
+          this.signingPassword
         );
       }
 

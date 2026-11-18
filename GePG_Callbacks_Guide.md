@@ -406,12 +406,12 @@ The samples carry the placeholder `SignatureGoesHere` instead of a real signatur
 # 1. make a test key and certificate
 openssl req -x509 -newkey rsa:2048 -nodes -keyout gepg-test-key.pem -out gepg-test-cert.pem -days 30 -subj "/CN=gepg-test"
 
-# 2. in backend/.env, temporarily point GEPG_PUBLIC_CERT_PATH at the test certificate, then restart the bridge
-GEPG_PUBLIC_CERT_PATH=./gepg-test-cert.pem
+# 2. in the bridge, open Settings > Certificates and upload gepg-test-cert.pem as
+#    "GePG's public certificate" (an uploaded certificate overrides GEPG_PUBLIC_CERT_PATH in .env)
 
 # 3. sign every sample; this also writes a Postman environment with the signatures
 cd backend
 node scripts/sign-gepg-sample.js ../gepg-test-key.pem
 ```
 
-Import the environment it writes (`gepg-callbacks-test-environment.json`) in Postman. In Insomnia, copy the `sig_...` values into the environment. Create the bill the sample refers to first (the BillId must exist), or the bridge answers 7317. Put the real `GEPG_PUBLIC_CERT_PATH` back afterwards.
+Import the environment it writes (`gepg-callbacks-test-environment.json`) in Postman. In Insomnia, copy the `sig_...` values into the environment. Create the bill the sample refers to first (the BillId must exist), or the bridge answers 7317. Afterwards, upload the real GePG certificate again (or press Remove to go back to the `.env` value).
