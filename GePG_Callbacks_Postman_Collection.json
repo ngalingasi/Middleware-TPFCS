@@ -1,0 +1,1388 @@
+{
+  "info": {
+    "name": "GePG Bridge - GePG callbacks (GePG to the bridge)",
+    "description": "What GePG posts to the bridge, with the bridge's possible answers saved on each request. The samples use the placeholder signature, so the bridge answers 7303 until the sig_ variables hold real signatures (see GePG_Callbacks_Guide.md).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5001"
+    },
+    {
+      "key": "sig_bill_ok",
+      "value": "SignatureGoesHere"
+    },
+    {
+      "key": "sig_bill_failed",
+      "value": "SignatureGoesHere"
+    },
+    {
+      "key": "sig_payment_single",
+      "value": "SignatureGoesHere"
+    },
+    {
+      "key": "sig_payment_two",
+      "value": "SignatureGoesHere"
+    },
+    {
+      "key": "sig_reconciliation",
+      "value": "SignatureGoesHere"
+    }
+  ],
+  "item": [
+    {
+      "name": "Bill submission response",
+      "description": "GePG has processed a bill the bridge submitted, and gives the control number or the reason it refused.\n\nThe bridge stores the control number (or the rejection) on the bill and tells the billing system that owns it.",
+      "item": [
+        {
+          "name": "Bill accepted",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('The bridge answered with an acknowledgement', () => pm.expect(pm.response.text()).to.include('<AckStsCode>'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bills/webhook/response",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bills",
+                "webhook",
+                "response"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100211</ResId>\n    <ReqId>SP0231763373731000</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <ResSts>GS</ResSts>\n    <ResStsCode>7101</ResStsCode>\n    <ResStsDesc>Successful</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCntrNum>991330026625</BillCntrNum>\n      <BillStsCode>7101</BillStsCode>\n      <BillStsDesc>Successful</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_ok}}</signature>\n</Gepg>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "description": "Bill accepted. Spec section 4.2.2.2."
+          },
+          "response": [
+            {
+              "name": "7101 Received and recorded. GePG need not send it again.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100211</ResId>\n    <ReqId>SP0231763373731000</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <ResSts>GS</ResSts>\n    <ResStsCode>7101</ResStsCode>\n    <ResStsDesc>Successful</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCntrNum>991330026625</BillCntrNum>\n      <BillStsCode>7101</BillStsCode>\n      <BillStsDesc>Successful</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_ok}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill accepted. Spec section 4.2.2.2."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7101</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7303 The signature is missing or does not match. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100211</ResId>\n    <ReqId>SP0231763373731000</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <ResSts>GS</ResSts>\n    <ResStsCode>7101</ResStsCode>\n    <ResStsDesc>Successful</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCntrNum>991330026625</BillCntrNum>\n      <BillStsCode>7101</BillStsCode>\n      <BillStsDesc>Successful</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_ok}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill accepted. Spec section 4.2.2.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7303</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7242 The XML could not be read, or it is not the expected message. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100211</ResId>\n    <ReqId>SP0231763373731000</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <ResSts>GS</ResSts>\n    <ResStsCode>7101</ResStsCode>\n    <ResStsDesc>Successful</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCntrNum>991330026625</BillCntrNum>\n      <BillStsCode>7101</BillStsCode>\n      <BillStsDesc>Successful</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_ok}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill accepted. Spec section 4.2.2.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7242</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7304 The bridge cannot find GePG's public certificate. This is the institution's fault, not the message's.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100211</ResId>\n    <ReqId>SP0231763373731000</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <ResSts>GS</ResSts>\n    <ResStsCode>7101</ResStsCode>\n    <ResStsDesc>Successful</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCntrNum>991330026625</BillCntrNum>\n      <BillStsCode>7101</BillStsCode>\n      <BillStsDesc>Successful</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_ok}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill accepted. Spec section 4.2.2.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7304</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7317 The message was valid but the bridge failed while recording it (for example, the bill is unknown). GePG should send it again later.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100211</ResId>\n    <ReqId>SP0231763373731000</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <ResSts>GS</ResSts>\n    <ResStsCode>7101</ResStsCode>\n    <ResStsDesc>Successful</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCntrNum>991330026625</BillCntrNum>\n      <BillStsCode>7101</BillStsCode>\n      <BillStsDesc>Successful</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_ok}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill accepted. Spec section 4.2.2.2."
+              },
+              "status": "500",
+              "code": 500,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7317</AckStsCode></billSubResAck>"
+            }
+          ]
+        },
+        {
+          "name": "Bill refused (invalid GFS code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('The bridge answered with an acknowledgement', () => pm.expect(pm.response.text()).to.include('<AckStsCode>'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/bills/webhook/response",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "bills",
+                "webhook",
+                "response"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100212</ResId>\n    <ReqId>SP0231763373731001</ReqId>\n    <GrpBillId>ICDV-INV-1002</GrpBillId>\n    <CustCntrNum>0</CustCntrNum>\n    <ResSts>GF</ResSts>\n    <ResStsCode>7102</ResStsCode>\n    <ResStsDesc>Failure</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1002</BillId>\n      <BillCntrNum>0</BillCntrNum>\n      <BillStsCode>7223</BillStsCode>\n      <BillStsDesc>Invalid or inactive government financial statistic code (gfs) or service type</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_failed}}</signature>\n</Gepg>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "description": "Bill refused (invalid GFS code). Spec section 4.2.2.2."
+          },
+          "response": [
+            {
+              "name": "7101 Received and recorded. GePG need not send it again.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100212</ResId>\n    <ReqId>SP0231763373731001</ReqId>\n    <GrpBillId>ICDV-INV-1002</GrpBillId>\n    <CustCntrNum>0</CustCntrNum>\n    <ResSts>GF</ResSts>\n    <ResStsCode>7102</ResStsCode>\n    <ResStsDesc>Failure</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1002</BillId>\n      <BillCntrNum>0</BillCntrNum>\n      <BillStsCode>7223</BillStsCode>\n      <BillStsDesc>Invalid or inactive government financial statistic code (gfs) or service type</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_failed}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill refused (invalid GFS code). Spec section 4.2.2.2."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7101</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7303 The signature is missing or does not match. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100212</ResId>\n    <ReqId>SP0231763373731001</ReqId>\n    <GrpBillId>ICDV-INV-1002</GrpBillId>\n    <CustCntrNum>0</CustCntrNum>\n    <ResSts>GF</ResSts>\n    <ResStsCode>7102</ResStsCode>\n    <ResStsDesc>Failure</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1002</BillId>\n      <BillCntrNum>0</BillCntrNum>\n      <BillStsCode>7223</BillStsCode>\n      <BillStsDesc>Invalid or inactive government financial statistic code (gfs) or service type</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_failed}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill refused (invalid GFS code). Spec section 4.2.2.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7303</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7242 The XML could not be read, or it is not the expected message. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100212</ResId>\n    <ReqId>SP0231763373731001</ReqId>\n    <GrpBillId>ICDV-INV-1002</GrpBillId>\n    <CustCntrNum>0</CustCntrNum>\n    <ResSts>GF</ResSts>\n    <ResStsCode>7102</ResStsCode>\n    <ResStsDesc>Failure</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1002</BillId>\n      <BillCntrNum>0</BillCntrNum>\n      <BillStsCode>7223</BillStsCode>\n      <BillStsDesc>Invalid or inactive government financial statistic code (gfs) or service type</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_failed}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill refused (invalid GFS code). Spec section 4.2.2.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7242</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7304 The bridge cannot find GePG's public certificate. This is the institution's fault, not the message's.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100212</ResId>\n    <ReqId>SP0231763373731001</ReqId>\n    <GrpBillId>ICDV-INV-1002</GrpBillId>\n    <CustCntrNum>0</CustCntrNum>\n    <ResSts>GF</ResSts>\n    <ResStsCode>7102</ResStsCode>\n    <ResStsDesc>Failure</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1002</BillId>\n      <BillCntrNum>0</BillCntrNum>\n      <BillStsCode>7223</BillStsCode>\n      <BillStsDesc>Invalid or inactive government financial statistic code (gfs) or service type</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_failed}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill refused (invalid GFS code). Spec section 4.2.2.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7304</AckStsCode></billSubResAck>"
+            },
+            {
+              "name": "7317 The message was valid but the bridge failed while recording it (for example, the bill is unknown). GePG should send it again later.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/bills/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bills",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<billSubRes>\n  <BillHdr>\n    <ResId>GW20261117100212</ResId>\n    <ReqId>SP0231763373731001</ReqId>\n    <GrpBillId>ICDV-INV-1002</GrpBillId>\n    <CustCntrNum>0</CustCntrNum>\n    <ResSts>GF</ResSts>\n    <ResStsCode>7102</ResStsCode>\n    <ResStsDesc>Failure</ResStsDesc>\n  </BillHdr>\n  <BillDtls>\n    <BillDtl>\n      <BillId>ICDV-INV-1002</BillId>\n      <BillCntrNum>0</BillCntrNum>\n      <BillStsCode>7223</BillStsCode>\n      <BillStsDesc>Invalid or inactive government financial statistic code (gfs) or service type</BillStsDesc>\n    </BillDtl>\n  </BillDtls>\n</billSubRes>\n<signature>{{sig_bill_failed}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Bill refused (invalid GFS code). Spec section 4.2.2.2."
+              },
+              "status": "500",
+              "code": 500,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<billSubResAck><AckId>SP0231763373731500</AckId><ResId>GW20261117100211</ResId><AckStsCode>7317</AckStsCode></billSubResAck>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment notification",
+      "description": "A payer has paid a control number through a bank or mobile network.\n\nThe bridge records each payment (a repeat of the same TrxId is ignored), marks the bill paid once the payments cover it, and tells the owning billing system.",
+      "item": [
+        {
+          "name": "One payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('The bridge answered with an acknowledgement', () => pm.expect(pm.response.text()).to.include('<AckStsCode>'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/webhook/notification",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "webhook",
+                "notification"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458343</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>1</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_single}}</signature>\n</Gepg>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "description": "One payment. Spec section 6.2."
+          },
+          "response": [
+            {
+              "name": "7101 Received and recorded. GePG need not send it again.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458343</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>1</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_single}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment. Spec section 6.2."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7101</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7303 The signature is missing or does not match. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458343</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>1</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_single}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment. Spec section 6.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7303</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7242 The XML could not be read, or it is not the expected message. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458343</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>1</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_single}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment. Spec section 6.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7242</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7304 The bridge cannot find GePG's public certificate. This is the institution's fault, not the message's.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458343</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>1</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_single}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment. Spec section 6.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7304</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7317 The message was valid but the bridge failed while recording it (for example, the bill is unknown). GePG should send it again later.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458343</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>1</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_single}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment. Spec section 6.2."
+              },
+              "status": "500",
+              "code": 500,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7317</AckStsCode></pmtSpNtfReqAck>"
+            }
+          ]
+        },
+        {
+          "name": "Two payments in one message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('The bridge answered with an acknowledgement', () => pm.expect(pm.response.text()).to.include('<AckStsCode>'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/payments/webhook/notification",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "webhook",
+                "notification"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458344</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>2</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320575</TrxId>\n      <PayRefId>921033031098002</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:02:10</TrxDtTm>\n      <UsdPayChnl>IB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-89</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP006</PspCode>\n      <PspName>Example Mobile Money</PspName>\n      <TrxId>100816320576</TrxId>\n      <PayRefId>921033031098003</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:04:31</TrxDtTm>\n      <UsdPayChnl>MPESA</UsdPayChnl>\n      <TrdPtyTrxId>MP-77123</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_two}}</signature>\n</Gepg>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "description": "Two payments in one message. Spec section 6.2."
+          },
+          "response": [
+            {
+              "name": "7101 Received and recorded. GePG need not send it again.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458344</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>2</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320575</TrxId>\n      <PayRefId>921033031098002</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:02:10</TrxDtTm>\n      <UsdPayChnl>IB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-89</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP006</PspCode>\n      <PspName>Example Mobile Money</PspName>\n      <TrxId>100816320576</TrxId>\n      <PayRefId>921033031098003</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:04:31</TrxDtTm>\n      <UsdPayChnl>MPESA</UsdPayChnl>\n      <TrdPtyTrxId>MP-77123</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_two}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Two payments in one message. Spec section 6.2."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7101</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7303 The signature is missing or does not match. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458344</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>2</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320575</TrxId>\n      <PayRefId>921033031098002</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:02:10</TrxDtTm>\n      <UsdPayChnl>IB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-89</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP006</PspCode>\n      <PspName>Example Mobile Money</PspName>\n      <TrxId>100816320576</TrxId>\n      <PayRefId>921033031098003</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:04:31</TrxDtTm>\n      <UsdPayChnl>MPESA</UsdPayChnl>\n      <TrdPtyTrxId>MP-77123</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_two}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Two payments in one message. Spec section 6.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7303</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7242 The XML could not be read, or it is not the expected message. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458344</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>2</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320575</TrxId>\n      <PayRefId>921033031098002</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:02:10</TrxDtTm>\n      <UsdPayChnl>IB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-89</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP006</PspCode>\n      <PspName>Example Mobile Money</PspName>\n      <TrxId>100816320576</TrxId>\n      <PayRefId>921033031098003</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:04:31</TrxDtTm>\n      <UsdPayChnl>MPESA</UsdPayChnl>\n      <TrdPtyTrxId>MP-77123</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_two}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Two payments in one message. Spec section 6.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7242</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7304 The bridge cannot find GePG's public certificate. This is the institution's fault, not the message's.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458344</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>2</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320575</TrxId>\n      <PayRefId>921033031098002</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:02:10</TrxDtTm>\n      <UsdPayChnl>IB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-89</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP006</PspCode>\n      <PspName>Example Mobile Money</PspName>\n      <TrxId>100816320576</TrxId>\n      <PayRefId>921033031098003</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:04:31</TrxDtTm>\n      <UsdPayChnl>MPESA</UsdPayChnl>\n      <TrdPtyTrxId>MP-77123</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_two}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Two payments in one message. Spec section 6.2."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7304</AckStsCode></pmtSpNtfReqAck>"
+            },
+            {
+              "name": "7317 The message was valid but the bridge failed while recording it (for example, the bill is unknown). GePG should send it again later.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/payments/webhook/notification",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "payments",
+                    "webhook",
+                    "notification"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<pmtSpNtfReq>\n  <PmtHdr>\n    <ReqId>100000-2835934-85-23458344</ReqId>\n    <GrpBillId>ICDV-INV-1001</GrpBillId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <CustCntrNum>991330026625</CustCntrNum>\n    <EntryCnt>2</EntryCnt>\n  </PmtHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320575</TrxId>\n      <PayRefId>921033031098002</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:02:10</TrxDtTm>\n      <UsdPayChnl>IB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-89</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n    <PmtTrxDtl>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP006</PspCode>\n      <PspName>Example Mobile Money</PspName>\n      <TrxId>100816320576</TrxId>\n      <PayRefId>921033031098003</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>100000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T10:04:31</TrxDtTm>\n      <UsdPayChnl>MPESA</UsdPayChnl>\n      <TrdPtyTrxId>MP-77123</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName/>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</pmtSpNtfReq>\n<signature>{{sig_payment_two}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Two payments in one message. Spec section 6.2."
+              },
+              "status": "500",
+              "code": 500,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<pmtSpNtfReqAck><AckId>SP0231763373731500</AckId><ReqId>100000-2835934-85-23458343</ReqId><AckStsCode>7317</AckStsCode></pmtSpNtfReqAck>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Successful payments summary (reconciliation response)",
+      "description": "GePG answers a reconciliation request with the day's successful payments.\n\nThe bridge saves the list and records any payment it did not already have (for example one whose notification was lost), then tells the owning billing system.",
+      "item": [
+        {
+          "name": "One payment for the day",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('The bridge answered with an acknowledgement', () => pm.expect(pm.response.text()).to.include('<AckStsCode>'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/reconciliation/webhook/response",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reconciliation",
+                "webhook",
+                "response"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "<Gepg>\n<sucSpPmtRes>\n  <BatchHdr>\n    <ResId>4747a838-67b7-11eb-ae93</ResId>\n    <ReqId>SP0231763373731777</ReqId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <SysCode>tjv47</SysCode>\n    <PayStsCode>7101</PayStsCode>\n    <PayStsDesc>Successful</PayStsDesc>\n  </BatchHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <CustCntrNum>991330026625</CustCntrNum>\n      <GrpBillId>ICDV-INV-1001</GrpBillId>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</sucSpPmtRes>\n<signature>{{sig_reconciliation}}</signature>\n</Gepg>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "description": "One payment for the day. Spec section 7.4."
+          },
+          "response": [
+            {
+              "name": "7101 Received and recorded. GePG need not send it again.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/reconciliation/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reconciliation",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<sucSpPmtRes>\n  <BatchHdr>\n    <ResId>4747a838-67b7-11eb-ae93</ResId>\n    <ReqId>SP0231763373731777</ReqId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <SysCode>tjv47</SysCode>\n    <PayStsCode>7101</PayStsCode>\n    <PayStsDesc>Successful</PayStsDesc>\n  </BatchHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <CustCntrNum>991330026625</CustCntrNum>\n      <GrpBillId>ICDV-INV-1001</GrpBillId>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</sucSpPmtRes>\n<signature>{{sig_reconciliation}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment for the day. Spec section 7.4."
+              },
+              "status": "200",
+              "code": 200,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<sucSpPmtResAck><AckId>SP0231763373731500</AckId><ResId>4747a838-67b7-11eb-ae93</ResId><AckStsCode>7101</AckStsCode></sucSpPmtResAck>"
+            },
+            {
+              "name": "7303 The signature is missing or does not match. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/reconciliation/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reconciliation",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<sucSpPmtRes>\n  <BatchHdr>\n    <ResId>4747a838-67b7-11eb-ae93</ResId>\n    <ReqId>SP0231763373731777</ReqId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <SysCode>tjv47</SysCode>\n    <PayStsCode>7101</PayStsCode>\n    <PayStsDesc>Successful</PayStsDesc>\n  </BatchHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <CustCntrNum>991330026625</CustCntrNum>\n      <GrpBillId>ICDV-INV-1001</GrpBillId>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</sucSpPmtRes>\n<signature>{{sig_reconciliation}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment for the day. Spec section 7.4."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<sucSpPmtResAck><AckId>SP0231763373731500</AckId><ResId>4747a838-67b7-11eb-ae93</ResId><AckStsCode>7303</AckStsCode></sucSpPmtResAck>"
+            },
+            {
+              "name": "7242 The XML could not be read, or it is not the expected message. Nothing was recorded.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/reconciliation/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reconciliation",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<sucSpPmtRes>\n  <BatchHdr>\n    <ResId>4747a838-67b7-11eb-ae93</ResId>\n    <ReqId>SP0231763373731777</ReqId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <SysCode>tjv47</SysCode>\n    <PayStsCode>7101</PayStsCode>\n    <PayStsDesc>Successful</PayStsDesc>\n  </BatchHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <CustCntrNum>991330026625</CustCntrNum>\n      <GrpBillId>ICDV-INV-1001</GrpBillId>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</sucSpPmtRes>\n<signature>{{sig_reconciliation}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment for the day. Spec section 7.4."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<sucSpPmtResAck><AckId>SP0231763373731500</AckId><ResId>4747a838-67b7-11eb-ae93</ResId><AckStsCode>7242</AckStsCode></sucSpPmtResAck>"
+            },
+            {
+              "name": "7304 The bridge cannot find GePG's public certificate. This is the institution's fault, not the message's.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/reconciliation/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reconciliation",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<sucSpPmtRes>\n  <BatchHdr>\n    <ResId>4747a838-67b7-11eb-ae93</ResId>\n    <ReqId>SP0231763373731777</ReqId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <SysCode>tjv47</SysCode>\n    <PayStsCode>7101</PayStsCode>\n    <PayStsDesc>Successful</PayStsDesc>\n  </BatchHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <CustCntrNum>991330026625</CustCntrNum>\n      <GrpBillId>ICDV-INV-1001</GrpBillId>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</sucSpPmtRes>\n<signature>{{sig_reconciliation}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment for the day. Spec section 7.4."
+              },
+              "status": "400",
+              "code": 400,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<sucSpPmtResAck><AckId>SP0231763373731500</AckId><ResId>4747a838-67b7-11eb-ae93</ResId><AckStsCode>7304</AckStsCode></sucSpPmtResAck>"
+            },
+            {
+              "name": "7317 The message was valid but the bridge failed while recording it (for example, the bill is unknown). GePG should send it again later.",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/xml"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/reconciliation/webhook/response",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reconciliation",
+                    "webhook",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "<Gepg>\n<sucSpPmtRes>\n  <BatchHdr>\n    <ResId>4747a838-67b7-11eb-ae93</ResId>\n    <ReqId>SP0231763373731777</ReqId>\n    <SpGrpCode>SP023</SpGrpCode>\n    <SysCode>tjv47</SysCode>\n    <PayStsCode>7101</PayStsCode>\n    <PayStsDesc>Successful</PayStsDesc>\n  </BatchHdr>\n  <PmtDtls>\n    <PmtTrxDtl>\n      <CustCntrNum>991330026625</CustCntrNum>\n      <GrpBillId>ICDV-INV-1001</GrpBillId>\n      <SpCode>SP023</SpCode>\n      <BillId>ICDV-INV-1001</BillId>\n      <BillCtrNum>991330026625</BillCtrNum>\n      <PspCode>PSP900</PspCode>\n      <PspName>Example Commercial Bank</PspName>\n      <TrxId>100816320574</TrxId>\n      <PayRefId>921033031098001</PayRefId>\n      <BillAmt>500000</BillAmt>\n      <PaidAmt>300000</PaidAmt>\n      <BillPayOpt>2</BillPayOpt>\n      <Ccy>TZS</Ccy>\n      <CollAccNum>45610032210</CollAccNum>\n      <TrxDtTm>2026-11-16T09:35:59</TrxDtTm>\n      <UsdPayChnl>MB</UsdPayChnl>\n      <TrdPtyTrxId>259-848-4898-88</TrdPtyTrxId>\n      <QtRefId/>\n      <PyrCellNum>255786030028</PyrCellNum>\n      <PyrEmail/>\n      <PyrName>Vidah Mwakyusa</PyrName>\n      <Rsv1/>\n      <Rsv2/>\n      <Rsv3/>\n    </PmtTrxDtl>\n  </PmtDtls>\n</sucSpPmtRes>\n<signature>{{sig_reconciliation}}</signature>\n</Gepg>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "One payment for the day. Spec section 7.4."
+              },
+              "status": "500",
+              "code": 500,
+              "_postman_previewlanguage": "xml",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/xml"
+                }
+              ],
+              "body": "<sucSpPmtResAck><AckId>SP0231763373731500</AckId><ResId>4747a838-67b7-11eb-ae93</ResId><AckStsCode>7317</AckStsCode></sucSpPmtResAck>"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

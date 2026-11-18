@@ -10,6 +10,8 @@ const v1Routes = require('../src/routes/v1Routes');
 const { buildDocs, EXAMPLE_TIMESTAMP } = require('../src/utils/apiDocs');
 const { sign, EVENT_TYPES } = require('../src/utils/webhookConfig');
 const { files, allEndpoints } = require('../src/services/docsGenerator');
+const { buildCallbackDocs } = require('../src/utils/gepgCallbackDocs');
+const xmlBuilder = require('../src/utils/xmlBuilder');
 
 let failed = 0;
 const check = (name, ok, detail = '') => {
@@ -86,5 +88,35 @@ check('OpenAPI file is valid with every operation and event',
   !!openapi && Object.values(openapi.paths).reduce((n, p) => n + Object.keys(p).length, 0) === endpoints.length && Object.keys(openapi.webhooks).length === EVENT_TYPES.length);
 check('Markdown guide mentions every endpoint', endpoints.every((e) => generated.markdown.content.includes(`\`${e.method} ${e.path}\``)));
 
-console.log(failed ? `\n${failed} check(s) failed` : '\nAll documentation checks passed');
-process.exit(failed ? 1 : 0);
+// 7. the GePG callbacks: the URLs are real routes, the samples are readable messages of the right kind
+const routeSet = (router, prefix) => router.stack.filter((l) => l.route).flatMap((l) =>
+  Object.keys(l.route.methods).map((m) => `${m.toUpperCase()} ${prefix}${l.route.path}`));
+const webhookRoutes = new Set([
+  ...routeSet(require('../src/routes/billRoutes'), '/api/bills'),
+  ...routeSet(require('../src/routes/paymentRoutes'), '/api/payments'),
+  ...routeSet(require('../src/routes/reconciliationRoutes'), '/api/reconciliation')
+]);
+const callbackDocs = buildCallbackDocs({ baseUrl: 'http://localhost:5001' });
+callbackDocs.callbacks.forEach((c) => check(`callback ${c.path} is a real POST route`, webhookRoutes.has(`POST ${c.path}`)));
+
+(async () => {
+  for (const c of callbackDocs.callbacks) {
+    for (const smp of c.samples) {
+      let root = null;
+      try { root = Object.keys(await xmlBuilder.parseXML(smp.xml))[0]; } catch (e) { /* reported below */ }
+      check(`callback sample ${smp.id} is readable ${c.root} XML`, root === c.root, `root is ${root}`);
+    }
+    const sevenOneOhOne = c.answers.find((a) => a.statusCode === '7101');
+    check(`callback ${c.id} documents its 7101 answer as an ${c.ackType}`, !!sevenOneOhOne && sevenOneOhOne.xml.startsWith(`<${c.ackType}>`) && sevenOneOhOne.httpStatus === 200);
+  }
+  const gepgFiles = Object.fromEntries(files(docs).filter((f) => f.audience === 'gepg').map((f) => [f.id, f]));
+  const gp = JSON.parse(gepgFiles['gepg-postman'].content);
+  const gi = JSON.parse(gepgFiles['gepg-insomnia'].content);
+  const sampleCount = callbackDocs.callbacks.reduce((n, c) => n + c.samples.length, 0);
+  check('GePG Postman collection has every sample', gp.item.flatMap((f) => f.item).length === sampleCount);
+  check('GePG Insomnia export has every sample', gi.resources.filter((r) => r._type === 'request').length === sampleCount);
+  check('GePG guide lists every callback URL', callbackDocs.callbacks.every((c) => gepgFiles['gepg-guide'].content.includes(c.url)));
+
+  console.log(failed ? `\n${failed} check(s) failed` : '\nAll documentation checks passed');
+  process.exit(failed ? 1 : 0);
+})();

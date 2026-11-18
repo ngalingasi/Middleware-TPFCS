@@ -12,6 +12,10 @@ Everything a billing system needs to call the bridge and receive its events is i
 
 The dashboard's Developer page offers the same files, written for one billing system (its code, its callback URL) and with the real server address filled in, which is the best copy to hand to a billing system's team. It can be shown or hidden with `VITE_SHOW_DEVELOPER` in `frontend/.env`.
 
+## For the GePG team
+
+GePG calls the bridge too: it sends the answer to each bill, each payment notification, and the daily payments summary. `GePG_Callbacks_Guide.md`, `GePG_Callbacks_Postman_Collection.json` and `GePG_Callbacks_Insomnia.json` hold the three addresses to register, a sample of each message, and what the bridge answers. Keep these for GePG and the people connecting to GePG; they are not for billing systems.
+
 ## Before you start (an admin does this)
 
 1. **Billing Systems** page: add the system, with its code and, if it will receive pushes, its callback URL.

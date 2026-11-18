@@ -556,5 +556,5 @@ export interface DeveloperDocs {
 export interface DeveloperData {
   docs: DeveloperDocs;
   systems: Array<{ id: number; code: string; name: string }>;
-  files: Array<{ id: string; name: string }>;
+  files: Array<{ id: string; name: string; audience: 'billing' | 'gepg' }>;
 }

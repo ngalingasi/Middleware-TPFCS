@@ -30,7 +30,7 @@ async function getDocs(req, res) {
     docs.groups.forEach((g) => g.endpoints.forEach((e) => { e.curl = generator.curlFor(e, docs); }));
 
     const systems = (await BillingSystem.findAll()).map((s) => ({ id: s.id, code: s.code, name: s.name }));
-    const files = generator.files(docs).map((f) => ({ id: f.id, name: f.name }));
+    const files = generator.files(docs).map((f) => ({ id: f.id, name: f.name, audience: f.audience || 'billing' }));
     res.json({ success: true, data: { docs, systems, files } });
   } catch (error) {
     console.error('Developer docs error:', error);

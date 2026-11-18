@@ -4,6 +4,7 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const { EXAMPLE_SECRET } = require('../utils/apiDocs');
+const { buildCallbackDocs } = require('../utils/gepgCallbackDocs');
 
 const json = (value) => JSON.stringify(value, null, 2);
 
@@ -391,6 +392,116 @@ function toInsomnia(docs) {
   return { _type: 'export', __export_format: 4, __export_date: '2026-11-18T00:00:00.000Z', __export_source: 'gepg-bridge:developer-docs', resources };
 }
 
+
+// ------------------------------------------------------ GePG callbacks
+
+function toGepgMarkdown(cb) {
+  const out = [];
+  out.push(`# ${cb.title}`, '');
+  out.push('These are the messages GePG sends to the bridge, and what the bridge answers. They are the call back URLs the GePG v5 specification asks an institution to provide (section 1.3).', '');
+
+  out.push('## 1. URLs to give GePG', '', table(['For', 'URL'], cb.urlsToRegister.map((u) => [u.for, u.url])), '');
+  out.push('## 2. The request', '', table(['', ''], [['Method', cb.request.method], ['Content-Type', cb.request.contentType], ['Body', cb.request.body]]).replace(/^\|  \|  \|\n\|---\|---\|\n/, '| Item | Value |\n|---|---|\n'), '');
+  out.push('### Signing', '');
+  cb.signing.forEach((x) => out.push(`- ${x}`));
+  out.push('', '### How the bridge behaves', '');
+  cb.behaviour.forEach((x) => out.push(`- ${x}`));
+  out.push('');
+
+  cb.callbacks.forEach((c, i) => {
+    out.push(`## ${i + 3}. ${c.name}`, '', `\`POST ${c.path}\` (spec section ${c.specSection}, message \`${c.root}\`)`, '');
+    out.push(`**When:** ${c.when}`, '', `**What the bridge does:** ${c.effect}`, '', `URL: \`${c.url}\``, '');
+    c.samples.forEach((smp) => out.push(`### Sample: ${smp.title}`, '', code(smp.envelopeText, 'xml'), ''));
+    out.push('### What the bridge answers', '', `The answer repeats the ${c.ackRef} (or ReqId) of the message it replies to, and carries its own AckId. Shown for the first sample.`, '');
+    out.push(table(['Code', 'HTTP status', 'Meaning'], c.answers.map((a) => [`\`${a.statusCode}\``, a.httpStatus, a.meaning])), '');
+    c.answers.forEach((a) => out.push(`**${a.statusCode}** (HTTP ${a.httpStatus}):`, '', code(a.xml, 'xml'), ''));
+  });
+
+  out.push('## Testing the callbacks yourself', '');
+  out.push(`The samples carry the placeholder \`${cb.placeholder}\` instead of a real signature, so the bridge answers them with 7303. That is a useful test by itself. To see 7101 you need messages signed with a key the bridge trusts:`, '');
+  out.push(code([
+    '# 1. make a test key and certificate',
+    'openssl req -x509 -newkey rsa:2048 -nodes -keyout gepg-test-key.pem -out gepg-test-cert.pem -days 30 -subj "/CN=gepg-test"',
+    '',
+    '# 2. in backend/.env, temporarily point GEPG_PUBLIC_CERT_PATH at the test certificate, then restart the bridge',
+    'GEPG_PUBLIC_CERT_PATH=./gepg-test-cert.pem',
+    '',
+    '# 3. sign every sample; this also writes a Postman environment with the signatures',
+    'cd backend',
+    'node scripts/sign-gepg-sample.js ../gepg-test-key.pem'
+  ].join('\n'), 'bash'), '');
+  out.push('Import the environment it writes (`gepg-callbacks-test-environment.json`) in Postman. In Insomnia, copy the `sig_...` values into the environment. Create the bill the sample refers to first (the BillId must exist), or the bridge answers 7317. Put the real `GEPG_PUBLIC_CERT_PATH` back afterwards.', '');
+  return out.join('\n');
+}
+
+function gepgSampleBody(smp, varStyle) {
+  return smp.envelopeText.replace('>SignatureGoesHere<', `>${varStyle(smp.id)}<`);
+}
+
+function gepgCallbackItems(cb, bodyOf) {
+  return cb.callbacks.flatMap((c) => c.samples.map((smp) => ({ c, smp, body: bodyOf(smp) })));
+}
+
+function toGepgPostman(cb) {
+  return {
+    info: {
+      name: 'GePG Bridge - GePG callbacks (GePG to the bridge)',
+      description: `What GePG posts to the bridge, with the bridge's possible answers saved on each request. The samples use the placeholder signature, so the bridge answers 7303 until the sig_ variables hold real signatures (see GePG_Callbacks_Guide.md).`,
+      schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+    },
+    variable: [{ key: 'base_url', value: cb.baseUrl }, ...cb.callbacks.flatMap((c) => c.samples.map((s) => ({ key: `sig_${s.id}`, value: cb.placeholder })))],
+    item: cb.callbacks.map((c) => ({
+      name: c.name,
+      description: `${c.when}\n\n${c.effect}`,
+      item: c.samples.map((smp) => {
+        const request = {
+          method: 'POST',
+          header: [{ key: 'Content-Type', value: 'application/xml' }],
+          url: { raw: `{{base_url}}${c.path}`, host: ['{{base_url}}'], path: c.path.split('/').filter(Boolean) },
+          body: { mode: 'raw', raw: gepgSampleBody(smp, (id) => `{{sig_${id}}}`), options: { raw: { language: 'xml' } } },
+          description: `${smp.title}. Spec section ${c.specSection}.`
+        };
+        return {
+          name: smp.title,
+          event: [{ listen: 'test', script: { type: 'text/javascript', exec: ["pm.test('The bridge answered with an acknowledgement', () => pm.expect(pm.response.text()).to.include('<AckStsCode>'));"] } }],
+          request,
+          response: c.answers.map((a) => ({
+            name: `${a.statusCode} ${a.meaning}`, originalRequest: request, status: String(a.httpStatus), code: a.httpStatus,
+            _postman_previewlanguage: 'xml', header: [{ key: 'Content-Type', value: 'application/xml' }], body: a.xml
+          }))
+        };
+      })
+    }))
+  };
+}
+
+function toGepgInsomnia(cb) {
+  const wrk = 'wrk_gepg_callbacks';
+  const resources = [
+    { _id: wrk, _type: 'workspace', name: 'GePG Bridge - GePG callbacks (GePG to the bridge)', description: 'What GePG posts to the bridge. Samples use the placeholder signature until the sig_ values are replaced (see GePG_Callbacks_Guide.md).', scope: 'collection' },
+    {
+      _id: 'env_gepg_callbacks', _type: 'environment', parentId: wrk, name: 'Base Environment',
+      data: { base_url: cb.baseUrl, ...Object.fromEntries(cb.callbacks.flatMap((c) => c.samples.map((s) => [`sig_${s.id}`, cb.placeholder]))) }
+    }
+  ];
+  let order = 0;
+  cb.callbacks.forEach((c) => {
+    const group = `fld_${c.id}`;
+    resources.push({ _id: group, _type: 'request_group', parentId: wrk, name: c.name, description: `${c.when}\n\n${c.effect}`, metaSortKey: order++ });
+    c.samples.forEach((smp) => {
+      resources.push({
+        _id: `req_${smp.id}`, _type: 'request', parentId: group, name: smp.title, method: 'POST',
+        url: `{{ _.base_url }}${c.path}`,
+        description: `${smp.title}. Spec section ${c.specSection}.\n\nPossible answers:\n${c.answers.map((a) => `${a.statusCode} (HTTP ${a.httpStatus}): ${a.xml}`).join('\n')}`,
+        headers: [{ name: 'Content-Type', value: 'application/xml' }],
+        body: { mimeType: 'application/xml', text: gepgSampleBody(smp, (id) => `{{ _.sig_${id} }}`) },
+        authentication: {}, metaSortKey: order++
+      });
+    });
+  });
+  return { _type: 'export', __export_format: 4, __export_date: '2026-11-18T00:00:00.000Z', __export_source: 'gepg-bridge:gepg-callbacks', resources };
+}
+
 // ------------------------------------------------------------------- files
 
 function webhookTestFile(docs) {
@@ -409,13 +520,17 @@ function webhookTestFile(docs) {
 
 // name, type and content of every file the Developer page can download
 function files(docs) {
+  const callbacks = buildCallbackDocs({ baseUrl: docs.baseUrl });
   return [
     { id: 'markdown', name: 'BILLING_SYSTEM_INTEGRATION.md', type: 'text/markdown', content: toMarkdown(docs) },
     { id: 'openapi', name: 'GePG_Bridge_OpenAPI.json', type: 'application/json', content: json(toOpenApi(docs)) + '\n' },
     { id: 'postman', name: 'GePG_Bridge_Postman_Collection.json', type: 'application/json', content: json(toPostman(docs)) + '\n' },
     { id: 'insomnia', name: 'GePG_Bridge_Insomnia.json', type: 'application/json', content: json(toInsomnia(docs)) + '\n' },
-    { id: 'webhook-test', name: 'GePG_Bridge_Webhook_Test.json', type: 'application/json', content: json(webhookTestFile(docs)) + '\n' }
+    { id: 'webhook-test', name: 'GePG_Bridge_Webhook_Test.json', type: 'application/json', content: json(webhookTestFile(docs)) + '\n' },
+    { id: 'gepg-guide', audience: 'gepg', name: 'GePG_Callbacks_Guide.md', type: 'text/markdown', content: toGepgMarkdown(callbacks) },
+    { id: 'gepg-postman', audience: 'gepg', name: 'GePG_Callbacks_Postman_Collection.json', type: 'application/json', content: json(toGepgPostman(callbacks)) + '\n' },
+    { id: 'gepg-insomnia', audience: 'gepg', name: 'GePG_Callbacks_Insomnia.json', type: 'application/json', content: json(toGepgInsomnia(callbacks)) + '\n' }
   ];
 }
 
-module.exports = { files, curlFor, toMarkdown, toOpenApi, toPostman, toInsomnia, allEndpoints };
+module.exports = { files, curlFor, toMarkdown, toOpenApi, toPostman, toInsomnia, toGepgMarkdown, toGepgPostman, toGepgInsomnia, allEndpoints };

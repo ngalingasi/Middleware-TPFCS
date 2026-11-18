@@ -448,6 +448,30 @@ billing system --"is it paid?"--> bridge`}</pre>
             />
           </Section>
         )}
+
+        {tab === 'downloads' && (
+          <Section title="For the GePG team">
+            <p>
+              GePG sends three kinds of message to the bridge: the answer to a bill, a payment notification, and the summary of a day's payments. These files give GePG the three
+              addresses to call, a sample of each message, and exactly what the bridge answers. They are separate from the files above because they are for GePG, not for billing systems.
+              The addresses use this server's address ({mono(docs.baseUrl)}); if GePG reaches the bridge by another address, replace it in the files.
+            </p>
+            <Table
+              head={['File', 'What it is', '']}
+              rows={[
+                ['GePG_Callbacks_Guide.md', 'The call back URLs to register, the request format, signing, samples and the bridge\'s answers, and how to test with a key of your own', 'gepg-guide'],
+                ['GePG_Callbacks_Postman_Collection.json', 'Postman: each sample message with the possible answers saved on it', 'gepg-postman'],
+                ['GePG_Callbacks_Insomnia.json', 'Insomnia: the same samples', 'gepg-insomnia'],
+              ].map(([name, what, id]) => [
+                mono(name),
+                what,
+                <Button key={id} size="sm" variant="outline" disabled={downloading === id} onClick={() => download(id, name)}>
+                  {downloading === id ? 'Preparing…' : 'Download'}
+                </Button>,
+              ])}
+            />
+          </Section>
+        )}
       </div>
     </div>
   );
