@@ -75,7 +75,11 @@ function uploadedStatus(kind, label, up) {
   const base = { kind, label, source: 'uploaded', file: up.fileName, subject: up.subject || undefined, uploadedAt: up.uploadedAt, fingerprint: up.fingerprint || undefined };
   if (!up.usable) return { ...base, status: 'unreadable', message: 'The uploaded file can no longer be opened (the encryption key may have changed). Upload it again.' };
   if (!up.validTo) return { ...base, status: 'ok', message: 'Private key uploaded (no expiry date inside)' };
-  return { ...base, ...certificateStatus(label, up.fileName, new Date(up.validTo), up.subject) };
+  const status = certificateStatus(label, up.fileName, new Date(up.validTo), up.subject);
+  if (kind === 'gepg-public' && status.status === 'expired') {
+    status.message = `Expired on ${new Date(up.validTo).toISOString().slice(0, 10)}. Messages can still be checked with it (fine for testing); ask GePG for a current one before going live.`;
+  }
+  return { ...base, ...status };
 }
 
 function readSigningCertificate() {
@@ -146,6 +150,28 @@ async function uploadCertificate(req, res) {
   }
 }
 
+async function generateCertificate(req, res) {
+  try {
+    const label = await certificates.generateSigning(req.body || {}, req.user.id);
+    await ActivityLog.create({
+      user_id: req.user.id, action: 'CERTIFICATE_GENERATE', entity_type: 'certificate', entity_id: 'signing',
+      description: `${label} generated on the server (${(req.body && req.body.commonName) || ''})`,
+      ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: { kind: 'signing' }, response_data: null, status: 'SUCCESS'
+    });
+    res.json({ success: true, message: `${label} generated. Download its public part and send it to GePG.`, data: { certificates: [readSigningCertificate(), readGepgCertificate()] } });
+  } catch (error) {
+    if (error instanceof certificates.CertificateError) return res.status(400).json({ success: false, message: error.message });
+    console.error('Certificate generation failed:', error);
+    res.status(500).json({ success: false, message: 'Could not generate the certificate' });
+  }
+}
+
+async function signingPublicCertificate(req, res) {
+  const found = certificates.signingPublic();
+  if (!found) return res.status(404).json({ success: false, message: 'No public certificate to share: nothing is uploaded, or the uploaded file is only a private key.' });
+  res.json({ success: true, data: found });
+}
+
 async function removeCertificate(req, res) {
   const { kind } = req.params;
   try {
@@ -164,4 +190,4 @@ async function removeCertificate(req, res) {
   }
 }
 
-module.exports = { getSettings, updateSettings, getEnvironment, getStatus, uploadCertificate, removeCertificate };
+module.exports = { getSettings, updateSettings, getEnvironment, getStatus, uploadCertificate, removeCertificate, generateCertificate, signingPublicCertificate };

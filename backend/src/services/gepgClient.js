@@ -26,8 +26,17 @@ class GePGClient {
   }
 
   // everything below can be changed on the Settings page, so it is read on use
+  // the host setting is either a plain host/IP (then http and the port are added)
+  // or a full address such as https://uat1.gepg.go.tz
   get baseURL() {
-    return `http://${settings.get('gepg_ip')}:${settings.get('gepg_port')}`;
+    const host = String(settings.get('gepg_ip')).trim().replace(/\/+$/, '');
+    const raw = String(settings.get('gepg_port')).trim();
+    const port = /^\d+$/.test(raw) ? raw : ''; // a placeholder left in .env counts as no port
+    if (/^https?:\/\//i.test(host)) {
+      const hasPort = /^https?:\/\/[^/]+:\d+$/i.test(host);
+      return port && !hasPort ? `${host}:${port}` : host;
+    }
+    return port ? `http://${host}:${port}` : `http://${host}`;
   }
 
   get spCode() {
@@ -66,7 +75,8 @@ class GePGClient {
     return `${this.spCode}${Date.now()}`;
   }
 
-  async sendRequest(endpoint, xmlMessage, useSigning = true) {
+  // com: the Gepg-Com header; GePG names a different one for reuse and change requests
+  async sendRequest(endpoint, xmlMessage, useSigning = true, com = settings.get('gepg_com')) {
     try {
       let requestBody = xmlMessage;
 
@@ -81,7 +91,7 @@ class GePGClient {
 
       const headers = {
         'Content-Type': 'application/xml',
-        'Gepg-Com': settings.get('gepg_com'),
+        'Gepg-Com': com,
         'Gepg-Code': this.spCode,
         'Gepg-Alg': this.alg
       };
@@ -132,7 +142,7 @@ class GePGClient {
       billData.reqId = billData.reqId || this.generateReqId();
 
       const xmlMessage = xmlBuilder.buildBillSubmissionRequest(billData);
-      const response = await this.sendRequest(this.endpoints.billReuse, xmlMessage);
+      const response = await this.sendRequest(this.endpoints.billReuse, xmlMessage, true, settings.get('gepg_com_reuse'));
 
       return await xmlBuilder.parseXML(response);
 
@@ -149,7 +159,7 @@ class GePGClient {
       billData.reqId = billData.reqId || this.generateReqId();
 
       const xmlMessage = xmlBuilder.buildBillChangeRequest(billData);
-      const response = await this.sendRequest(this.endpoints.billUpdate, xmlMessage);
+      const response = await this.sendRequest(this.endpoints.billUpdate, xmlMessage, true, settings.get('gepg_com_change'));
 
       return await xmlBuilder.parseXML(response);
 

@@ -18,6 +18,12 @@ export const gepgSettingsApi = {
   uploadCertificate: (kind: CertificateStatus['kind'], file: { fileName: string; data: string; password?: string }) =>
     gepgClient.post<GepgApiResponse<{ certificates: CertificateStatus[] }>>(`/settings/certificates/${kind}`, file),
 
+  generateCertificate: (options: { commonName: string; organization?: string; country?: string; years?: number }) =>
+    gepgClient.post<GepgApiResponse<{ certificates: CertificateStatus[] }>>('/settings/certificates/signing/generate', options),
+
+  signingPublicCertificate: () =>
+    gepgClient.get<GepgApiResponse<{ name: string; pem: string; der: string }>>('/settings/certificates/signing/public'),
+
   removeCertificate: (kind: CertificateStatus['kind']) =>
     gepgClient.delete<GepgApiResponse<{ certificates: CertificateStatus[] }>>(`/settings/certificates/${kind}`),
 

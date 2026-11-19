@@ -42,8 +42,8 @@ const TERMS: Array<[string, string]> = [
 ];
 
 const CERT_HELP: Record<CertificateStatus['kind'], string> = {
-  signing: 'Signs every message sent to GePG. Upload the .p12 / .pfx file and its password.',
-  'gepg-public': 'Checks that messages really come from GePG. Upload the .pem, .cer or .crt file GePG gave you.',
+  signing: 'Signs every message sent to GePG. Upload the .p12 / .pfx file and its password, or generate a new one here and send its public part to GePG.',
+  'gepg-public': 'Checks that messages really come from GePG. Upload the .pem, .cer, .crt or .pfx file GePG gave you (a password only if the file has one).',
 };
 
 const selectClass =
@@ -124,6 +124,10 @@ export default function SettingsPage() {
   const [certPassword, setCertPassword] = useState('');
   const [certError, setCertError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [gen, setGen] = useState({ commonName: '', organization: '', country: 'TZ', years: '2' });
+  const [genError, setGenError] = useState('');
 
   useEffect(() => {
     gepgSettingsApi
@@ -199,7 +203,7 @@ export default function SettingsPage() {
       const res = await gepgSettingsApi.uploadCertificate(uploadFor.kind, {
         fileName: file.name,
         data: await readAsBase64(file),
-        password: uploadFor.kind === 'signing' ? certPassword : undefined,
+        password: certPassword,
       });
       setCertificates(res.data.data.certificates);
       toast.success('Certificate saved', uploadFor.label);
@@ -208,6 +212,51 @@ export default function SettingsPage() {
       setCertError(gepgErrorMessage(err));
     } finally {
       setUploading(false);
+    }
+  };
+
+  const openGenerate = () => {
+    setGen((g) => ({ ...g, commonName: g.commonName || (data?.groups.flatMap((x) => x.fields).find((f) => f.key === 'gepg_sp_name')?.value ?? '') }));
+    setGenError('');
+    setGenerateOpen(true);
+  };
+
+  const generateCertificate = async () => {
+    const current = certificates.find((c) => c.kind === 'signing');
+    if (current?.source === 'uploaded' && !window.confirm('This replaces the signing certificate that is uploaded now. GePG must then be given the new public certificate, or it will reject your requests. Continue?')) return;
+    setGenerating(true);
+    setGenError('');
+    try {
+      const res = await gepgSettingsApi.generateCertificate({
+        commonName: gen.commonName,
+        organization: gen.organization || undefined,
+        country: gen.country || undefined,
+        years: Number(gen.years),
+      });
+      setCertificates(res.data.data.certificates);
+      toast.success('Certificate generated', 'Download its public part and send it to GePG');
+      setGenerateOpen(false);
+    } catch (err) {
+      setGenError(gepgErrorMessage(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const downloadPublic = async (format: 'cer' | 'pem') => {
+    try {
+      const { name, pem, der } = (await gepgSettingsApi.signingPublicCertificate()).data.data;
+      const blob =
+        format === 'pem'
+          ? new Blob([pem], { type: 'application/x-pem-file' })
+          : new Blob([Uint8Array.from(atob(der), (ch) => ch.charCodeAt(0))], { type: 'application/pkix-cert' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${name}-public.${format}`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      toast.error('Nothing to download', gepgErrorMessage(err));
     }
   };
 
@@ -296,10 +345,25 @@ export default function SettingsPage() {
                   </p>
                   {cert.fingerprint && <p className="mt-0.5 break-all font-mono text-[11px] text-gray-400 dark:text-gray-500">SHA-256 {cert.fingerprint}</p>}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {cert.kind === 'signing' && (
+                    <Button type="button" size="sm" variant="outline" onClick={openGenerate}>
+                      Generate
+                    </Button>
+                  )}
                   <Button type="button" size="sm" variant="outline" onClick={() => setUploadFor(cert)}>
                     {cert.source === 'uploaded' ? 'Replace' : 'Upload'}
                   </Button>
+                  {cert.kind === 'signing' && cert.source === 'uploaded' && (
+                    <>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadPublic('cer')}>
+                        Public .cer
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => downloadPublic('pem')}>
+                        Public .pem
+                      </Button>
+                    </>
+                  )}
                   {cert.source === 'uploaded' && (
                     <Button type="button" size="sm" variant="outline" onClick={() => removeCertificate(cert)}>
                       Remove
@@ -323,6 +387,41 @@ export default function SettingsPage() {
         </ComponentCard>
       </div>
 
+      <Modal isOpen={generateOpen} onClose={() => setGenerateOpen(false)} title="Generate a signing certificate" size="md">
+        <div className="space-y-4 text-sm">
+          <p className="text-gray-600 dark:text-gray-300">
+            The bridge makes a new key pair and a self-signed certificate. The private key stays on the server and cannot be downloaded. Afterwards download the public certificate and send it to GePG.
+          </p>
+          <div>
+            <Label>Name (CN)</Label>
+            <Input value={gen.commonName} onChange={(e) => setGen({ ...gen, commonName: e.target.value })} placeholder="e.g. TPFCS GePG Bridge" />
+          </div>
+          <div>
+            <Label>Organization (optional)</Label>
+            <Input value={gen.organization} onChange={(e) => setGen({ ...gen, organization: e.target.value })} placeholder="e.g. Tanzania Police Force Corporation Sole" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Country (2 letters)</Label>
+              <Input value={gen.country} onChange={(e) => setGen({ ...gen, country: e.target.value })} placeholder="TZ" />
+            </div>
+            <div>
+              <Label>Valid for (years)</Label>
+              <Input value={gen.years} onChange={(e) => setGen({ ...gen, years: e.target.value })} placeholder="2" />
+            </div>
+          </div>
+          {genError && <p className="rounded-lg bg-error-50 p-3 text-error-600 dark:bg-error-500/10 dark:text-error-500">{genError}</p>}
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setGenerateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={!gen.commonName.trim() || generating} onClick={generateCertificate}>
+              {generating ? 'Generating…' : 'Generate'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal isOpen={!!uploadFor} onClose={closeUpload} title={uploadFor ? `${uploadFor.source === 'uploaded' ? 'Replace' : 'Upload'}: ${uploadFor.label}` : ''} size="md">
         {uploadFor && (
           <div className="space-y-4 text-sm">
@@ -331,7 +430,7 @@ export default function SettingsPage() {
               <Label>File</Label>
               <input
                 type="file"
-                accept={uploadFor.kind === 'signing' ? '.p12,.pfx,.pem,.key' : '.pem,.cer,.crt'}
+                accept={uploadFor.kind === 'signing' ? '.p12,.pfx,.pem,.key' : '.pem,.cer,.crt,.pfx,.p12'}
                 onChange={(e) => {
                   setFile(e.target.files?.[0] ?? null);
                   setCertError('');
@@ -339,13 +438,11 @@ export default function SettingsPage() {
                 className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200 dark:text-gray-300 dark:file:bg-white/[0.06] dark:file:text-gray-200"
               />
             </div>
-            {uploadFor.kind === 'signing' && (
-              <div>
-                <Label>Password of the file</Label>
-                <Input type="password" value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="Leave empty if it has none" />
-                <p className="mt-1 text-xs text-gray-400">Kept encrypted on the server so the bridge can open the file. It is never shown again.</p>
-              </div>
-            )}
+            <div>
+              <Label>Password of the file</Label>
+              <Input type="password" value={certPassword} onChange={(e) => setCertPassword(e.target.value)} placeholder="Leave empty if it has none" />
+              <p className="mt-1 text-xs text-gray-400">{uploadFor.kind === 'signing' ? 'Kept encrypted on the server so the bridge can open the file. It is never shown again.' : 'Used once to open the file; it is not stored.'}</p>
+            </div>
             {certError && <p className="rounded-lg bg-error-50 p-3 text-error-600 dark:bg-error-500/10 dark:text-error-500">{certError}</p>}
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={closeUpload}>

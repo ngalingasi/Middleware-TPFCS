@@ -74,23 +74,37 @@ function readSigning(buffer, password) {
   };
 }
 
-// GePG sends a certificate as PEM or as DER (.cer / .crt); we keep it as PEM.
-function readGepgPublic(buffer) {
+// GePG sends its certificate as PEM, DER (.cer / .crt) or inside a PKCS#12 (.pfx).
+// An expired one is still accepted: GePG's test certificates often are, and the
+// signature check does not depend on the dates. The Settings page shows the warning.
+function readGepgPublic(buffer, password) {
   const text = buffer.toString('utf8');
   if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text)) {
     throw new CertificateError('That is a private key. Upload GePG\'s public certificate here, never a private key.');
   }
+
   let x509;
   try {
     x509 = new crypto.X509Certificate(buffer);
   } catch (e) {
-    throw new CertificateError('Could not read it as a certificate. Use the .pem, .cer or .crt file GePG gave you.');
-  }
-  if (new Date(x509.validTo) < new Date()) {
-    throw new CertificateError(`This certificate expired on ${new Date(x509.validTo).toISOString().slice(0, 10)}.`);
+    x509 = fromPkcs12(buffer, password);
   }
   const cn = /CN=([^\n]+)/.exec(x509.subject);
   return { pem: x509.toString(), subject: cn ? cn[1] : null, validTo: new Date(x509.validTo), fingerprint: x509.fingerprint256 };
+}
+
+function fromPkcs12(buffer, password) {
+  let p12;
+  try {
+    p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(buffer.toString('binary')), password || '');
+  } catch (e) {
+    throw new CertificateError(password
+      ? 'Could not open the file: wrong password, or it is not a certificate file.'
+      : 'Could not read it as a certificate. Use the .pem, .cer, .crt or .pfx file GePG gave you (enter the password if it has one).');
+  }
+  const cert = firstCertificate(p12);
+  if (!cert) throw new CertificateError('There is no certificate inside this file.');
+  return new crypto.X509Certificate(forge.pki.certificateToPem(cert));
 }
 
 // Turns a stored row back into usable PEM; null when it cannot be read.
@@ -127,8 +141,9 @@ async function save(kind, { fileName, data, password }, userId) {
   if (buffer.length === 0) throw new CertificateError('The file is empty');
   if (buffer.length > MAX_BYTES) throw new CertificateError('The file is too large for a certificate (limit 100 KB)');
 
-  const info = kind === 'signing' ? readSigning(buffer, password) : readGepgPublic(buffer);
+  const info = kind === 'signing' ? readSigning(buffer, password) : readGepgPublic(buffer, password);
   const stored = kind === 'signing' ? buffer : Buffer.from(info.pem, 'utf8');
+  // only the signing file is opened again later; GePG's certificate is kept as plain PEM
   const passwordEnc = kind === 'signing' && password ? secretBox.encrypt(password) : null;
 
   await db.query(
@@ -140,6 +155,64 @@ async function save(kind, { fileName, data, password }, userId) {
   );
   await load();
   return def.label;
+}
+
+// A new key pair and self-signed certificate for the signing slot. The key is made
+// here, kept as a PKCS#12 with a random password (stored encrypted, like an upload),
+// and never leaves the server; only the public certificate can be downloaded.
+function generatedCertificate({ commonName, organization, country, years }) {
+  const cn = String(commonName || '').trim();
+  if (!/^[A-Za-z0-9 ._-]{1,64}$/.test(cn)) throw new CertificateError('Name: 1 to 64 letters, digits, spaces, dots, dashes or underscores');
+  const org = String(organization || '').trim();
+  if (org && !/^[A-Za-z0-9 ._,&()-]{1,64}$/.test(org)) throw new CertificateError('Organization: up to 64 letters, digits or simple punctuation');
+  const c = String(country || '').trim().toUpperCase();
+  if (c && !/^[A-Z]{2}$/.test(c)) throw new CertificateError('Country: two letters, for example TZ');
+  const lifetime = Number(years || 2);
+  if (!Number.isInteger(lifetime) || lifetime < 1 || lifetime > 10) throw new CertificateError('Valid for: 1 to 10 years');
+
+  const pair = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const privateKey = forge.pki.privateKeyFromPem(pair.privateKey.export({ type: 'pkcs1', format: 'pem' }));
+  const publicKey = forge.pki.publicKeyFromPem(pair.publicKey.export({ type: 'spki', format: 'pem' }));
+
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = publicKey;
+  cert.serialNumber = '01' + crypto.randomBytes(8).toString('hex');
+  cert.validity.notBefore = new Date(Date.now() - 60 * 1000);
+  cert.validity.notAfter = new Date(Date.now() + lifetime * 365 * 86400000);
+  const name = [{ name: 'commonName', value: cn }];
+  if (org) name.push({ name: 'organizationName', value: org });
+  if (c) name.push({ name: 'countryName', value: c });
+  cert.setSubject(name);
+  cert.setIssuer(name);
+  cert.sign(privateKey, forge.md.sha256.create());
+
+  const password = crypto.randomBytes(16).toString('hex');
+  const der = forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(privateKey, [cert], password, { algorithm: '3des' })).getBytes();
+  return { fileName: `${cn.replace(/[^A-Za-z0-9._-]+/g, '-')}.p12`, data: Buffer.from(der, 'binary').toString('base64'), password };
+}
+
+async function generateSigning(options, userId) {
+  const made = generatedCertificate(options || {});
+  return save('signing', made, userId);
+}
+
+// The public half of the signing certificate, for sending to GePG. Null when the
+// uploaded file is a bare private key (it has no certificate to share).
+function signingPublic() {
+  const row = rows.get('SIGNING');
+  if (!row) return null;
+  try {
+    const text = row.content.toString('utf8');
+    if (text.includes('-----BEGIN')) return null;
+    const password = row.password_enc ? secretBox.decrypt(row.password_enc) : '';
+    const cert = firstCertificate(forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(row.content.toString('binary')), password));
+    if (!cert) return null;
+    const pem = forge.pki.certificateToPem(cert);
+    const subject = cert.subject.getField('CN');
+    return { name: (subject ? subject.value : 'signing-certificate').replace(/[^A-Za-z0-9._-]+/g, '-'), pem, der: new crypto.X509Certificate(pem).raw.toString('base64') };
+  } catch (e) {
+    return null;
+  }
 }
 
 async function remove(kind) {
@@ -170,6 +243,8 @@ module.exports = {
   load,
   startAutoRefresh,
   save,
+  generateSigning,
+  signingPublic,
   remove,
   uploaded,
   signingKey: () => signing,

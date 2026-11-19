@@ -105,9 +105,23 @@ const FIELDS = [
   {
     key: 'gepg_com', group: 'identifiers', env: ['GEPG_COM'], critical: true,
     label: 'Gepg-Com', abbr: 'Communication identifier',
-    meaning: 'Value of the Gepg-Com header on every request. GePG gives it to you during integration.',
+    meaning: 'Value of the Gepg-Com header on new bills, cancellations and reconciliation requests. GePG gives it to you during integration.',
     example: 'default.sp.in', providedBy: 'GePG', ...text(100),
-    affects: 'every request to GePG'
+    affects: 'bill, cancellation and reconciliation requests to GePG'
+  },
+  {
+    key: 'gepg_com_reuse', group: 'identifiers', env: ['GEPG_COM_REUSE'], critical: true, default: 'reusebill.sp.in',
+    label: 'Gepg-Com for reuse', abbr: 'Communication identifier, control number reuse',
+    meaning: 'Value of the Gepg-Com header when a control number is reused for a new bill. GePG gives a different one for this.',
+    example: 'reusebill.sp.in', providedBy: 'GePG', ...text(100),
+    affects: 'control number reuse requests'
+  },
+  {
+    key: 'gepg_com_change', group: 'identifiers', env: ['GEPG_COM_CHANGE'], critical: true, default: 'changebill.sp.in',
+    label: 'Gepg-Com for bill change', abbr: 'Communication identifier, bill change',
+    meaning: 'Value of the Gepg-Com header when a bill\'s details (such as its expiry date) are changed. GePG gives a different one for this.',
+    example: 'changebill.sp.in', providedBy: 'GePG', ...text(100),
+    affects: 'bill change requests'
   },
   {
     key: 'gepg_alg', group: 'identifiers', env: ['GEPG_ALG'], critical: true,
@@ -159,16 +173,16 @@ const FIELDS = [
   {
     key: 'gepg_ip', group: 'connection', env: ['GEPG_IP'], critical: true,
     label: 'GePG Host', abbr: 'Server address',
-    meaning: 'IP address or host name of GePG\'s server, reached over the VPN.',
-    example: '10.1.2.3', providedBy: 'GePG', input: 'text', max: 253, pattern: /^[A-Za-z0-9.-]+$/, hint: 'an IP address or host name',
+    meaning: 'Address of GePG\'s server: an IP address or host name (reached over the VPN), or a full address such as https://uat1.gepg.go.tz when GePG gives one.',
+    example: '10.1.2.3', providedBy: 'GePG', input: 'text', max: 253, pattern: /^([A-Za-z0-9.-]+|https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?\/?)$/, hint: 'an IP address, host name or https://… address',
     affects: 'every request to GePG'
   },
   {
     key: 'gepg_port', group: 'connection', env: ['GEPG_PORT'], critical: true,
     label: 'GePG Port', abbr: 'Server port',
-    meaning: 'Port of GePG\'s server.',
-    example: '8080', providedBy: 'GePG', input: 'text', max: 5, pattern: /^\d{1,5}$/, hint: 'a number from 1 to 65535',
-    validate: (v) => (Number(v) >= 1 && Number(v) <= 65535 ? null : 'Port must be between 1 and 65535'),
+    meaning: 'Port of GePG\'s server. Leave it empty when the address above is a full https:// address with no port.',
+    example: '8080', providedBy: 'GePG', input: 'text', max: 5, pattern: /^\d{1,5}$/, hint: 'a number from 1 to 65535, or empty',
+    validate: (v) => (v === '' || (Number(v) >= 1 && Number(v) <= 65535) ? null : 'Port must be between 1 and 65535'),
     affects: 'every request to GePG'
   },
   ...[

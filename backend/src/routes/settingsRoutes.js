@@ -14,6 +14,8 @@ router.get('/environment', authenticate, settingsController.getEnvironment);
 router.get('/', authenticate, authorize('ADMIN'), settingsController.getSettings);
 router.put('/', authenticate, authorize('ADMIN'), settingsController.updateSettings);
 router.get('/status', authenticate, authorize('ADMIN'), settingsController.getStatus);
+router.post('/certificates/signing/generate', authenticate, authorize('ADMIN'), settingsController.generateCertificate);
+router.get('/certificates/signing/public', authenticate, authorize('ADMIN'), settingsController.signingPublicCertificate);
 router.post('/certificates/:kind', authenticate, authorize('ADMIN'), settingsController.uploadCertificate);
 router.delete('/certificates/:kind', authenticate, authorize('ADMIN'), settingsController.removeCertificate);
 
