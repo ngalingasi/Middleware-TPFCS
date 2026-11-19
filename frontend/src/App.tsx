@@ -40,6 +40,7 @@ import GfsCodesPage from './pages/Gepg/GfsCodesPage';
 import SettingsPage from './pages/Gepg/SettingsPage';
 import BillingSystemsPage from './pages/Gepg/BillingSystemsPage';
 import OutboxPage from './pages/Gepg/OutboxPage';
+import LogsPage from './pages/Gepg/LogsPage';
 import DeveloperPage from './pages/Gepg/DeveloperPage';
 import ProfilePage from './pages/Gepg/ProfilePage';
 
@@ -89,6 +90,7 @@ export default function App() {
               <Route path="/gfs-codes" element={<GfsCodesPage />} />
               <Route path="/billing-systems" element={<BillingSystemsPage />} />
               <Route path="/outbox" element={<OutboxPage />} />
+              <Route path="/logs" element={<LogsPage />} />
               <Route path="/developer" element={FEATURES.developer ? <DeveloperPage /> : <Navigate to="/" replace />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

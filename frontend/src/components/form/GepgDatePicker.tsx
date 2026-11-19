@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.css';
 import type { SVGProps } from 'react';
@@ -21,21 +21,71 @@ function CalendarIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+// The area the calendar must stay inside: the nearest scrolling box (a dialog body, for
+// example), otherwise the window.
+function boundsOf(el: HTMLElement) {
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'hidden') {
+      const r = node.getBoundingClientRect();
+      return { top: Math.max(r.top, 0), bottom: Math.min(r.bottom, window.innerHeight), left: Math.max(r.left, 0), right: Math.min(r.right, window.innerWidth) };
+    }
+  }
+  return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+}
+
+// Opens above the field when there is room (that keeps it off the table or form below it),
+// below when there is not, and slides sideways if it would leave the screen.
+function placeCalendar(instance: flatpickr.Instance) {
+  const calendar = instance.calendarContainer;
+  const input = instance.input.getBoundingClientRect();
+  const area = boundsOf(instance.input);
+  const height = calendar.offsetHeight || 330;
+  const room = { above: input.top - area.top, below: area.bottom - input.bottom };
+  const above = room.above >= height + 8 || room.above > room.below;
+
+  calendar.style.top = above ? 'auto' : '';
+  calendar.style.bottom = above ? 'calc(100% + 2px)' : '';
+
+  const box = calendar.getBoundingClientRect();
+  const slide = box.right > area.right - 8 ? area.right - 8 - box.right : box.left < area.left + 8 ? area.left + 8 - box.left : 0;
+  if (slide) calendar.style.left = `${(parseFloat(calendar.style.left) || 0) + slide}px`;
+}
+
 interface GepgDatePickerProps {
   value?: string; // 'YYYY-MM-DD'
   onChange: (date: string) => void;
   placeholder?: string;
   id?: string;
+  /** shows a small x that empties the date; for filters */
+  clearable?: boolean;
+  /** 'YYYY-MM-DD' limits, so a "from" date cannot pass its "to" date */
+  minDate?: string;
+  maxDate?: string;
+  size?: 'sm' | 'md';
 }
 
 /**
  * Compact flatpickr-backed date input, used anywhere the app needs a date
- * (bill expiry, reconciliation transaction date) instead of the native
- * browser <input type="date"> picker.
+ * (bill expiry, reconciliation transaction date, log filters) instead of the
+ * native browser <input type="date"> picker. The value is controlled: when the
+ * parent changes or clears it, the calendar follows.
  */
-export default function GepgDatePicker({ value, onChange, placeholder = 'Select date', id }: GepgDatePickerProps) {
+export default function GepgDatePicker({
+  value,
+  onChange,
+  placeholder = 'Select date',
+  id,
+  clearable = false,
+  minDate,
+  maxDate,
+  size = 'sm',
+}: GepgDatePickerProps) {
   const generatedId = useId().replace(/:/g, '');
   const inputId = id ?? `gepg-date-${generatedId}`;
+  const picker = useRef<flatpickr.Instance | null>(null);
+  const callback = useRef(onChange);
+  callback.current = onChange;
 
   useEffect(() => {
     const instance = flatpickr(`#${inputId}`, {
@@ -43,16 +93,31 @@ export default function GepgDatePicker({ value, onChange, placeholder = 'Select 
       monthSelectorType: 'static',
       dateFormat: 'Y-m-d',
       defaultDate: value || undefined,
-      onChange: (selectedDates, dateStr) => onChange(dateStr),
+      minDate,
+      maxDate,
+      onChange: (_dates, dateStr) => callback.current(dateStr),
+      onOpen: (_dates, _str, self) => requestAnimationFrame(() => placeCalendar(self)),
+      onMonthChange: (_dates, _str, self) => requestAnimationFrame(() => placeCalendar(self)),
     });
+    picker.current = Array.isArray(instance) ? instance[0] : instance;
 
     return () => {
-      if (!Array.isArray(instance)) {
-        instance.destroy();
-      }
+      picker.current?.destroy();
+      picker.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputId]);
+
+  useEffect(() => {
+    const instance = picker.current;
+    if (!instance) return;
+    if ((value || '') !== instance.input.value) instance.setDate(value || '', false);
+  }, [value]);
+
+  useEffect(() => {
+    picker.current?.set('minDate', minDate || undefined);
+    picker.current?.set('maxDate', maxDate || undefined);
+  }, [minDate, maxDate]);
 
   return (
     <div className="relative">
@@ -60,8 +125,20 @@ export default function GepgDatePicker({ value, onChange, placeholder = 'Select 
         id={inputId}
         placeholder={placeholder}
         readOnly
-        className="h-9 w-full cursor-pointer rounded-lg border appearance-none px-3 py-2 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 dark:border-gray-700 dark:focus:border-brand-800"
+        className={`${size === 'md' ? 'h-10' : 'h-9'} w-full cursor-pointer rounded-lg border appearance-none px-3 py-2 ${clearable ? 'pr-14' : 'pr-9'} text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 dark:border-gray-700 dark:focus:border-brand-800`}
       />
+      {clearable && value && (
+        <button
+          type="button"
+          aria-label="Clear date"
+          onClick={() => picker.current?.clear()}
+          className="absolute right-9 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
       <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400">
         <CalendarIcon className="size-4" />
       </span>

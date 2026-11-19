@@ -29,10 +29,17 @@ const certificates = require('./services/certificateService');
 const eventService = require('./services/eventService');
 const { startExpiryJob } = require('./services/expiryService');
 const activityLogger = require('./middleware/activityLogger');
+const messageLogger = require('./middleware/messageLogger');
+const { startLogRetention } = require('./services/logRetention');
 
 const app = express();
 
 // Middleware
+// Behind nginx the caller's address arrives in X-Forwarded-For. Only a trusted proxy may set it,
+// otherwise anyone could write any address into the logs. Default: the proxy runs on this server.
+const trustProxy = process.env.TRUST_PROXY || 'loopback';
+app.set('trust proxy', /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy === 'true' ? true : trustProxy === 'false' ? false : trustProxy);
+
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
@@ -41,11 +48,12 @@ app.use('/api/bills/webhook', express.text({ type: '*/xml' }));
 app.use('/api/payments/webhook', express.text({ type: '*/xml' }));
 app.use('/api/reconciliation/webhook', express.text({ type: '*/xml' }));
 
-// Body parser middleware (for all other, JSON, routes)
-app.use(express.json());
+// Body parser middleware (for all other, JSON, routes). The text as received is kept for the message log.
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } }));
 app.use(express.urlencoded({ extended: true }));
 
 // Activity logger middleware (log all requests)
+app.use(messageLogger);
 app.use(activityLogger);
 
 // Routes
@@ -125,6 +133,7 @@ settings.load()
     certificates.startAutoRefresh();
     eventService.startWorker();
     startExpiryJob();
+    startLogRetention();
     app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗

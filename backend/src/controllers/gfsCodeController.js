@@ -3,6 +3,7 @@
 // │ GFS code controller
 // └──────────────────────────────────────────────────────────────────────────┘
 
+const { clientIp } = require('../utils/clientIp');
 const { validationResult } = require('express-validator');
 const GfsCode = require('../models/GfsCode');
 const BillingSystem = require('../models/BillingSystem');
@@ -96,7 +97,7 @@ async function updateGfsCode(req, res) {
       await ActivityLog.create({
         user_id: req.user.id, action: 'GFS_LINK', entity_type: 'gfs_code', entity_id: existing.code,
         description: target ? `GFS code ${existing.code} linked to ${target.code}` : `GFS code ${existing.code} unlinked from its billing system`,
-        ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: { billingSystemId }, response_data: null, status: 'SUCCESS'
+        ip_address: clientIp(req), user_agent: req.headers['user-agent'], request_data: { billingSystemId }, response_data: null, status: 'SUCCESS'
       });
     }
     res.json({ success: true, message: 'GFS code updated' });

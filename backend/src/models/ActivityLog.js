@@ -4,9 +4,11 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const db = require('../config/database');
+const logService = require('../services/logService');
 
 class ActivityLog {
   async create(logData) {
+    logService.audit(logData);
     await db.query(
       `INSERT INTO activity_logs
        (user_id, action, entity_type, entity_id, description, ip_address,
@@ -48,16 +50,33 @@ class ActivityLog {
       whereClause.push('l.status = ?');
       params.push(filters.status);
     }
-    if (filters.startDate && filters.endDate) {
-      whereClause.push('DATE(l.created_at) BETWEEN ? AND ?');
-      params.push(filters.startDate, filters.endDate);
+    if (filters.startDate) {
+      whereClause.push('l.created_at >= ?');
+      params.push(`${filters.startDate} 00:00:00`);
+    }
+    if (filters.endDate) {
+      whereClause.push('l.created_at <= ?');
+      params.push(`${filters.endDate} 23:59:59`);
+    }
+    if (filters.q) {
+      whereClause.push('(l.action LIKE ? OR l.description LIKE ? OR l.entity_id LIKE ? OR u.username LIKE ?)');
+      params.push(...Array(4).fill(`%${filters.q}%`));
+    }
+    if (filters.ip) {
+      whereClause.push('l.ip_address LIKE ?');
+      params.push(`${filters.ip}%`);
+    }
+    if (filters.actions) {
+      whereClause.push(`l.action IN (${filters.actions.map(() => '?').join(', ')})`);
+      params.push(...filters.actions);
     }
 
     const where = whereClause.length > 0 ? `WHERE ${whereClause.join(' AND ')}` : '';
 
-    const [countResult] = await db.query(`SELECT COUNT(*) as total FROM activity_logs l ${where}`, params);
+    const [countResult] = await db.query(`SELECT COUNT(*) as total FROM activity_logs l LEFT JOIN users u ON l.user_id = u.id ${where}`, params);
     const [logs] = await db.query(
-      `SELECT l.*, u.username, u.full_name
+      `SELECT l.id, l.user_id, l.action, l.entity_type, l.entity_id, l.description, l.ip_address, l.user_agent, l.status, l.created_at,
+         LENGTH(l.request_data) AS request_size, LENGTH(l.response_data) AS response_size, u.username, u.full_name
        FROM activity_logs l
        LEFT JOIN users u ON l.user_id = u.id
        ${where}

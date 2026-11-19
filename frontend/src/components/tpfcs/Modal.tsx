@@ -62,6 +62,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h3 className="text-base font-semibold text-gray-800 dark:text-white">{title}</h3>
           <button
+            type="button"
+            aria-label="Close"
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >

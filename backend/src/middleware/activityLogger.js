@@ -4,8 +4,12 @@
 // └──────────────────────────────────────────────────────────────────────────┘
 
 const db = require('../config/database');
+const logService = require('../services/logService');
+const { clientIp } = require('../utils/clientIp');
 
 const logActivity = async (req, res, next) => {
+  // by the time the response is done the router has stripped its prefix from req.path, so keep the full one now
+  const fullPath = req.originalUrl.split('?')[0];
   // Store original functions
   const originalJson = res.json;
   const originalSend = res.send;
@@ -34,22 +38,24 @@ const logActivity = async (req, res, next) => {
   res.on('finish', async () => {
     try {
       const skipRoutes = ['/health', '/api/logs'];
-      if (skipRoutes.some(route => req.path.includes(route))) {
+      if (skipRoutes.some(route => fullPath.includes(route))) {
         return;
       }
 
       const logData = {
         user_id: req.user?.id || null,
-        action: `${req.method} ${req.path}`,
-        entity_type: extractEntityType(req.path),
-        entity_id: extractEntityId(req.path, req.body),
-        description: generateDescription(req),
-        ip_address: req.ip || req.connection.remoteAddress,
+        action: `${req.method} ${fullPath}`,
+        entity_type: extractEntityType(fullPath),
+        entity_id: extractEntityId(fullPath, req.body),
+        description: generateDescription(req, fullPath),
+        ip_address: clientIp(req),
         user_agent: req.headers['user-agent'],
-        request_data: sanitizeData(req.body || req.query),
-        response_data: sanitizeData(responseData, true),
+        request_data: sanitizeData(req.body || req.query, false, fullPath),
+        response_data: sanitizeData(responseData, true, fullPath),
         status: res.statusCode < 400 ? 'SUCCESS' : 'FAILED'
       };
+
+      logService.audit(logData);
 
       // Insert log
       await db.query(
@@ -107,9 +113,8 @@ function extractEntityId(path, body) {
   return null;
 }
 
-function generateDescription(req) {
+function generateDescription(req, path) {
   const method = req.method;
-  const path = req.path;
   const user = req.user?.username || (req.apiKey ? `API key "${req.apiKey.name}"` : 'Anonymous');
 
   if (path.includes('/login')) return `${user} logged in`;
@@ -123,8 +128,10 @@ function generateDescription(req) {
   return `${user} performed ${method} on ${path}`;
 }
 
-function sanitizeData(data, isResponse = false) {
+// Everything is kept in full, except secrets and certificate files (a private key is no use for reconciliation).
+function sanitizeData(data, isResponse = false, path = '') {
   if (!data) return null;
+  if (/\/certificates\//.test(path)) return { note: 'certificate files and passwords are never logged' };
 
   // Convert to object if string
   let obj = data;
@@ -139,7 +146,7 @@ function sanitizeData(data, isResponse = false) {
   // Create a copy
   const sanitized = JSON.parse(JSON.stringify(obj));
 
-  const sensitiveFields = ['password', 'token', 'secret', 'apiKey', 'authorization'];
+  const sensitiveFields = ['password', 'token', 'secret', 'apikey', 'authorization', 'otp'];
   
   function removeSensitive(obj) {
     if (typeof obj !== 'object' || obj === null) return;
@@ -154,14 +161,6 @@ function sanitizeData(data, isResponse = false) {
   }
 
   removeSensitive(sanitized);
-
-  // Limit response data size
-  if (isResponse) {
-    const str = JSON.stringify(sanitized);
-    if (str.length > 5000) {
-      return { truncated: true, preview: str.substring(0, 5000) + '...' };
-    }
-  }
 
   return sanitized;
 }

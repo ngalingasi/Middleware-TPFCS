@@ -3,6 +3,7 @@
 // │ Auth controller
 // └──────────────────────────────────────────────────────────────────────────┘
 
+const { clientIp } = require('../utils/clientIp');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
@@ -44,7 +45,7 @@ async function login(req, res) {
     await UserSession.create({
       userId: user.id,
       token,
-      ipAddress: req.ip || req.connection.remoteAddress,
+      ipAddress: clientIp(req),
       userAgent: req.headers['user-agent'],
       expiresAt
     });

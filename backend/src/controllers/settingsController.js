@@ -3,6 +3,7 @@
 // │ Settings controller
 // └──────────────────────────────────────────────────────────────────────────┘
 
+const { clientIp } = require('../utils/clientIp');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -30,7 +31,7 @@ async function updateSettings(req, res) {
         entity_type: 'settings',
         entity_id: changes.map((c) => c.key).join(',').slice(0, 100),
         description: changes.map((c) => `${c.label}: "${c.from}" -> "${c.to}"`).join('; '),
-        ip_address: req.ip,
+        ip_address: clientIp(req),
         user_agent: req.headers['user-agent'],
         request_data: changes,
         response_data: null,
@@ -140,7 +141,7 @@ async function uploadCertificate(req, res) {
     await ActivityLog.create({
       user_id: req.user.id, action: 'CERTIFICATE_UPLOAD', entity_type: 'certificate', entity_id: kind,
       description: `${label} uploaded: ${(req.body && req.body.fileName) || 'file'}`,
-      ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: { kind }, response_data: null, status: 'SUCCESS'
+      ip_address: clientIp(req), user_agent: req.headers['user-agent'], request_data: { kind }, response_data: null, status: 'SUCCESS'
     });
     res.json({ success: true, message: `${label} saved`, data: { certificates: [readSigningCertificate(), readGepgCertificate()] } });
   } catch (error) {
@@ -156,7 +157,7 @@ async function generateCertificate(req, res) {
     await ActivityLog.create({
       user_id: req.user.id, action: 'CERTIFICATE_GENERATE', entity_type: 'certificate', entity_id: 'signing',
       description: `${label} generated on the server (${(req.body && req.body.commonName) || ''})`,
-      ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: { kind: 'signing' }, response_data: null, status: 'SUCCESS'
+      ip_address: clientIp(req), user_agent: req.headers['user-agent'], request_data: { kind: 'signing' }, response_data: null, status: 'SUCCESS'
     });
     res.json({ success: true, message: `${label} generated. Download its public part and send it to GePG.`, data: { certificates: [readSigningCertificate(), readGepgCertificate()] } });
   } catch (error) {
@@ -192,7 +193,7 @@ async function removeCertificate(req, res) {
     await ActivityLog.create({
       user_id: req.user.id, action: 'CERTIFICATE_REMOVE', entity_type: 'certificate', entity_id: kind,
       description: `${certificates.KINDS[kind].label} removed; the .env value is used again`,
-      ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: { kind }, response_data: null, status: 'SUCCESS'
+      ip_address: clientIp(req), user_agent: req.headers['user-agent'], request_data: { kind }, response_data: null, status: 'SUCCESS'
     });
     res.json({ success: true, message: 'Removed. The .env value is used again.', data: { certificates: [readSigningCertificate(), readGepgCertificate()] } });
   } catch (error) {

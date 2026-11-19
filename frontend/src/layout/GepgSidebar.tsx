@@ -61,6 +61,11 @@ const Icon = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6M4 21h16" />
     </svg>
   ),
+  Logs: () => (
+    <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
   Developer: () => (
     <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -88,6 +93,7 @@ const ADMIN_NAV: NavItem[] = [
   { name: 'GFS Codes', icon: <Icon.Tag />, path: '/gfs-codes' },
   { name: 'Billing Systems', icon: <Icon.Systems />, path: '/billing-systems' },
   { name: 'Outbox', icon: <Icon.Outbox />, path: '/outbox' },
+  { name: 'Logs', icon: <Icon.Logs />, path: '/logs' },
   { name: 'Developer', icon: <Icon.Developer />, path: '/developer' },
   { name: 'Settings', icon: <Icon.Settings />, path: '/settings' },
 ];

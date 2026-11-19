@@ -3,6 +3,7 @@
 // │ Billing systems controller
 // └──────────────────────────────────────────────────────────────────────────┘
 
+const { clientIp } = require('../utils/clientIp');
 const BillingSystem = require('../models/BillingSystem');
 const ApiKey = require('../models/ApiKey');
 const eventService = require('../services/eventService');
@@ -165,7 +166,7 @@ async function replayDead(req, res) {
 function audit(req, system, description, data) {
   return ActivityLog.create({
     user_id: req.user.id, action: 'GFS_LINK', entity_type: 'billing_system', entity_id: system.code, description,
-    ip_address: req.ip, user_agent: req.headers['user-agent'], request_data: data, response_data: null, status: 'SUCCESS'
+    ip_address: clientIp(req), user_agent: req.headers['user-agent'], request_data: data, response_data: null, status: 'SUCCESS'
   });
 }
 

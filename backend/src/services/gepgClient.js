@@ -9,6 +9,7 @@ const digitalSignature = require('../utils/digitalSignature');
 const { ACK, gepgError } = require('../utils/gepgErrors');
 const settings = require('./settingsService');
 const certificates = require('./certificateService');
+const logService = require('./logService');
 require('dotenv').config();
 
 class GePGClient {
@@ -75,11 +76,33 @@ class GePGClient {
     return `${this.spCode}${Date.now()}`;
   }
 
-  // com: the Gepg-Com header; GePG names a different one for reuse and change requests
-  async sendRequest(endpoint, xmlMessage, useSigning = true, com = settings.get('gepg_com')) {
-    try {
-      let requestBody = xmlMessage;
+  // com: the Gepg-Com header; GePG names a different one for reuse and change requests.
+  // Every call is logged with the exact XML sent and the exact answer, also when it fails.
+  async sendRequest(endpoint, xmlMessage, useSigning = true, com = settings.get('gepg_com'), operation = null) {
+    const started = Date.now();
+    const url = `${this.baseURL}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/xml',
+      'Gepg-Com': com,
+      'Gepg-Code': this.spCode,
+      'Gepg-Alg': this.alg
+    };
+    const first = (pattern) => {
+      const match = pattern.exec(xmlMessage || '');
+      return match ? match[1].trim() : null;
+    };
+    const entry = {
+      direction: 'GEPG_OUT',
+      operation,
+      method: 'POST',
+      url,
+      requestHeaders: headers,
+      billId: first(/<(?:GrpBillId|BillId)>([^<]+)<\/(?:GrpBillId|BillId)>/),
+      reference: first(/<ReqId>([^<]+)<\/ReqId>/)
+    };
 
+    let requestBody = xmlMessage;
+    try {
       // Sign message if required
       if (useSigning) {
         requestBody = digitalSignature.createSignedEnvelope(
@@ -88,28 +111,23 @@ class GePGClient {
           this.signingPassword
         );
       }
+      entry.requestBody = requestBody;
 
-      const headers = {
-        'Content-Type': 'application/xml',
-        'Gepg-Com': com,
-        'Gepg-Code': this.spCode,
-        'Gepg-Alg': this.alg
-      };
-
-      const response = await axios.post(
-        `${this.baseURL}${endpoint}`,
-        requestBody,
-        { headers }
-      );
-
+      const response = await axios.post(url, requestBody, { headers });
+      logService.message({ ...entry, statusCode: response.status, responseBody: response.data, ok: true, durationMs: Date.now() - started });
       return response.data;
 
     } catch (error) {
+      entry.requestBody = entry.requestBody || xmlMessage;
+      entry.durationMs = Date.now() - started;
       if (error.response) {
+        logService.message({ ...entry, statusCode: error.response.status, responseBody: error.response.data, ok: false, error: `HTTP ${error.response.status}` });
         throw new Error(`GePG API Error: ${error.response.status} - ${error.response.data}`);
       } else if (error.request) {
+        logService.message({ ...entry, ok: false, error: `No response: ${error.code || error.message}` });
         throw new Error('No response from GePG server');
       } else {
+        logService.message({ ...entry, ok: false, error: error.message });
         throw new Error(`Request failed: ${error.message}`);
       }
     }
@@ -124,7 +142,7 @@ class GePGClient {
       billData.reqId = billData.reqId || this.generateReqId();
 
       const xmlMessage = xmlBuilder.buildBillSubmissionRequest(billData);
-      const response = await this.sendRequest(this.endpoints.billSubmission, xmlMessage);
+      const response = await this.sendRequest(this.endpoints.billSubmission, xmlMessage, true, settings.get('gepg_com'), 'bill_submission');
 
       return await xmlBuilder.parseXML(response);
 
@@ -142,7 +160,7 @@ class GePGClient {
       billData.reqId = billData.reqId || this.generateReqId();
 
       const xmlMessage = xmlBuilder.buildBillSubmissionRequest(billData);
-      const response = await this.sendRequest(this.endpoints.billReuse, xmlMessage, true, settings.get('gepg_com_reuse'));
+      const response = await this.sendRequest(this.endpoints.billReuse, xmlMessage, true, settings.get('gepg_com_reuse'), 'bill_reuse');
 
       return await xmlBuilder.parseXML(response);
 
@@ -159,7 +177,7 @@ class GePGClient {
       billData.reqId = billData.reqId || this.generateReqId();
 
       const xmlMessage = xmlBuilder.buildBillChangeRequest(billData);
-      const response = await this.sendRequest(this.endpoints.billUpdate, xmlMessage, true, settings.get('gepg_com_change'));
+      const response = await this.sendRequest(this.endpoints.billUpdate, xmlMessage, true, settings.get('gepg_com_change'), 'bill_change');
 
       return await xmlBuilder.parseXML(response);
 
@@ -183,7 +201,7 @@ class GePGClient {
       };
 
       const xmlMessage = xmlBuilder.buildBillCancellationRequest(data);
-      const response = await this.sendRequest(this.endpoints.billCancellation, xmlMessage);
+      const response = await this.sendRequest(this.endpoints.billCancellation, xmlMessage, true, settings.get('gepg_com'), 'bill_cancellation');
 
       return await xmlBuilder.parseXML(response);
 
@@ -207,7 +225,7 @@ class GePGClient {
       };
 
       const xmlMessage = xmlBuilder.buildReconciliationRequest(data);
-      const response = await this.sendRequest(this.endpoints.reconciliation, xmlMessage);
+      const response = await this.sendRequest(this.endpoints.reconciliation, xmlMessage, true, settings.get('gepg_com'), 'reconciliation_request');
 
       return await xmlBuilder.parseXML(response);
 

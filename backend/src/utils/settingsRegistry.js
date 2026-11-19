@@ -35,6 +35,11 @@ const GROUPS = [
     title: 'Connection to GePG',
     description: 'Where requests are sent. UAT (test) and production use different values.',
     critical: true
+  },
+  {
+    id: 'logs',
+    title: 'Log retention',
+    description: 'How long the database keeps logs. Older rows are deleted once a day.'
   }
 ];
 
@@ -185,6 +190,17 @@ const FIELDS = [
     validate: (v) => (v === '' || (Number(v) >= 1 && Number(v) <= 65535) ? null : 'Port must be between 1 and 65535'),
     affects: 'every request to GePG'
   },
+  ...[
+    ['log_days_messages', 'LOG_DB_DAYS_MESSAGES', 'Raw messages (days)', 'How long the raw requests and answers are kept: bills from billing systems, calls to GePG and GePG\'s callbacks.', '90'],
+    ['log_days_audit', 'LOG_DB_DAYS_AUDIT', 'Audit and login history (days)', 'How long the record of who did what, and every login, is kept.', '365']
+  ].map(([key, env, label, meaning, def]) => ({
+    key, group: 'logs', env: [env], default: def,
+    label, abbr: 'Retention',
+    meaning: `${meaning} Rows older than this are deleted from the database every day. A change applies at the next daily clean-up.`,
+    example: def, providedBy: 'You', input: 'text', max: 4, pattern: /^\d{1,4}$/, hint: 'a number of days, 1 to 3650',
+    validate: (v) => (Number(v) >= 1 && Number(v) <= 3650 ? null : 'Between 1 and 3650 days'),
+    affects: 'how much history stays in the database'
+  })),
   ...[
     ['gepg_endpoint_bill_submission', 'GEPG_ENDPOINT_BILL_SUBMISSION', 'Bill Submission Path', 'Where new bills are sent.', '/api/bill/sigqrequest'],
     ['gepg_endpoint_bill_reuse', 'GEPG_ENDPOINT_BILL_REUSE', 'Control Number Reuse Path', 'Where requests to reuse a control number are sent.', '/api/bill/sigqrequest_reuse'],

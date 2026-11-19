@@ -411,6 +411,41 @@ CREATE TABLE IF NOT EXISTS event_deliveries (
 ALTER TABLE gfs_codes ADD COLUMN IF NOT EXISTS billing_system_id INT NULL AFTER description;
 ALTER TABLE gfs_codes ADD INDEX IF NOT EXISTS idx_gfs_system (billing_system_id);
 
+-- every raw message: billing system to bridge, bridge to GePG, GePG to bridge
+CREATE TABLE IF NOT EXISTS message_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  direction VARCHAR(20) NOT NULL,
+  operation VARCHAR(60) NULL,
+  billing_system_id INT NULL,
+  billing_system_code VARCHAR(20) NULL,
+  bill_id VARCHAR(100) NULL,
+  reference VARCHAR(191) NULL,
+  method VARCHAR(10) NULL,
+  url VARCHAR(500) NULL,
+  ip_address VARCHAR(45) NULL,
+  forwarded_for VARCHAR(255) NULL,
+  user_agent VARCHAR(500) NULL,
+  request_headers TEXT NULL,
+  request_body MEDIUMTEXT NULL,
+  status_code INT NULL,
+  response_body MEDIUMTEXT NULL,
+  ack_code VARCHAR(10) NULL,
+  ok TINYINT(1) NOT NULL DEFAULT 0,
+  error VARCHAR(500) NULL,
+  duration_ms INT NULL,
+  truncated TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_msg_created (created_at),
+  INDEX idx_msg_direction (direction, created_at),
+  INDEX idx_msg_bill (bill_id),
+  INDEX idx_msg_system (billing_system_id, created_at),
+  INDEX idx_msg_ack (ack_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- audit rows keep whole payloads now, so TEXT (64 KB) is too small
+ALTER TABLE activity_logs MODIFY COLUMN request_data MEDIUMTEXT;
+ALTER TABLE activity_logs MODIFY COLUMN response_data MEDIUMTEXT;
+
 -- the first payment used to mark a bill PAID even when it was only partial; undo that
 UPDATE bills b SET b.status = 'APPROVED'
 WHERE b.status = 'PAID'
