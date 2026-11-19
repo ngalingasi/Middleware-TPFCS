@@ -24,6 +24,9 @@ export const gepgSettingsApi = {
   signingPublicCertificate: () =>
     gepgClient.get<GepgApiResponse<{ name: string; pem: string; der: string }>>('/settings/certificates/signing/public'),
 
+  signingPublicPfx: (password: string) =>
+    gepgClient.post<GepgApiResponse<{ name: string; data: string }>>('/settings/certificates/signing/public-pfx', { password }),
+
   removeCertificate: (kind: CertificateStatus['kind']) =>
     gepgClient.delete<GepgApiResponse<{ certificates: CertificateStatus[] }>>(`/settings/certificates/${kind}`),
 

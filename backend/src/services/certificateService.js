@@ -215,6 +215,19 @@ function signingPublic() {
   }
 }
 
+// The public certificate wrapped in a .pfx (PKCS#12) with no private key inside,
+// protected by a password the admin chooses. This is the form GePG asks for.
+function signingPublicPfx(password) {
+  if (!password || String(password).length < 4 || String(password).length > 64) {
+    throw new CertificateError('Choose a password for the file: 4 to 64 characters');
+  }
+  const found = signingPublic();
+  if (!found) return null;
+  const cert = forge.pki.certificateFromPem(found.pem);
+  const der = forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(null, [cert], String(password), { algorithm: '3des' })).getBytes();
+  return { name: found.name, data: Buffer.from(der, 'binary').toString('base64') };
+}
+
 async function remove(kind) {
   const def = KINDS[kind];
   if (!def) throw new CertificateError('Unknown certificate type');
@@ -245,6 +258,7 @@ module.exports = {
   save,
   generateSigning,
   signingPublic,
+  signingPublicPfx,
   remove,
   uploaded,
   signingKey: () => signing,

@@ -260,6 +260,21 @@ export default function SettingsPage() {
     }
   };
 
+  const downloadPublicPfx = async () => {
+    const password = window.prompt('Choose a password for the .pfx file (4 to 64 characters). Give the same password to GePG.');
+    if (password === null) return;
+    try {
+      const { name, data } = (await gepgSettingsApi.signingPublicPfx(password)).data.data;
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0))], { type: 'application/x-pkcs12' }));
+      link.download = `${name}-public.pfx`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (err) {
+      toast.error('Could not build the file', gepgErrorMessage(err));
+    }
+  };
+
   const removeCertificate = async (cert: CertificateStatus) => {
     if (!window.confirm(`Remove the uploaded certificate (${cert.label})? The value in .env (if any) is used again.`)) return;
     try {
@@ -358,6 +373,9 @@ export default function SettingsPage() {
                     <>
                       <Button type="button" size="sm" variant="outline" onClick={() => downloadPublic('cer')}>
                         Public .cer
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={downloadPublicPfx}>
+                        Public .pfx
                       </Button>
                       <Button type="button" size="sm" variant="outline" onClick={() => downloadPublic('pem')}>
                         Public .pem

@@ -172,6 +172,18 @@ async function signingPublicCertificate(req, res) {
   res.json({ success: true, data: found });
 }
 
+async function signingPublicPfx(req, res) {
+  try {
+    const found = certificates.signingPublicPfx(req.body && req.body.password);
+    if (!found) return res.status(404).json({ success: false, message: 'No public certificate to share: nothing is uploaded, or the uploaded file is only a private key.' });
+    res.json({ success: true, data: found });
+  } catch (error) {
+    if (error instanceof certificates.CertificateError) return res.status(400).json({ success: false, message: error.message });
+    console.error('Public pfx failed:', error);
+    res.status(500).json({ success: false, message: 'Could not build the file' });
+  }
+}
+
 async function removeCertificate(req, res) {
   const { kind } = req.params;
   try {
@@ -190,4 +202,4 @@ async function removeCertificate(req, res) {
   }
 }
 
-module.exports = { getSettings, updateSettings, getEnvironment, getStatus, uploadCertificate, removeCertificate, generateCertificate, signingPublicCertificate };
+module.exports = { getSettings, updateSettings, getEnvironment, getStatus, uploadCertificate, removeCertificate, generateCertificate, signingPublicCertificate, signingPublicPfx };
